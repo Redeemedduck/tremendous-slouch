@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import React, { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 
@@ -67,7 +67,7 @@ const DrillHeader = ({ title, subtitle, instructions }) => (
   </div>
 );
 
-const InputField = ({ label, value, onChange, placeholder, onSubmit, disabled }) => (
+const InputField = ({ label, value, onChange, placeholder = "", onSubmit, disabled = false }: any) => (
   <div style={{ flex: 1 }}>
     <label style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "10px", fontWeight: "600", color: "#999999", display: "block", marginBottom: "8px", letterSpacing: "1px", textTransform: "uppercase" }}>{label}</label>
     <input 
@@ -89,7 +89,7 @@ const InputField = ({ label, value, onChange, placeholder, onSubmit, disabled })
   </div>
 );
 
-const StatBox = ({ label, value, unit, subtext, highlight }) => (
+const StatBox = ({ label, value, unit = "", subtext = "", highlight = false }: any) => (
   <div style={{ background: highlight ? "rgba(212, 175, 55, 0.1)" : "rgba(255, 255, 255, 0.03)", padding: "24px", borderRadius: "8px", border: highlight ? "0.5px solid rgba(212, 175, 55, 0.5)" : "0.5px solid rgba(255, 255, 255, 0.1)" }}>
     <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "10px", letterSpacing: "1px", textTransform: "uppercase", opacity: 0.8, fontWeight: "600", color: highlight ? "#D4AF37" : "#999999" }}>{label}</div>
     <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "36px", color: highlight ? "#D4AF37" : "#F9F9F9", lineHeight: "1.2", margin: "8px 0" }}>
@@ -99,7 +99,7 @@ const StatBox = ({ label, value, unit, subtext, highlight }) => (
   </div>
 );
 
-const GoldButton = ({ onClick, disabled, children, style }) => (
+const GoldButton = ({ onClick, disabled = false, children, style = {} }: any) => (
   <button 
     onClick={onClick} 
     disabled={disabled} 
@@ -118,8 +118,8 @@ const GoldButton = ({ onClick, disabled, children, style }) => (
       transition: "opacity 0.3s ease",
       ...style 
     }}
-    onMouseOver={e => !disabled && (e.target.style.opacity = 0.9)}
-    onMouseOut={e => !disabled && (e.target.style.opacity = 1)}
+    onMouseOver={e => !disabled && ((e.target as HTMLElement).style.opacity = "0.9")}
+    onMouseOut={e => !disabled && ((e.target as HTMLElement).style.opacity = "1")}
   >
     {children}
   </button>
@@ -128,7 +128,7 @@ const GoldButton = ({ onClick, disabled, children, style }) => (
 // ============================================================
 // DRILL 1: 20-SHOT DISPERSION PATTERN
 // ============================================================
-const DispersionDrill = ({ handicap, customCarries }) => {
+const DispersionDrill = ({ handicap, customCarries, saveSession }: any) => {
   const [selectedClub, setSelectedClub] = useState("7i");
   const [shots, setShots] = useState([]);
   const [carry, setCarry] = useState("");
@@ -269,7 +269,7 @@ const DispersionDrill = ({ handicap, customCarries }) => {
 // ============================================================
 // DRILL 2: 7-IRON COMBINE
 // ============================================================
-const CombineDrill = ({ handicap, customCarries }) => {
+const CombineDrill = ({ handicap, customCarries, saveSession }: any) => {
   const [shots, setShots] = useState([]);
   const [carry, setCarry] = useState("");
   const [lateral, setLateral] = useState("");
@@ -342,7 +342,7 @@ const CombineDrill = ({ handicap, customCarries }) => {
                 </tr>
               ))}
               {shots.length === 0 && (
-                <tr><td colSpan="5" style={{ padding: "32px", textAlign: "center", color: "#666666", fontStyle: "italic" }}>Awaiting first shot...</td></tr>
+                <tr><td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#666666", fontStyle: "italic" }}>Awaiting first shot...</td></tr>
               )}
             </tbody>
           </table>
@@ -358,7 +358,7 @@ const CombineDrill = ({ handicap, customCarries }) => {
 // ============================================================
 // DRILL 3: WEDGE MATRIX
 // ============================================================
-const WedgeMatrixDrill = () => {
+const WedgeMatrixDrill = ({ saveSession }: any) => {
   const [shots, setShots] = useState({ 50: [], 75: [], 100: [] });
   const [currentDist, setCurrentDist] = useState(50);
   const [carry, setCarry] = useState("");
@@ -443,7 +443,7 @@ const WedgeMatrixDrill = () => {
                   <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#D4AF37", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "16px" }}>Overall Matrix Grade</div>
                   <div style={{ fontSize: "64px", fontFamily: "'Cormorant Garamond', serif", color: "#F9F9F9", margin: "0 0 16px 0", lineHeight: 1 }}>{score.avg} <span style={{fontSize:"24px", color:"#999"}}>yds avg error</span></div>
                   <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "20px", color: "#CCCCCC", letterSpacing: "1px" }}>Result: <span style={{ color: "#D4AF37" }}>{score.grade}</span></div>
-                  <button onClick={() => setShots({50:[], 75:[], 100:[]})} style={{ marginTop: "32px", padding: "12px 32px", background: "transparent", border: "0.5px solid rgba(255,255,255,0.2)", color: "#F9F9F9", borderRadius: "4px", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", transition: "all 0.3s ease" }} onMouseOver={e => e.target.style.background = "rgba(255,255,255,0.05)"} onMouseOut={e => e.target.style.background = "transparent"}>Start Over</button>
+                  <button onClick={() => setShots({50:[], 75:[], 100:[]})} style={{ marginTop: "32px", padding: "12px 32px", background: "transparent", border: "0.5px solid rgba(255,255,255,0.2)", color: "#F9F9F9", borderRadius: "4px", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", transition: "all 0.3s ease" }} onMouseOver={e => (e.target as HTMLElement).style.background = "rgba(255,255,255,0.05)"} onMouseOut={e => (e.target as HTMLElement).style.background = "transparent"}>Start Over</button>
               </div>
           )}
       </div>
@@ -453,7 +453,7 @@ const WedgeMatrixDrill = () => {
 // ============================================================
 // DRILL 4: UP & DOWN SCRAMBLE
 // ============================================================
-const ScrambleDrill = () => {
+const ScrambleDrill = ({ saveSession }: any) => {
   const [shots, setShots] = useState([]);
   const [feet, setFeet] = useState("");
 
@@ -523,7 +523,7 @@ const ScrambleDrill = () => {
 // ============================================================
 // DRILL 5: THE BIG 3 IMPACT LOGGER (ADAM YOUNG)
 // ============================================================
-const ImpactDrill = ({ saveSession }) => {
+const ImpactDrill = ({ saveSession }: any) => {
   const [shots, setShots] = useState([]);
   const [mode, setMode] = useState("feel"); // "feel" or "sim"
   
@@ -674,7 +674,7 @@ const ImpactDrill = ({ saveSession }) => {
 // ============================================================
 // DRILL 6: DECADE TIGER 5 SCORECARD
 // ============================================================
-const DecadeDrill = ({ saveSession }) => {
+const DecadeDrill = ({ saveSession }: any) => {
   const [stats, setStats] = useState({
     par5Bogeys: 0,
     doubleBogeys: 0,
@@ -747,7 +747,7 @@ const DecadeDrill = ({ saveSession }) => {
 // ============================================================
 // DATA VIEW: MODEL TARGETS
 // ============================================================
-const TargetTables = ({ handicap, customCarries, setCustomCarries }) => (
+const TargetTables = ({ handicap, customCarries, setCustomCarries }: any) => (
   <div style={{ padding: "20px 0" }}>
     <DrillHeader 
       title="Bag Setup & Targets" 
@@ -832,13 +832,14 @@ const TargetTables = ({ handicap, customCarries, setCustomCarries }) => (
 // ============================================================
 // AI COACH VIEW
 // ============================================================
-const AICoachView = ({ history, handicap, saveSession }) => {
+const AICoachView = ({ history, handicap, saveSession }: any) => {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadComment, setUploadComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [extractedPreview, setExtractedPreview] = useState(null);
 
   const handleUpload = async () => {
     if (!uploadFile) return;
@@ -847,52 +848,65 @@ const AICoachView = ({ history, handicap, saveSession }) => {
       const reader = new FileReader();
       reader.readAsDataURL(uploadFile);
       reader.onloadend = async () => {
-        const base64Data = reader.result.split(',')[1];
+        const base64Data = (reader.result as string).split(',')[1];
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         const prompt = `
-          You are a golf data extraction assistant.
-          Analyze the provided image (which could be a launch monitor screen like Trackman/Uneekor, a scorecard, or drill results) and the user's comment: "${uploadComment}".
+          You are an expert golf data extraction and swing analysis assistant.
+          Analyze the provided media (which could be a photo of a launch monitor screen, or a video of a golf swing) and the user's comment: "${uploadComment}".
           
+          If it's a launch monitor screen (e.g., Uneekor, Trackman):
           Determine the best drill category for this data from the following options:
-          - "Big 3 Impact" (if it shows face angle, club path, impact location)
-          - "7-Iron Combine" (if it shows carry distances and lateral misses for irons)
+          - "Big 3 Impact" (if the focus is on face angle, club path, face to path)
+          - "7-Iron Combine" (if it shows 7-iron carry distances and lateral misses)
           - "Wedge Matrix" (if it shows wedge distances)
           - "DECADE Tiger 5" (if it shows scorecard mistakes)
-          - "General Sim Session" (if it's just general launch monitor data)
+          - "General Sim Session" (if it's general launch monitor data)
 
-          Extract the relevant averages or totals.
-          Return ONLY a valid JSON object with this exact structure:
-          {
-            "drillName": "Name of the drill",
-            "data": {
-              "summary": "A brief 1-sentence summary of what was extracted.",
-              "extractedStats": { "Stat Name": "Value", "Another Stat": "Value" }
-            }
-          }
-          Do not include markdown formatting like \`\`\`json.
+          Carefully extract the relevant averages or totals from the data table. Look for the "Average" row if it exists.
+          Key metrics to extract if visible: Club used, Average Carry, Average Total Distance, Average Side/Offline, Average Club Speed, Average Ball Speed, Average Smash Factor, Face Angle, Club Path, Face to Path.
+          
+          If it's a video of a golf swing:
+          Set drillName to "Swing Analysis".
+          Provide a brief summary of the swing mechanics (e.g., posture, backswing, transition, impact).
+          Extract key observations as stats (e.g., "Tempo": "Smooth", "Clubface at Top": "Square", "Path": "In-to-out").
+          
+          Format the extracted stats clearly with labels and values.
         `;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-image-preview",
+          model: "gemini-3.1-pro-preview",
           contents: {
             parts: [
               { text: prompt },
               { inlineData: { data: base64Data, mimeType: uploadFile.type } }
             ]
+          },
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                drillName: { type: Type.STRING },
+                summary: { type: Type.STRING },
+                extractedStats: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      label: { type: Type.STRING },
+                      value: { type: Type.STRING }
+                    }
+                  }
+                }
+              }
+            },
+            thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
           }
         });
 
         try {
-          let jsonStr = response.text.trim();
-          if (jsonStr.startsWith('\`\`\`json')) jsonStr = jsonStr.replace(/\`\`\`json/g, '');
-          if (jsonStr.startsWith('\`\`\`')) jsonStr = jsonStr.replace(/\`\`\`/g, '');
-          jsonStr = jsonStr.trim();
-          
-          const parsedData = JSON.parse(jsonStr);
-          saveSession(parsedData.drillName || "General Sim Session", parsedData.data);
-          
-          setUploadFile(null);
-          setUploadComment("");
+          const parsedData = JSON.parse(response.text.trim());
+          setExtractedPreview(parsedData);
         } catch (e) {
           console.error(e);
           alert("Could not parse the data. Please try again.");
@@ -901,9 +915,43 @@ const AICoachView = ({ history, handicap, saveSession }) => {
       };
     } catch (error) {
       console.error(error);
-      alert("Error processing image.");
+      alert("Error processing media.");
       setIsUploading(false);
     }
+  };
+
+  const confirmAndSave = () => {
+    if (!extractedPreview) return;
+    saveSession(extractedPreview.drillName || "General Sim Session", {
+      summary: extractedPreview.summary,
+      extractedStats: extractedPreview.extractedStats
+    });
+    setUploadFile(null);
+    setUploadComment("");
+    setExtractedPreview(null);
+  };
+
+  const getQuickTip = async () => {
+    setLoading(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `
+        You are an elite golf instructor. The student's handicap is ${handicap}.
+        Provide one very short, actionable golf tip (max 2 sentences) tailored to this handicap level.
+        Do not use markdown formatting.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
+      
+      setAnalysis(`**Quick Tip:** ${response.text}`);
+    } catch (error) {
+      console.error(error);
+      setAnalysis("Error generating quick tip. Please try again.");
+    }
+    setLoading(false);
   };
 
   const getAIAdvice = async () => {
@@ -927,6 +975,9 @@ const AICoachView = ({ history, handicap, saveSession }) => {
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
         contents: prompt,
+        config: {
+          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+        }
       });
       
       setAnalysis(response.text);
@@ -967,8 +1018,14 @@ const AICoachView = ({ history, handicap, saveSession }) => {
                     {session.drill === "Big 3 Impact" && session.data.mode === "feel" && `Centered: ${session.data.feelStats.centeredStrike}%`}
                     {session.drill === "Big 3 Impact" && session.data.mode === "sim" && `Avg Face-to-Path: ${session.data.simStats.avgFaceToPath}°`}
                     {session.drill === "DECADE Tiger 5" && session.data.totalMistakes !== undefined && `Total Errors: ${session.data.totalMistakes}`}
-                    {session.data.summary && <div>{session.data.summary}</div>}
-                    {session.data.extractedStats && <div>{Object.entries(session.data.extractedStats).map(([k, v]) => `${k}: ${v}`).join(' | ')}</div>}
+                    {session.data.summary && <div style={{ marginTop: "8px", fontStyle: "italic", color: "#D4AF37" }}>{session.data.summary}</div>}
+                    {session.data.extractedStats && Array.isArray(session.data.extractedStats) && (
+                      <div style={{ marginTop: "4px" }}>
+                        {session.data.extractedStats.map((stat, i) => (
+                          <span key={i} style={{ marginRight: "12px" }}>{stat.label}: {stat.value}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -979,13 +1036,13 @@ const AICoachView = ({ history, handicap, saveSession }) => {
         <div style={{ flex: "2 1 400px" }}>
           <div style={{ background: "rgba(255,255,255,0.02)", padding: "32px", borderRadius: "8px", border: "0.5px solid rgba(255,255,255,0.1)", marginBottom: "24px" }}>
             <h3 style={{ margin: "0 0 16px 0", fontFamily: "'Cormorant Garamond', serif", fontSize: "24px", color: "#D4AF37", fontWeight: 400 }}>Smart Data Import</h3>
-            <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#999", marginBottom: "16px", lineHeight: "1.6" }}>Upload a photo of your Uneekor, Trackman, or scorecard. Add context, and Gemini will automatically extract and log the session.</p>
+            <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#999", marginBottom: "16px", lineHeight: "1.6" }}>Upload a photo of your Uneekor/Trackman screen, or a video of your golf swing. Add context, and Gemini will automatically extract stats or analyze your swing.</p>
             
             <div>
               <input 
                 type="file" 
                 id="smart-upload"
-                accept="image/*" 
+                accept="image/*,video/*" 
                 onChange={e => setUploadFile(e.target.files[0])} 
                 style={{ display: "none" }} 
               />
@@ -1007,7 +1064,7 @@ const AICoachView = ({ history, handicap, saveSession }) => {
                 boxSizing: "border-box",
                 transition: "all 0.3s ease"
               }}>
-                {uploadFile ? `📷 ${uploadFile.name}` : "📷 Select Photo to Upload"}
+                {uploadFile ? `📎 ${uploadFile.name}` : "📷/🎥 Select Photo or Video"}
               </label>
             </div>
             
@@ -1024,16 +1081,45 @@ const AICoachView = ({ history, handicap, saveSession }) => {
             />
             
             <GoldButton onClick={handleUpload} disabled={!uploadFile || isUploading} style={{ width: "100%" }}>
-              {isUploading ? "Extracting Data..." : "Process & Save Session"}
+              {isUploading ? "Extracting Data..." : "Process Image"}
             </GoldButton>
+
+            {extractedPreview && (
+              <div style={{ marginTop: "24px", padding: "24px", background: "rgba(212, 175, 55, 0.05)", border: "0.5px solid #D4AF37", borderRadius: "8px" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#D4AF37", textTransform: "uppercase", letterSpacing: "1px" }}>Data Extracted Successfully</h4>
+                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "14px", color: "#F9F9F9", marginBottom: "8px" }}>
+                  <strong>Category:</strong> {extractedPreview.drillName}
+                </div>
+                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#CCCCCC", marginBottom: "16px", fontStyle: "italic" }}>
+                  {extractedPreview.summary}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "24px" }}>
+                  {extractedPreview.extractedStats?.map((stat, i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.05)", padding: "8px 12px", borderRadius: "4px", fontSize: "12px" }}>
+                      <span style={{ color: "#999", display: "block", fontSize: "10px", textTransform: "uppercase" }}>{stat.label}</span>
+                      <span style={{ color: "#F9F9F9", fontWeight: "600" }}>{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <button onClick={() => setExtractedPreview(null)} style={{ flex: 1, padding: "12px", background: "transparent", border: "0.5px solid rgba(255,255,255,0.2)", color: "#F9F9F9", borderRadius: "4px", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px" }}>Discard</button>
+                  <GoldButton onClick={confirmAndSave} style={{ flex: 2 }}>Confirm & Save to Database</GoldButton>
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ background: "rgba(212, 175, 55, 0.05)", padding: "32px", borderRadius: "8px", border: "0.5px solid rgba(212, 175, 55, 0.3)", minHeight: "300px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
               <h3 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: "24px", color: "#D4AF37", fontWeight: 400 }}>Coach Analysis</h3>
-              <GoldButton onClick={getAIAdvice} disabled={history.length === 0 || loading}>
-                {loading ? "Analyzing..." : "Generate Insights"}
-              </GoldButton>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button onClick={getQuickTip} disabled={loading} style={{ padding: "12px 24px", background: "transparent", border: "0.5px solid rgba(255,255,255,0.2)", color: "#F9F9F9", borderRadius: "4px", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  Quick Tip
+                </button>
+                <GoldButton onClick={getAIAdvice} disabled={history.length === 0 || loading}>
+                  {loading ? "Analyzing..." : "Generate Insights"}
+                </GoldButton>
+              </div>
             </div>
             
             <div className="markdown-body" style={{ color: "#F9F9F9", fontFamily: "'Montserrat', sans-serif", fontSize: "14px", lineHeight: "1.8", flex: 1 }}>
@@ -1063,27 +1149,43 @@ export default function App() {
 
   // Load history on mount
   useEffect(() => {
-    const saved = localStorage.getItem("golf_dispersion_history");
-    if (saved) {
+    const fetchHistory = async () => {
       try {
-        setHistory(JSON.parse(saved));
+        const res = await fetch("/api/sessions");
+        if (res.ok) {
+          const data = await res.json();
+          setHistory(data);
+        }
       } catch (e) {
-        console.error("Failed to parse history", e);
+        console.error("Failed to fetch history from database", e);
       }
-    }
+    };
+    fetchHistory();
   }, []);
 
-  const saveSession = (drillName, data) => {
+  const saveSession = async (drillName, data) => {
     const newSession = {
-      id: Date.now(),
+      id: Date.now().toString(),
       date: new Date().toISOString(),
       drill: drillName,
       data
     };
-    const newHistory = [...history, newSession];
-    setHistory(newHistory);
-    localStorage.setItem("golf_dispersion_history", JSON.stringify(newHistory));
-    alert(`${drillName} session saved successfully.`);
+    
+    // Optimistic update
+    setHistory([...history, newSession]);
+    
+    try {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSession)
+      });
+      if (!res.ok) throw new Error("Failed to save to database");
+      alert(`${drillName} session saved successfully to database.`);
+    } catch (e) {
+      console.error(e);
+      alert("Error saving session to database. It has been saved locally for this session.");
+    }
   };
 
   const tabs = [
@@ -1141,7 +1243,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 24px" }}>
-        {activeTab === "dispersion" && <DispersionDrill handicap={handicap} customCarries={customCarries} />}
+        {activeTab === "dispersion" && <DispersionDrill handicap={handicap} customCarries={customCarries} saveSession={saveSession} />}
         {activeTab === "combine" && <CombineDrill handicap={handicap} customCarries={customCarries} saveSession={saveSession} />}
         {activeTab === "wedge" && <WedgeMatrixDrill saveSession={saveSession} />}
         {activeTab === "scramble" && <ScrambleDrill saveSession={saveSession} />}
