@@ -981,12 +981,35 @@ const AICoachView = ({ history, handicap, saveSession }) => {
             <h3 style={{ margin: "0 0 16px 0", fontFamily: "'Cormorant Garamond', serif", fontSize: "24px", color: "#D4AF37", fontWeight: 400 }}>Smart Data Import</h3>
             <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "12px", color: "#999", marginBottom: "16px", lineHeight: "1.6" }}>Upload a photo of your Uneekor, Trackman, or scorecard. Add context, and Gemini will automatically extract and log the session.</p>
             
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={e => setUploadFile(e.target.files[0])} 
-              style={{ marginBottom: "16px", color: "#F9F9F9", fontFamily: "'Montserrat', sans-serif", fontSize: "12px", width: "100%" }} 
-            />
+            <div>
+              <input 
+                type="file" 
+                id="smart-upload"
+                accept="image/*" 
+                onChange={e => setUploadFile(e.target.files[0])} 
+                style={{ display: "none" }} 
+              />
+              <label htmlFor="smart-upload" style={{ 
+                display: "inline-block",
+                padding: "12px 24px", 
+                background: uploadFile ? "rgba(212, 175, 55, 0.2)" : "rgba(255, 255, 255, 0.05)", 
+                border: uploadFile ? "0.5px solid #D4AF37" : "0.5px solid rgba(255, 255, 255, 0.2)", 
+                color: uploadFile ? "#D4AF37" : "#F9F9F9", 
+                borderRadius: "4px", 
+                cursor: "pointer",
+                fontFamily: "'Montserrat', sans-serif", 
+                fontSize: "12px", 
+                textTransform: "uppercase", 
+                letterSpacing: "1px",
+                marginBottom: "16px",
+                width: "100%",
+                textAlign: "center",
+                boxSizing: "border-box",
+                transition: "all 0.3s ease"
+              }}>
+                {uploadFile ? `📷 ${uploadFile.name}` : "📷 Select Photo to Upload"}
+              </label>
+            </div>
             
             <textarea 
               placeholder="Add context (e.g., 'Working on hitting draws with my 7-iron')"
