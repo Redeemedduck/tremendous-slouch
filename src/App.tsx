@@ -245,7 +245,7 @@ function SpotsIndicator({ filled, total }: { filled: number; total: number }) {
         ))}
       </div>
       <span className="text-xs font-medium text-stone-500">
-        <Users className="inline h-3 w-3 -mt-0.5" /> {filled} of {total}
+        <Users className="inline h-3 w-3 -mt-0.5" /> {filled} of {total} spots
       </span>
     </div>
   );
@@ -263,7 +263,7 @@ function PlayerChip({
   onDrop?: () => void;
 }) {
   const base =
-    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium";
+    "inline-flex min-h-10 items-center gap-1 rounded-full px-3.5 py-1.5 text-sm font-medium";
   const cls = isMe
     ? "bg-fairway-100 text-fairway-900"
     : "bg-stone-100 text-stone-700";
@@ -325,7 +325,7 @@ function Header({
     <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-stone-200 bg-stone-50/85 px-4 py-3 backdrop-blur">
       <div className="mx-auto flex max-w-md items-center justify-between">
         <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-          Golf Group
+          DJDI Golf Board
         </h1>
         {myName ? (
           <p className="text-xs text-stone-500">
@@ -354,7 +354,7 @@ function NamePromptInline({
   return (
     <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
       <p className="mb-3 text-sm text-stone-600">
-        What name should we put on your spots?
+        What name should we use for your spots?
       </p>
       <form
         className="flex gap-2"
@@ -432,7 +432,7 @@ function TeeTimeCard({
               type="button"
               aria-label="Host options"
               onClick={() => setMenuOpen((v) => !v)}
-              className="rounded-full p-1 text-stone-500 hover:bg-stone-100"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
@@ -451,7 +451,7 @@ function TeeTimeCard({
                       setMenuOpen(false);
                       if (
                         window.confirm(
-                          `Delete this tee time at ${teeTime.course}? This can't be undone.`
+                          `Delete ${teeTime.course} on ${formatDateLabel(teeTime.date)} at ${formatTimeLabel(teeTime.time)}? This can't be undone.`
                         )
                       ) {
                         onDelete();
@@ -512,7 +512,7 @@ function TeeTimeCard({
           disabled={full || !myName}
           className="mt-4 w-full rounded-xl bg-fairway-600 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-fairway-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
         >
-          {full ? "Full" : !myName ? "Add your name to claim" : "Claim a spot"}
+          {full ? "Full" : !myName ? "Add your name first" : "Claim a spot"}
         </button>
       )}
     </article>
@@ -613,7 +613,7 @@ function NewTeeTimeSheet({
         onClick={onClose}
         className="absolute inset-0 bg-stone-900/40"
       />
-      <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-md rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
+      <div className="absolute bottom-0 left-0 right-0 mx-auto max-h-[calc(100dvh-1rem)] max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-stone-900">New tee time</h2>
@@ -621,7 +621,7 @@ function NewTeeTimeSheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full p-1 text-stone-500 hover:bg-stone-100"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
           >
             <X className="h-5 w-5" />
           </button>
@@ -771,7 +771,7 @@ export default function App() {
               No tee times yet
             </p>
             <p className="mt-1 text-sm text-stone-500">
-              Tap <span className="font-medium">+</span> to post one.
+              Tap <span className="font-medium">+ New tee time</span> to post one.
             </p>
           </div>
         ) : (
@@ -828,9 +828,9 @@ export default function App() {
           type="button"
           onClick={() => setSheetOpen(true)}
           aria-label="New tee time"
-          className="fixed bottom-6 right-4 z-30 flex items-center gap-1.5 rounded-full bg-fairway-600 px-5 py-3 font-semibold text-white shadow-lg hover:bg-fairway-700"
+          className="fixed right-4 z-30 flex items-center gap-1.5 rounded-full bg-fairway-600 px-5 py-3 font-semibold text-white shadow-lg hover:bg-fairway-700"
           style={{
-            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+            bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
           }}
         >
           <Plus className="h-5 w-5" />

@@ -133,10 +133,10 @@ const claimTx = db.transaction(
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
     const claims = JSON.parse(row.claims) as Claim[];
-    if (claims.length >= row.spots) throw new ConflictError("Tee time is full");
+    if (claims.length >= row.spots) throw new ConflictError("That tee time is full");
     const lower = claimerName.toLowerCase();
     if (claims.some((c) => c.name.toLowerCase() === lower)) {
-      throw new ConflictError("Already claimed by that name");
+      throw new ConflictError("That name already has a spot");
     }
     claims.push({ name: claimerName, claimedAt });
     return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
