@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Plus,
   Clock,
@@ -25,7 +31,6 @@ type TeeTime = {
   notes: string | null;
   claims: Claim[];
   createdAt: string;
-  startsAtUtc: string;
 };
 type NewTeeTimeInput = {
   course: string;
@@ -63,7 +68,10 @@ const formatTimeLabel = (hhmm: string) => {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 };
 
-const isPast = (startsAtUtc: string) => Date.parse(startsAtUtc) < Date.now();
+// Naive datetime: interpreted in the client's local timezone, which is correct
+// for a single-region group. Server stores date/time as opaque strings.
+const isPast = (t: { date: string; time: string }) =>
+  new Date(`${t.date}T${t.time}:00`).getTime() < Date.now();
 
 const todayISO = () => {
   const now = new Date();
@@ -145,7 +153,10 @@ function useTeeTimes(onError: (msg: string) => void) {
     setTeeTimes((prev) => {
       const next = prev.filter((t) => t.id !== updated.id);
       next.push(updated);
-      next.sort((a, b) => a.startsAtUtc.localeCompare(b.startsAtUtc));
+      next.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time.localeCompare(b.time);
+      });
       return next;
     });
   }, []);
@@ -632,6 +643,7 @@ function NewTeeTimeSheet({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                min={todayISO()}
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
               />
             </Field>
@@ -715,7 +727,7 @@ export default function App() {
     const upcoming: TeeTime[] = [];
     const past: TeeTime[] = [];
     for (const t of teeTimes) {
-      if (isPast(t.startsAtUtc)) past.push(t);
+      if (isPast(t)) past.push(t);
       else upcoming.push(t);
     }
     past.reverse();

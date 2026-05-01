@@ -3,23 +3,25 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
+// ============================================================
+// DATABASE
+// ============================================================
 const db = new Database("golf_coordinator.db");
 db.pragma("journal_mode = WAL");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS tee_times (
-    id            TEXT PRIMARY KEY,
-    course        TEXT NOT NULL,
-    date          TEXT NOT NULL,
-    time          TEXT NOT NULL,
-    spots         INTEGER NOT NULL,
-    host          TEXT NOT NULL,
-    notes         TEXT,
-    claims        TEXT NOT NULL DEFAULT '[]',
-    created_at    TEXT NOT NULL,
-    starts_at_utc TEXT NOT NULL
+    id         TEXT PRIMARY KEY,
+    course     TEXT NOT NULL,
+    date       TEXT NOT NULL,            -- YYYY-MM-DD (naive local date)
+    time       TEXT NOT NULL,            -- HH:MM 24h (naive local time)
+    spots      INTEGER NOT NULL,
+    host       TEXT NOT NULL,
+    notes      TEXT,
+    claims     TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_tee_times_starts_at ON tee_times(starts_at_utc);
+  CREATE INDEX IF NOT EXISTS idx_tee_times_when ON tee_times(date, time);
 `);
 
 type TeeTimeRow = {
@@ -32,7 +34,6 @@ type TeeTimeRow = {
   notes: string | null;
   claims: string;
   created_at: string;
-  starts_at_utc: string;
 };
 
 type Claim = { name: string; claimedAt: string };
@@ -47,9 +48,28 @@ const rowToTeeTime = (row: TeeTimeRow) => ({
   notes: row.notes,
   claims: JSON.parse(row.claims) as Claim[],
   createdAt: row.created_at,
-  startsAtUtc: row.starts_at_utc,
 });
 
+// ============================================================
+// PREPARED STATEMENTS (hoisted to module scope so SQLite parses each only once)
+// ============================================================
+const stmtSelectAll = db.prepare(
+  `SELECT * FROM tee_times ORDER BY date ASC, time ASC`
+);
+const stmtSelectById = db.prepare(`SELECT * FROM tee_times WHERE id = ?`);
+const stmtInsert = db.prepare(`
+  INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  RETURNING *
+`);
+const stmtUpdateClaims = db.prepare(
+  `UPDATE tee_times SET claims = ? WHERE id = ? RETURNING *`
+);
+const stmtDelete = db.prepare(`DELETE FROM tee_times WHERE id = ?`);
+
+// ============================================================
+// VALIDATION
+// ============================================================
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 const NAME_MAX = 30;
@@ -57,7 +77,6 @@ const COURSE_MAX = 80;
 const NOTES_MAX = 240;
 const SPOTS_MIN = 1;
 const SPOTS_MAX = 6;
-const PAST_SLACK_MS = 30 * 60 * 1000;
 
 class ValidationError extends Error {
   status = 400;
@@ -77,13 +96,6 @@ const trimStr = (v: unknown, max: number, label: string) => {
   return trimmed;
 };
 
-const computeStartsAtUtc = (date: string, time: string) => {
-  // Server-local timezone. Acceptable for a single-region group; documented in README.
-  const d = new Date(`${date}T${time}:00`);
-  if (Number.isNaN(d.getTime())) throw new ValidationError("Invalid date or time");
-  return d.toISOString();
-};
-
 const validateNewTeeTime = (body: any) => {
   const course = trimStr(body?.course, COURSE_MAX, "Course");
   const host = trimStr(body?.host, NAME_MAX, "Host name");
@@ -91,9 +103,18 @@ const validateNewTeeTime = (body: any) => {
   if (!DATE_RE.test(date)) throw new ValidationError("Date must be YYYY-MM-DD");
   const time = String(body?.time ?? "");
   if (!TIME_RE.test(time)) throw new ValidationError("Time must be HH:MM");
+  // Sanity-check the time fields without doing timezone math: server stores
+  // these as naive strings and lets the client interpret them in the user's
+  // local timezone (single-region group).
+  const [hh, mm] = time.split(":").map(Number);
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+    throw new ValidationError("Time must be HH:MM");
+  }
   const spots = Number(body?.spots);
   if (!Number.isInteger(spots) || spots < SPOTS_MIN || spots > SPOTS_MAX) {
-    throw new ValidationError(`Spots must be an integer between ${SPOTS_MIN} and ${SPOTS_MAX}`);
+    throw new ValidationError(
+      `Spots must be an integer between ${SPOTS_MIN} and ${SPOTS_MAX}`
+    );
   }
   let notes: string | null = null;
   if (body?.notes != null && String(body.notes).trim() !== "") {
@@ -101,13 +122,43 @@ const validateNewTeeTime = (body: any) => {
     if (trimmed.length > NOTES_MAX) throw new ValidationError("Notes are too long");
     notes = trimmed;
   }
-  const startsAtUtc = computeStartsAtUtc(date, time);
-  if (Date.parse(startsAtUtc) < Date.now() - PAST_SLACK_MS) {
-    throw new ValidationError("Tee time must be in the future");
-  }
-  return { course, host, date, time, spots, notes, startsAtUtc };
+  return { course, host, date, time, spots, notes };
 };
 
+// ============================================================
+// TRANSACTIONS
+// ============================================================
+const claimTx = db.transaction(
+  (teeId: string, claimerName: string, claimedAt: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const claims = JSON.parse(row.claims) as Claim[];
+    if (claims.length >= row.spots) throw new ConflictError("Tee time is full");
+    const lower = claimerName.toLowerCase();
+    if (claims.some((c) => c.name.toLowerCase() === lower)) {
+      throw new ConflictError("Already claimed by that name");
+    }
+    claims.push({ name: claimerName, claimedAt });
+    return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
+  }
+);
+
+const dropTx = db.transaction(
+  (teeId: string, claimerName: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const claims = JSON.parse(row.claims) as Claim[];
+    const lower = claimerName.toLowerCase();
+    const idx = claims.findIndex((c) => c.name.toLowerCase() === lower);
+    if (idx === -1) throw new NotFoundError("No claim by that name");
+    claims.splice(idx, 1);
+    return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
+  }
+);
+
+// ============================================================
+// SERVER
+// ============================================================
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -116,9 +167,7 @@ async function startServer() {
 
   app.get("/api/teetimes", (_req, res) => {
     try {
-      const rows = db
-        .prepare("SELECT * FROM tee_times ORDER BY starts_at_utc ASC")
-        .all() as TeeTimeRow[];
+      const rows = stmtSelectAll.all() as TeeTimeRow[];
       res.json({ teeTimes: rows.map(rowToTeeTime) });
     } catch (err) {
       console.error("GET /api/teetimes failed:", err);
@@ -132,10 +181,7 @@ async function startServer() {
       const id = randomUUID();
       const createdAt = new Date().toISOString();
       const claims: Claim[] = [{ name: v.host, claimedAt: createdAt }];
-      db.prepare(
-        `INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, created_at, starts_at_utc)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
+      const row = stmtInsert.get(
         id,
         v.course,
         v.date,
@@ -144,12 +190,8 @@ async function startServer() {
         v.host,
         v.notes,
         JSON.stringify(claims),
-        createdAt,
-        v.startsAtUtc
-      );
-      const row = db
-        .prepare("SELECT * FROM tee_times WHERE id = ?")
-        .get(id) as TeeTimeRow;
+        createdAt
+      ) as TeeTimeRow;
       res.status(201).json({ teeTime: rowToTeeTime(row) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });
@@ -163,29 +205,7 @@ async function startServer() {
       const id = req.params.id;
       const name = trimStr(req.body?.name, NAME_MAX, "Name");
       const claimedAt = new Date().toISOString();
-
-      const tx = db.transaction((teeId: string, claimerName: string) => {
-        const row = db
-          .prepare("SELECT * FROM tee_times WHERE id = ?")
-          .get(teeId) as TeeTimeRow | undefined;
-        if (!row) throw new NotFoundError("Tee time not found");
-        const claims = JSON.parse(row.claims) as Claim[];
-        if (claims.length >= row.spots) throw new ConflictError("Tee time is full");
-        const lower = claimerName.toLowerCase();
-        if (claims.some((c) => c.name.toLowerCase() === lower)) {
-          throw new ConflictError("Already claimed by that name");
-        }
-        claims.push({ name: claimerName, claimedAt });
-        db.prepare("UPDATE tee_times SET claims = ? WHERE id = ?").run(
-          JSON.stringify(claims),
-          teeId
-        );
-        return db
-          .prepare("SELECT * FROM tee_times WHERE id = ?")
-          .get(teeId) as TeeTimeRow;
-      });
-
-      const updated = tx.immediate(id, name);
+      const updated = claimTx.immediate(id, name, claimedAt);
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });
@@ -199,27 +219,7 @@ async function startServer() {
       const id = req.params.id;
       const name = decodeURIComponent(req.params.name).trim();
       if (!name) throw new ValidationError("Name is required");
-
-      const tx = db.transaction((teeId: string, claimerName: string) => {
-        const row = db
-          .prepare("SELECT * FROM tee_times WHERE id = ?")
-          .get(teeId) as TeeTimeRow | undefined;
-        if (!row) throw new NotFoundError("Tee time not found");
-        const claims = JSON.parse(row.claims) as Claim[];
-        const lower = claimerName.toLowerCase();
-        const idx = claims.findIndex((c) => c.name.toLowerCase() === lower);
-        if (idx === -1) throw new NotFoundError("No claim by that name");
-        claims.splice(idx, 1);
-        db.prepare("UPDATE tee_times SET claims = ? WHERE id = ?").run(
-          JSON.stringify(claims),
-          teeId
-        );
-        return db
-          .prepare("SELECT * FROM tee_times WHERE id = ?")
-          .get(teeId) as TeeTimeRow;
-      });
-
-      const updated = tx.immediate(id, name);
+      const updated = dropTx.immediate(id, name);
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });
@@ -231,7 +231,7 @@ async function startServer() {
   app.delete("/api/teetimes/:id", (req, res) => {
     try {
       const id = req.params.id;
-      const result = db.prepare("DELETE FROM tee_times WHERE id = ?").run(id);
+      const result = stmtDelete.run(id);
       if (result.changes === 0) {
         return res.status(404).json({ error: "Tee time not found" });
       }
