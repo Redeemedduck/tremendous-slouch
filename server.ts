@@ -1,18 +1,112 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 
-const db = new Database("golf_sessions.db");
+const db = new Database("golf_coordinator.db");
+db.pragma("journal_mode = WAL");
 
-// Initialize database table
 db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    date TEXT,
-    drill TEXT,
-    data TEXT
-  )
+  CREATE TABLE IF NOT EXISTS tee_times (
+    id            TEXT PRIMARY KEY,
+    course        TEXT NOT NULL,
+    date          TEXT NOT NULL,
+    time          TEXT NOT NULL,
+    spots         INTEGER NOT NULL,
+    host          TEXT NOT NULL,
+    notes         TEXT,
+    claims        TEXT NOT NULL DEFAULT '[]',
+    created_at    TEXT NOT NULL,
+    starts_at_utc TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_tee_times_starts_at ON tee_times(starts_at_utc);
 `);
+
+type TeeTimeRow = {
+  id: string;
+  course: string;
+  date: string;
+  time: string;
+  spots: number;
+  host: string;
+  notes: string | null;
+  claims: string;
+  created_at: string;
+  starts_at_utc: string;
+};
+
+type Claim = { name: string; claimedAt: string };
+
+const rowToTeeTime = (row: TeeTimeRow) => ({
+  id: row.id,
+  course: row.course,
+  date: row.date,
+  time: row.time,
+  spots: row.spots,
+  host: row.host,
+  notes: row.notes,
+  claims: JSON.parse(row.claims) as Claim[],
+  createdAt: row.created_at,
+  startsAtUtc: row.starts_at_utc,
+});
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+const NAME_MAX = 30;
+const COURSE_MAX = 80;
+const NOTES_MAX = 240;
+const SPOTS_MIN = 1;
+const SPOTS_MAX = 6;
+const PAST_SLACK_MS = 30 * 60 * 1000;
+
+class ValidationError extends Error {
+  status = 400;
+}
+class ConflictError extends Error {
+  status = 409;
+}
+class NotFoundError extends Error {
+  status = 404;
+}
+
+const trimStr = (v: unknown, max: number, label: string) => {
+  if (typeof v !== "string") throw new ValidationError(`${label} is required`);
+  const trimmed = v.trim();
+  if (!trimmed) throw new ValidationError(`${label} is required`);
+  if (trimmed.length > max) throw new ValidationError(`${label} is too long`);
+  return trimmed;
+};
+
+const computeStartsAtUtc = (date: string, time: string) => {
+  // Server-local timezone. Acceptable for a single-region group; documented in README.
+  const d = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(d.getTime())) throw new ValidationError("Invalid date or time");
+  return d.toISOString();
+};
+
+const validateNewTeeTime = (body: any) => {
+  const course = trimStr(body?.course, COURSE_MAX, "Course");
+  const host = trimStr(body?.host, NAME_MAX, "Host name");
+  const date = String(body?.date ?? "");
+  if (!DATE_RE.test(date)) throw new ValidationError("Date must be YYYY-MM-DD");
+  const time = String(body?.time ?? "");
+  if (!TIME_RE.test(time)) throw new ValidationError("Time must be HH:MM");
+  const spots = Number(body?.spots);
+  if (!Number.isInteger(spots) || spots < SPOTS_MIN || spots > SPOTS_MAX) {
+    throw new ValidationError(`Spots must be an integer between ${SPOTS_MIN} and ${SPOTS_MAX}`);
+  }
+  let notes: string | null = null;
+  if (body?.notes != null && String(body.notes).trim() !== "") {
+    const trimmed = String(body.notes).trim();
+    if (trimmed.length > NOTES_MAX) throw new ValidationError("Notes are too long");
+    notes = trimmed;
+  }
+  const startsAtUtc = computeStartsAtUtc(date, time);
+  if (Date.parse(startsAtUtc) < Date.now() - PAST_SLACK_MS) {
+    throw new ValidationError("Tee time must be in the future");
+  }
+  return { course, host, date, time, spots, notes, startsAtUtc };
+};
 
 async function startServer() {
   const app = express();
@@ -20,37 +114,134 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API Routes
-  app.get("/api/sessions", (req, res) => {
+  app.get("/api/teetimes", (_req, res) => {
     try {
-      const stmt = db.prepare("SELECT * FROM sessions ORDER BY date ASC");
-      const rows = stmt.all();
-      const sessions = rows.map((row: any) => ({
-        id: row.id,
-        date: row.date,
-        drill: row.drill,
-        data: JSON.parse(row.data)
-      }));
-      res.json(sessions);
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
-      res.status(500).json({ error: "Failed to fetch sessions" });
+      const rows = db
+        .prepare("SELECT * FROM tee_times ORDER BY starts_at_utc ASC")
+        .all() as TeeTimeRow[];
+      res.json({ teeTimes: rows.map(rowToTeeTime) });
+    } catch (err) {
+      console.error("GET /api/teetimes failed:", err);
+      res.status(500).json({ error: "Failed to load tee times" });
     }
   });
 
-  app.post("/api/sessions", (req, res) => {
+  app.post("/api/teetimes", (req, res) => {
     try {
-      const { id, date, drill, data } = req.body;
-      const stmt = db.prepare("INSERT INTO sessions (id, date, drill, data) VALUES (?, ?, ?, ?)");
-      stmt.run(id, date, drill, JSON.stringify(data));
-      res.json({ success: true, id });
-    } catch (error) {
-      console.error("Error saving session:", error);
-      res.status(500).json({ error: "Failed to save session" });
+      const v = validateNewTeeTime(req.body);
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const claims: Claim[] = [{ name: v.host, claimedAt: createdAt }];
+      db.prepare(
+        `INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, created_at, starts_at_utc)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        id,
+        v.course,
+        v.date,
+        v.time,
+        v.spots,
+        v.host,
+        v.notes,
+        JSON.stringify(claims),
+        createdAt,
+        v.startsAtUtc
+      );
+      const row = db
+        .prepare("SELECT * FROM tee_times WHERE id = ?")
+        .get(id) as TeeTimeRow;
+      res.status(201).json({ teeTime: rowToTeeTime(row) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/teetimes failed:", err);
+      res.status(500).json({ error: "Failed to create tee time" });
     }
   });
 
-  // Vite middleware for development and serving static files
+  app.post("/api/teetimes/:id/claims", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = trimStr(req.body?.name, NAME_MAX, "Name");
+      const claimedAt = new Date().toISOString();
+
+      const tx = db.transaction((teeId: string, claimerName: string) => {
+        const row = db
+          .prepare("SELECT * FROM tee_times WHERE id = ?")
+          .get(teeId) as TeeTimeRow | undefined;
+        if (!row) throw new NotFoundError("Tee time not found");
+        const claims = JSON.parse(row.claims) as Claim[];
+        if (claims.length >= row.spots) throw new ConflictError("Tee time is full");
+        const lower = claimerName.toLowerCase();
+        if (claims.some((c) => c.name.toLowerCase() === lower)) {
+          throw new ConflictError("Already claimed by that name");
+        }
+        claims.push({ name: claimerName, claimedAt });
+        db.prepare("UPDATE tee_times SET claims = ? WHERE id = ?").run(
+          JSON.stringify(claims),
+          teeId
+        );
+        return db
+          .prepare("SELECT * FROM tee_times WHERE id = ?")
+          .get(teeId) as TeeTimeRow;
+      });
+
+      const updated = tx.immediate(id, name);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/teetimes/:id/claims failed:", err);
+      res.status(500).json({ error: "Failed to claim spot" });
+    }
+  });
+
+  app.delete("/api/teetimes/:id/claims/:name", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = decodeURIComponent(req.params.name).trim();
+      if (!name) throw new ValidationError("Name is required");
+
+      const tx = db.transaction((teeId: string, claimerName: string) => {
+        const row = db
+          .prepare("SELECT * FROM tee_times WHERE id = ?")
+          .get(teeId) as TeeTimeRow | undefined;
+        if (!row) throw new NotFoundError("Tee time not found");
+        const claims = JSON.parse(row.claims) as Claim[];
+        const lower = claimerName.toLowerCase();
+        const idx = claims.findIndex((c) => c.name.toLowerCase() === lower);
+        if (idx === -1) throw new NotFoundError("No claim by that name");
+        claims.splice(idx, 1);
+        db.prepare("UPDATE tee_times SET claims = ? WHERE id = ?").run(
+          JSON.stringify(claims),
+          teeId
+        );
+        return db
+          .prepare("SELECT * FROM tee_times WHERE id = ?")
+          .get(teeId) as TeeTimeRow;
+      });
+
+      const updated = tx.immediate(id, name);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("DELETE /api/teetimes/:id/claims/:name failed:", err);
+      res.status(500).json({ error: "Failed to drop spot" });
+    }
+  });
+
+  app.delete("/api/teetimes/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const result = db.prepare("DELETE FROM tee_times WHERE id = ?").run(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Tee time not found" });
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("DELETE /api/teetimes/:id failed:", err);
+      res.status(500).json({ error: "Failed to delete tee time" });
+    }
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -59,7 +250,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static("dist"));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile("index.html", { root: "dist" });
     });
   }
