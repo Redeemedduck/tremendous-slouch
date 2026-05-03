@@ -15,6 +15,7 @@ import {
   Trash2,
   ChevronDown,
   Calendar as CalendarIcon,
+  CalendarPlus,
 } from "lucide-react";
 
 // ============================================================
@@ -79,6 +80,68 @@ const todayISO = () => {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+};
+
+// ============================================================
+// CALENDAR EXPORT (.ics)
+// ============================================================
+const TEE_TIME_DURATION_MS = 4 * 60 * 60 * 1000;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Floating local time per RFC 5545 — no Z, no TZID. Calendar clients render
+// it in the user's local zone, which matches our naive datetime model.
+const icsLocal = (d: Date) =>
+  `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+
+const icsUtc = (d: Date) =>
+  `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
+
+const icsEscape = (s: string) =>
+  s
+    .replace(/\\/g, "\\\\")
+    .replace(/\r?\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "tee-time";
+
+const buildIcs = (t: TeeTime): string => {
+  const start = new Date(`${t.date}T${t.time}:00`);
+  const end = new Date(start.getTime() + TEE_TIME_DURATION_MS);
+  const description = [`Hosted by ${t.host}`, t.notes].filter(Boolean).join("\n");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//DJDI Golf Board//EN",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${t.id}@djdi-golf-board`,
+    `DTSTAMP:${icsUtc(new Date())}`,
+    `DTSTART:${icsLocal(start)}`,
+    `DTEND:${icsLocal(end)}`,
+    `SUMMARY:Golf at ${icsEscape(t.course)}`,
+    `LOCATION:${icsEscape(t.course)}`,
+    `DESCRIPTION:${icsEscape(description)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+};
+
+const downloadIcs = (t: TeeTime) => {
+  const blob = new Blob([buildIcs(t)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `golf-${slugify(t.course)}-${t.date}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 // ============================================================
@@ -477,8 +540,17 @@ function TeeTimeCard({
         <p className="mt-2 text-sm text-stone-600">{teeTime.notes}</p>
       )}
 
-      <div className="mt-3">
+      <div className="mt-3 flex items-center justify-between gap-2">
         <SpotsIndicator filled={teeTime.claims.length} total={teeTime.spots} />
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => downloadIcs(teeTime)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-fairway-700 hover:text-fairway-900"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" /> Add to calendar
+          </button>
+        )}
       </div>
 
       {teeTime.claims.length > 0 && (
@@ -544,11 +616,13 @@ function NewTeeTimeSheet({
   onClose,
   onSubmit,
   defaultHost,
+  courseSuggestions,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (input: NewTeeTimeInput) => Promise<void>;
   defaultHost: string;
+  courseSuggestions: string[];
 }) {
   const [course, setCourse] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -634,8 +708,16 @@ function NewTeeTimeSheet({
               onChange={(e) => setCourse(e.target.value)}
               maxLength={80}
               placeholder="Walnut Creek"
+              list="course-suggestions"
               className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
             />
+            {courseSuggestions.length > 0 && (
+              <datalist id="course-suggestions">
+                {courseSuggestions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            )}
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date">
@@ -732,6 +814,22 @@ export default function App() {
     }
     past.reverse();
     return { upcoming, past };
+  }, [teeTimes]);
+
+  // Unique courses from all tee times, most-recent first, for the course
+  // autocomplete suggestions. teeTimes is sorted ascending by date+time.
+  const courseSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (let i = teeTimes.length - 1; i >= 0; i--) {
+      const c = teeTimes[i].course;
+      const key = c.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(c);
+      }
+    }
+    return result;
   }, [teeTimes]);
 
   const handleCreate = async (input: NewTeeTimeInput) => {
@@ -843,6 +941,7 @@ export default function App() {
         onClose={() => setSheetOpen(false)}
         onSubmit={handleCreate}
         defaultHost={myName}
+        courseSuggestions={courseSuggestions}
       />
     </div>
   );
