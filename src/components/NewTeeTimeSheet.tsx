@@ -29,12 +29,14 @@ export function NewTeeTimeSheet({
   onSubmit,
   defaultHost,
   courseSuggestions,
+  nameSuggestions,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (input: NewTeeTimeInput) => Promise<void>;
   defaultHost: string;
   courseSuggestions: string[];
+  nameSuggestions: string[];
 }) {
   const [course, setCourse] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -170,8 +172,16 @@ export function NewTeeTimeSheet({
                 onChange={(e) => setHost(e.target.value)}
                 maxLength={30}
                 placeholder="You"
+                list="name-suggestions-host"
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
               />
+              {nameSuggestions.length > 0 && (
+                <datalist id="name-suggestions-host">
+                  {nameSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
             </Field>
           </div>
           <Field label="Notes (optional)">

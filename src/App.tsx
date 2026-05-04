@@ -51,6 +51,23 @@ export default function App() {
     return result;
   }, [teeTimes]);
 
+  // Unique claimer names from all tee times' claims, most-recent first, for
+  // the name autocomplete (first-time prompt + new-tee-time host field).
+  const nameSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (let i = teeTimes.length - 1; i >= 0; i--) {
+      for (const c of teeTimes[i].claims) {
+        const key = c.name.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(c.name);
+        }
+      }
+    }
+    return result;
+  }, [teeTimes]);
+
   const handleCreate = async (input: NewTeeTimeInput) => {
     if (!myName) setMyName(input.host);
     await create(input);
@@ -71,7 +88,12 @@ export default function App() {
       <div className="mx-auto max-w-md px-4 pb-32">
         <Header myName={myName} onChangeName={() => setMyName(null)} />
 
-        {!myName && <NamePromptInline onSubmit={(n) => setMyName(n)} />}
+        {!myName && (
+          <NamePromptInline
+            onSubmit={(n) => setMyName(n)}
+            nameSuggestions={nameSuggestions}
+          />
+        )}
 
         {!loaded ? (
           <div className="space-y-3">
@@ -161,6 +183,7 @@ export default function App() {
         onSubmit={handleCreate}
         defaultHost={myName}
         courseSuggestions={courseSuggestions}
+        nameSuggestions={nameSuggestions}
       />
     </div>
   );

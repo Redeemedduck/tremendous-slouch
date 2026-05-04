@@ -2,8 +2,10 @@ import { useState } from "react";
 
 export function NamePromptInline({
   onSubmit,
+  nameSuggestions,
 }: {
   onSubmit: (name: string) => void;
+  nameSuggestions: string[];
 }) {
   const [value, setValue] = useState("");
   return (
@@ -24,8 +26,16 @@ export function NamePromptInline({
           onChange={(e) => setValue(e.target.value)}
           maxLength={30}
           placeholder="Your name"
+          list="name-suggestions"
           className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
         />
+        {nameSuggestions.length > 0 && (
+          <datalist id="name-suggestions">
+            {nameSuggestions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        )}
         <button
           type="submit"
           disabled={!value.trim()}
