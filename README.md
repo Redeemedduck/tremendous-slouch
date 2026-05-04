@@ -1,5 +1,7 @@
 # Golf Group Coordinator
 
+> Note: the package slug is `golf-group-coordinator`; the user-facing brand is **DJDI Golf Board**.
+
 A small shared web app for a golf group to post tee times and claim spots.
 Built for a thread of ~12-15 friends who got tired of losing track of who's
 playing what when in a group SMS.
