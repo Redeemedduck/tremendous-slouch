@@ -6,7 +6,8 @@ import { randomUUID } from "node:crypto";
 // ============================================================
 // DATABASE
 // ============================================================
-const db = new Database("golf_coordinator.db");
+const DB_PATH = process.env.DB_PATH ?? "golf_coordinator.db";
+const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 
 db.exec(`
