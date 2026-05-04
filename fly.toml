@@ -1,0 +1,49 @@
+# fly.toml — DJDI Golf Board
+#
+# NOTE: Run `fly launch --no-deploy` once before first deploy; that command
+# will generate its own fly.toml. You may want to keep the `app` name it
+# generates (or keep this placeholder if you prefer). The other fields below
+# (mounts, processes, http_service) should be merged with whatever Fly
+# generates.
+
+# Placeholder app name. Replace with the value from `fly launch --no-deploy`,
+# or keep this if you're happy with it and the name is available.
+app = "djdi-golf-board"
+
+# TODO: Choose a region close to your users. Examples: "den" (Denver),
+# "iad" (Ashburn, VA), "sjc" (San Jose). See `fly platform regions`.
+primary_region = "den"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  DB_PATH = "/data/golf_coordinator.db"
+
+# Persistent volume for the SQLite database. Create it once with:
+#   fly volumes create data --size 1 --region <primary_region>
+[mounts]
+  source = "data"
+  destination = "/data"
+
+# The Dockerfile's CMD already starts the server with `npx tsx server.ts`,
+# so we don't need to override it here. Listed for clarity / future tweaks.
+[processes]
+  app = "npx tsx server.ts"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Keep at least one machine running so SQLite isn't restarted constantly
+  # and the WAL file stays warm.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
