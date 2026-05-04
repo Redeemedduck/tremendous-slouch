@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, ChevronDown } from "lucide-react";
+import { AccessGate } from "./components/AccessGate";
 import { Header } from "./components/Header";
 import { NamePromptInline } from "./components/NamePromptInline";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
@@ -14,7 +15,28 @@ import type { NewTeeTimeInput, TeeTime } from "./lib/types";
 // ============================================================
 // APP
 // ============================================================
+type AccessState = "checking" | "gated" | "ok";
+
 export default function App() {
+  const [access, setAccess] = useState<AccessState>("checking");
+
+  useEffect(() => {
+    fetch("/api/access")
+      .then((r) => r.json())
+      .then((d: { required: boolean; ok: boolean }) => {
+        setAccess(d.required && !d.ok ? "gated" : "ok");
+      })
+      .catch(() => setAccess("ok"));
+  }, []);
+
+  if (access === "checking") return null;
+  if (access === "gated") {
+    return <AccessGate onUnlock={() => setAccess("ok")} />;
+  }
+  return <Board />;
+}
+
+function Board() {
   const [myName, setMyName] = useMyName();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<TeeTime | null>(null);

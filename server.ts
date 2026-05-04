@@ -75,6 +75,56 @@ const stmtUpdateFields = db.prepare(
 const stmtDelete = db.prepare(`DELETE FROM tee_times WHERE id = ?`);
 
 // ============================================================
+// ACCESS GATE
+// ============================================================
+// Optional shared access code stored in env. When set, all /api/* routes
+// (except /api/access itself) require a matching `golf_access` cookie. When
+// unset, the gate is disabled — convenient for local dev.
+const COOKIE_NAME = "golf_access";
+const COOKIE_MAX_AGE_S = 60 * 60 * 24 * 365;
+
+const getRequiredAccessCode = (): string | undefined => {
+  const code = process.env.ACCESS_CODE?.trim();
+  return code && code.length > 0 ? code : undefined;
+};
+
+const parseCookie = (
+  header: string | undefined,
+  name: string
+): string | undefined => {
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) {
+      try {
+        return decodeURIComponent(rest.join("="));
+      } catch {
+        return rest.join("=");
+      }
+    }
+  }
+  return undefined;
+};
+
+const setAccessCookie = (res: express.Response, code: string) => {
+  const isProd = process.env.NODE_ENV === "production";
+  res.setHeader(
+    "Set-Cookie",
+    `${COOKIE_NAME}=${encodeURIComponent(code)}; Path=/; Max-Age=${COOKIE_MAX_AGE_S}; HttpOnly; SameSite=Lax${isProd ? "; Secure" : ""}`
+  );
+};
+
+const requireAccess: express.RequestHandler = (req, res, next) => {
+  if (!req.path.startsWith("/api/")) return next();
+  if (req.path === "/api/access") return next();
+  const required = getRequiredAccessCode();
+  if (!required) return next();
+  const cookie = parseCookie(req.headers.cookie, COOKIE_NAME);
+  if (cookie && cookie === required) return next();
+  res.status(401).json({ error: "Access required" });
+};
+
+// ============================================================
 // VALIDATION
 // ============================================================
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -171,6 +221,28 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+  app.use(requireAccess);
+
+  app.get("/api/access", (req, res) => {
+    const required = getRequiredAccessCode();
+    if (!required) return res.json({ required: false, ok: true });
+    const cookie = parseCookie(req.headers.cookie, COOKIE_NAME);
+    res.json({ required: true, ok: !!cookie && cookie === required });
+  });
+
+  app.post("/api/access", (req, res) => {
+    const required = getRequiredAccessCode();
+    if (!required) {
+      return res.status(400).json({ error: "No access code is configured" });
+    }
+    const code = String(req.body?.code ?? "").trim();
+    if (!code) return res.status(400).json({ error: "Access code is required" });
+    if (code !== required) {
+      return res.status(401).json({ error: "Wrong access code" });
+    }
+    setAccessCookie(res, code);
+    res.json({ ok: true });
+  });
 
   app.get("/api/teetimes", (_req, res) => {
     try {

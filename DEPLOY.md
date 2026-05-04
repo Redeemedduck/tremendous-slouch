@@ -45,11 +45,16 @@ with a persistent volume so the SQLite file survives machine restarts.
    - `--size 1` = 1 GiB, plenty for a tee-times SQLite DB.
    - Use the same `--region` you chose for the app.
 
-3. **Set any secrets** (none required today, but if you ever add an env-var-
-   based admin password, e.g. `ADMIN_TOKEN`, do it like this):
+3. **Set the group access code** (recommended). When `ACCESS_CODE` is set,
+   the server requires anyone hitting `/api/*` to first POST the code to
+   `/api/access` and receive the `golf_access` HttpOnly cookie. Without this
+   env var, the URL is fully public.
    ```sh
-   fly secrets set ADMIN_TOKEN=...
+   fly secrets set ACCESS_CODE=<pick-a-shared-code>
    ```
+   Pick something memorable but not guessable (e.g. an inside-joke phrase).
+   Share it with the group via SMS once. To rotate, just `fly secrets set`
+   again — existing cookies become invalid the next request.
 
 ---
 
