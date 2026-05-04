@@ -7,6 +7,7 @@ import {
   Trash2,
   Calendar as CalendarIcon,
   CalendarPlus,
+  Pencil,
 } from "lucide-react";
 import { downloadIcs } from "../lib/calendar";
 import { eqName, formatDateLabel, formatTimeLabel } from "../lib/format";
@@ -24,6 +25,7 @@ export function TeeTimeCard({
   onClaim,
   onDrop,
   onDelete,
+  onEdit,
 }: {
   teeTime: TeeTime;
   myName: string;
@@ -31,6 +33,7 @@ export function TeeTimeCard({
   onClaim: () => void;
   onDrop: (name: string) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
@@ -76,6 +79,16 @@ export function TeeTimeCard({
                   className="fixed inset-0 z-10 cursor-default"
                 />
                 <div className="absolute right-0 top-8 z-20 w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-stone-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                  >
+                    <Pencil className="h-4 w-4" /> Edit tee time
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

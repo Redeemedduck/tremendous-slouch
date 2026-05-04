@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { todayISO } from "../lib/format";
-import type { NewTeeTimeInput } from "../lib/types";
+import type { NewTeeTimeInput, TeeTime } from "../lib/types";
 
 // ============================================================
 // NEW TEE TIME SHEET
@@ -30,6 +30,7 @@ export function NewTeeTimeSheet({
   defaultHost,
   courseSuggestions,
   nameSuggestions,
+  editing,
 }: {
   open: boolean;
   onClose: () => void;
@@ -37,6 +38,7 @@ export function NewTeeTimeSheet({
   defaultHost: string;
   courseSuggestions: string[];
   nameSuggestions: string[];
+  editing: TeeTime | null;
 }) {
   const [course, setCourse] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -48,16 +50,24 @@ export function NewTeeTimeSheet({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (editing) {
+      setCourse(editing.course);
+      setDate(editing.date);
+      setTime(editing.time);
+      setSpots(editing.spots);
+      setHost(editing.host);
+      setNotes(editing.notes ?? "");
+    } else {
       setCourse("");
       setDate(todayISO());
       setTime("08:00");
       setSpots(4);
       setHost(defaultHost);
       setNotes("");
-      setError(null);
     }
-  }, [open, defaultHost]);
+    setError(null);
+  }, [open, defaultHost, editing]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,7 +97,7 @@ export function NewTeeTimeSheet({
       });
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Couldn't post tee time");
+      setError(err?.message || (editing ? "Couldn't save changes" : "Couldn't post tee time"));
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +114,9 @@ export function NewTeeTimeSheet({
       <div className="absolute bottom-0 left-0 right-0 mx-auto max-h-[calc(100dvh-1rem)] max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">New tee time</h2>
+          <h2 className="text-lg font-semibold text-stone-900">
+            {editing ? "Edit tee time" : "New tee time"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -206,7 +218,13 @@ export function NewTeeTimeSheet({
             disabled={submitting}
             className="w-full rounded-xl bg-fairway-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-fairway-700 disabled:opacity-60"
           >
-            {submitting ? "Posting…" : "Post tee time"}
+            {submitting
+              ? editing
+                ? "Saving…"
+                : "Posting…"
+              : editing
+                ? "Save changes"
+                : "Post tee time"}
           </button>
         </form>
       </div>

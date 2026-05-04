@@ -62,6 +62,23 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError, replace]
   );
 
+  const update = useCallback(
+    async (id: string, input: NewTeeTimeInput) => {
+      const r = await fetch(`/api/teetimes/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't update tee time");
+        throw new Error(data.error || "update failed");
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
   const claim = useCallback(
     async (id: string, name: string) => {
       const r = await fetch(`/api/teetimes/${id}/claims`, {
@@ -108,5 +125,5 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError]
   );
 
-  return { teeTimes, loaded, create, claim, drop, remove };
+  return { teeTimes, loaded, create, update, claim, drop, remove };
 }

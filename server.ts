@@ -66,6 +66,12 @@ const stmtInsert = db.prepare(`
 const stmtUpdateClaims = db.prepare(
   `UPDATE tee_times SET claims = ? WHERE id = ? RETURNING *`
 );
+const stmtUpdateFields = db.prepare(
+  `UPDATE tee_times
+   SET course = ?, date = ?, time = ?, spots = ?, host = ?, notes = ?
+   WHERE id = ?
+   RETURNING *`
+);
 const stmtDelete = db.prepare(`DELETE FROM tee_times WHERE id = ?`);
 
 // ============================================================
@@ -226,6 +232,38 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("DELETE /api/teetimes/:id/claims/:name failed:", err);
       res.status(500).json({ error: "Failed to drop spot" });
+    }
+  });
+
+  app.patch("/api/teetimes/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const v = validateNewTeeTime(req.body);
+      const tx = db.transaction((teeId: string): TeeTimeRow => {
+        const existing = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+        if (!existing) throw new NotFoundError("Tee time not found");
+        const claims = JSON.parse(existing.claims) as Claim[];
+        if (claims.length > v.spots) {
+          throw new ConflictError(
+            `Can't reduce spots below current ${claims.length} claim${claims.length === 1 ? "" : "s"}`
+          );
+        }
+        return stmtUpdateFields.get(
+          v.course,
+          v.date,
+          v.time,
+          v.spots,
+          v.host,
+          v.notes,
+          teeId
+        ) as TeeTimeRow;
+      });
+      const updated = tx.immediate(id);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("PATCH /api/teetimes/:id failed:", err);
+      res.status(500).json({ error: "Failed to update tee time" });
     }
   });
 

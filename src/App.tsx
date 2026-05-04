@@ -17,10 +17,11 @@ import type { NewTeeTimeInput, TeeTime } from "./lib/types";
 export default function App() {
   const [myName, setMyName] = useMyName();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editing, setEditing] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
   const toast = useToast();
 
-  const { teeTimes, loaded, create, claim, drop, remove } = useTeeTimes(
+  const { teeTimes, loaded, create, update, claim, drop, remove } = useTeeTimes(
     toast.show
   );
 
@@ -68,9 +69,23 @@ export default function App() {
     return result;
   }, [teeTimes]);
 
-  const handleCreate = async (input: NewTeeTimeInput) => {
+  const handleSheetSubmit = async (input: NewTeeTimeInput) => {
     if (!myName) setMyName(input.host);
-    await create(input);
+    if (editing) {
+      await update(editing.id, input);
+    } else {
+      await create(input);
+    }
+  };
+
+  const handleCloseSheet = () => {
+    setSheetOpen(false);
+    setEditing(null);
+  };
+
+  const handleEdit = (t: TeeTime) => {
+    setEditing(t);
+    setSheetOpen(true);
   };
 
   const handleClaim = (id: string) => {
@@ -124,6 +139,7 @@ export default function App() {
                 onClaim={() => handleClaim(t.id)}
                 onDrop={(name) => drop(t.id, name)}
                 onDelete={() => remove(t.id)}
+                onEdit={() => handleEdit(t)}
               />
             ))}
           </div>
@@ -154,6 +170,7 @@ export default function App() {
                     onClaim={() => {}}
                     onDrop={() => {}}
                     onDelete={() => {}}
+                    onEdit={() => {}}
                   />
                 ))}
               </div>
@@ -179,11 +196,12 @@ export default function App() {
 
       <NewTeeTimeSheet
         open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSubmit={handleCreate}
+        onClose={handleCloseSheet}
+        onSubmit={handleSheetSubmit}
         defaultHost={myName}
         courseSuggestions={courseSuggestions}
         nameSuggestions={nameSuggestions}
+        editing={editing}
       />
     </div>
   );
