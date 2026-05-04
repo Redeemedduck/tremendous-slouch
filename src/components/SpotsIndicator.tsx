@@ -1,6 +1,14 @@
 import { Users } from "lucide-react";
 
-export function SpotsIndicator({ filled, total }: { filled: number; total: number }) {
+export function SpotsIndicator({
+  filled,
+  total,
+  interested = 0,
+}: {
+  filled: number;
+  total: number;
+  interested?: number;
+}) {
   const dots = Array.from({ length: total });
   return (
     <div className="flex items-center gap-2">
@@ -16,6 +24,9 @@ export function SpotsIndicator({ filled, total }: { filled: number; total: numbe
       </div>
       <span className="text-xs font-medium text-stone-500">
         <Users className="inline h-3 w-3 -mt-0.5" /> {filled} of {total} spots
+        {interested > 0 && (
+          <span className="ml-1 text-stone-400">+ {interested} maybe</span>
+        )}
       </span>
     </div>
   );

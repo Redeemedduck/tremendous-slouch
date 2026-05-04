@@ -43,9 +43,17 @@ function Board() {
   const [pastOpen, setPastOpen] = useState(false);
   const toast = useToast();
 
-  const { teeTimes, loaded, create, update, claim, drop, remove } = useTeeTimes(
-    toast.show
-  );
+  const {
+    teeTimes,
+    loaded,
+    create,
+    update,
+    claim,
+    drop,
+    markInterested,
+    dropInterest,
+    remove,
+  } = useTeeTimes(toast.show);
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -118,6 +126,14 @@ function Board() {
     claim(id, myName);
   };
 
+  const handleMaybe = (id: string) => {
+    if (!myName) {
+      toast.show("Add your name first");
+      return;
+    }
+    markInterested(id, myName);
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <Toast message={toast.message} onDismiss={toast.dismiss} />
@@ -160,6 +176,8 @@ function Board() {
                 readOnly={false}
                 onClaim={() => handleClaim(t.id)}
                 onDrop={(name) => drop(t.id, name)}
+                onMaybe={() => handleMaybe(t.id)}
+                onDropMaybe={(name) => dropInterest(t.id, name)}
                 onDelete={() => remove(t.id)}
                 onEdit={() => handleEdit(t)}
               />
@@ -191,6 +209,8 @@ function Board() {
                     readOnly
                     onClaim={() => {}}
                     onDrop={() => {}}
+                    onMaybe={() => {}}
+                    onDropMaybe={() => {}}
                     onDelete={() => {}}
                     onEdit={() => {}}
                   />

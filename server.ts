@@ -25,6 +25,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tee_times_when ON tee_times(date, time);
 `);
 
+// Migrations. SQLite has no `ADD COLUMN IF NOT EXISTS`, so check the table_info.
+const teeTimeColumns = db
+  .prepare("PRAGMA table_info(tee_times)")
+  .all() as { name: string }[];
+if (!teeTimeColumns.some((c) => c.name === "interested")) {
+  db.exec(
+    "ALTER TABLE tee_times ADD COLUMN interested TEXT NOT NULL DEFAULT '[]'"
+  );
+}
+
 type TeeTimeRow = {
   id: string;
   course: string;
@@ -34,10 +44,12 @@ type TeeTimeRow = {
   host: string;
   notes: string | null;
   claims: string;
+  interested: string;
   created_at: string;
 };
 
 type Claim = { name: string; claimedAt: string };
+type Interest = { name: string; interestedAt: string };
 
 const rowToTeeTime = (row: TeeTimeRow) => ({
   id: row.id,
@@ -48,6 +60,7 @@ const rowToTeeTime = (row: TeeTimeRow) => ({
   host: row.host,
   notes: row.notes,
   claims: JSON.parse(row.claims) as Claim[],
+  interested: JSON.parse(row.interested) as Interest[],
   createdAt: row.created_at,
 });
 
@@ -65,6 +78,12 @@ const stmtInsert = db.prepare(`
 `);
 const stmtUpdateClaims = db.prepare(
   `UPDATE tee_times SET claims = ? WHERE id = ? RETURNING *`
+);
+const stmtUpdateClaimsAndInterested = db.prepare(
+  `UPDATE tee_times SET claims = ?, interested = ? WHERE id = ? RETURNING *`
+);
+const stmtUpdateInterested = db.prepare(
+  `UPDATE tee_times SET interested = ? WHERE id = ? RETURNING *`
 );
 const stmtUpdateFields = db.prepare(
   `UPDATE tee_times
@@ -190,13 +209,22 @@ const claimTx = db.transaction(
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
     const claims = JSON.parse(row.claims) as Claim[];
-    if (claims.length >= row.spots) throw new ConflictError("That tee time is full");
+    const interested = JSON.parse(row.interested) as Interest[];
     const lower = claimerName.toLowerCase();
     if (claims.some((c) => c.name.toLowerCase() === lower)) {
       throw new ConflictError("That name already has a spot");
     }
+    if (claims.length >= row.spots) throw new ConflictError("That tee time is full");
+    // If the claimer was on the interested list, move them off it.
+    const remainingInterested = interested.filter(
+      (i) => i.name.toLowerCase() !== lower
+    );
     claims.push({ name: claimerName, claimedAt });
-    return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
+    return stmtUpdateClaimsAndInterested.get(
+      JSON.stringify(claims),
+      JSON.stringify(remainingInterested),
+      teeId
+    ) as TeeTimeRow;
   }
 );
 
@@ -210,6 +238,47 @@ const dropTx = db.transaction(
     if (idx === -1) throw new NotFoundError("No claim by that name");
     claims.splice(idx, 1);
     return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
+  }
+);
+
+const interestTx = db.transaction(
+  (teeId: string, claimerName: string, interestedAt: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const claims = JSON.parse(row.claims) as Claim[];
+    const interested = JSON.parse(row.interested) as Interest[];
+    const lower = claimerName.toLowerCase();
+    if (interested.some((i) => i.name.toLowerCase() === lower)) {
+      throw new ConflictError("That name is already marked maybe");
+    }
+    // If the person was claimed, move them to interested.
+    const remainingClaims = claims.filter(
+      (c) => c.name.toLowerCase() !== lower
+    );
+    interested.push({ name: claimerName, interestedAt });
+    return stmtUpdateClaimsAndInterested.get(
+      JSON.stringify(remainingClaims),
+      JSON.stringify(interested),
+      teeId
+    ) as TeeTimeRow;
+  }
+);
+
+const dropInterestTx = db.transaction(
+  (teeId: string, claimerName: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const interested = JSON.parse(row.interested) as Interest[];
+    const lower = claimerName.toLowerCase();
+    const idx = interested.findIndex(
+      (i) => i.name.toLowerCase() === lower
+    );
+    if (idx === -1) throw new NotFoundError("No maybe by that name");
+    interested.splice(idx, 1);
+    return stmtUpdateInterested.get(
+      JSON.stringify(interested),
+      teeId
+    ) as TeeTimeRow;
   }
 );
 
@@ -290,6 +359,34 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("POST /api/teetimes/:id/claims failed:", err);
       res.status(500).json({ error: "Failed to claim spot" });
+    }
+  });
+
+  app.post("/api/teetimes/:id/interested", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = trimStr(req.body?.name, NAME_MAX, "Name");
+      const interestedAt = new Date().toISOString();
+      const updated = interestTx.immediate(id, name, interestedAt);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/teetimes/:id/interested failed:", err);
+      res.status(500).json({ error: "Failed to mark maybe" });
+    }
+  });
+
+  app.delete("/api/teetimes/:id/interested/:name", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = decodeURIComponent(req.params.name).trim();
+      if (!name) throw new ValidationError("Name is required");
+      const updated = dropInterestTx.immediate(id, name);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("DELETE /api/teetimes/:id/interested/:name failed:", err);
+      res.status(500).json({ error: "Failed to drop maybe" });
     }
   });
 

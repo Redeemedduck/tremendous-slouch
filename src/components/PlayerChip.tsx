@@ -1,21 +1,30 @@
 import { X } from "lucide-react";
 
+type Variant = "claimed" | "interested";
+
 export function PlayerChip({
   name,
   isHost,
   isMe,
   onDrop,
+  variant = "claimed",
 }: {
   name: string;
   isHost: boolean;
   isMe: boolean;
   onDrop?: () => void;
+  variant?: Variant;
 }) {
   const base =
-    "inline-flex min-h-10 items-center gap-1 rounded-full px-3.5 py-1.5 text-sm font-medium";
-  const cls = isMe
-    ? "bg-fairway-100 text-fairway-900"
-    : "bg-stone-100 text-stone-700";
+    "inline-flex min-h-10 items-center gap-1 rounded-full px-3.5 py-1.5 text-sm";
+  const cls =
+    variant === "interested"
+      ? isMe
+        ? "border border-dashed border-fairway-400 bg-fairway-50 text-fairway-800 italic"
+        : "border border-dashed border-stone-300 bg-stone-50 text-stone-600 italic"
+      : isMe
+        ? "bg-fairway-100 text-fairway-900 font-medium"
+        : "bg-stone-100 text-stone-700 font-medium";
   return (
     <button
       type="button"
@@ -26,7 +35,13 @@ export function PlayerChip({
           ? "transition-colors hover:bg-rose-100 hover:text-rose-700"
           : "cursor-default"
       }`}
-      title={isMe ? "Tap to drop your spot" : undefined}
+      title={
+        isMe
+          ? variant === "interested"
+            ? "Tap to remove your maybe"
+            : "Tap to drop your spot"
+          : undefined
+      }
     >
       {name}
       {isHost && (

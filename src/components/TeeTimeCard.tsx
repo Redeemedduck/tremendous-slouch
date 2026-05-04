@@ -24,6 +24,8 @@ export function TeeTimeCard({
   readOnly,
   onClaim,
   onDrop,
+  onMaybe,
+  onDropMaybe,
   onDelete,
   onEdit,
 }: {
@@ -32,11 +34,15 @@ export function TeeTimeCard({
   readOnly: boolean;
   onClaim: () => void;
   onDrop: (name: string) => void;
+  onMaybe: () => void;
+  onDropMaybe: (name: string) => void;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
+  const meMaybe =
+    !!myName && teeTime.interested.some((i) => eqName(i.name, myName));
   const isHost = !!myName && eqName(teeTime.host, myName);
   const full = teeTime.claims.length >= teeTime.spots;
 
@@ -122,7 +128,11 @@ export function TeeTimeCard({
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <SpotsIndicator filled={teeTime.claims.length} total={teeTime.spots} />
+        <SpotsIndicator
+          filled={teeTime.claims.length}
+          total={teeTime.spots}
+          interested={teeTime.interested.length}
+        />
         {!readOnly && (
           <button
             type="button"
@@ -158,15 +168,48 @@ export function TeeTimeCard({
         </div>
       )}
 
+      {teeTime.interested.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-stone-400">
+            Maybe
+          </span>
+          {teeTime.interested.map((i) => (
+            <PlayerChip
+              key={i.name}
+              name={i.name}
+              variant="interested"
+              isHost={false}
+              isMe={!!myName && eqName(i.name, myName)}
+              onDrop={
+                !readOnly && !!myName && eqName(i.name, myName)
+                  ? () => onDropMaybe(i.name)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
+
       {!readOnly && !meIn && (
-        <button
-          type="button"
-          onClick={onClaim}
-          disabled={full || !myName}
-          className="mt-4 w-full rounded-xl bg-fairway-600 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-fairway-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
-        >
-          {full ? "Full" : !myName ? "Add your name first" : "Claim a spot"}
-        </button>
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClaim}
+            disabled={full || !myName}
+            className="flex-1 rounded-xl bg-fairway-600 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-fairway-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
+          >
+            {full ? "Full" : !myName ? "Add your name first" : "Claim a spot"}
+          </button>
+          {!meMaybe && myName && (
+            <button
+              type="button"
+              onClick={onMaybe}
+              className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-100"
+            >
+              Maybe
+            </button>
+          )}
+        </div>
       )}
     </article>
   );

@@ -112,6 +112,39 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError, replace]
   );
 
+  const markInterested = useCallback(
+    async (id: string, name: string) => {
+      const r = await fetch(`/api/teetimes/${id}/interested`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't mark maybe");
+        return;
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
+  const dropInterest = useCallback(
+    async (id: string, name: string) => {
+      const r = await fetch(
+        `/api/teetimes/${id}/interested/${encodeURIComponent(name)}`,
+        { method: "DELETE" }
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't drop maybe");
+        return;
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
   const remove = useCallback(
     async (id: string) => {
       const r = await fetch(`/api/teetimes/${id}`, { method: "DELETE" });
@@ -125,5 +158,15 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError]
   );
 
-  return { teeTimes, loaded, create, update, claim, drop, remove };
+  return {
+    teeTimes,
+    loaded,
+    create,
+    update,
+    claim,
+    drop,
+    markInterested,
+    dropInterest,
+    remove,
+  };
 }
