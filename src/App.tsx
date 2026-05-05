@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ChevronDown } from "lucide-react";
+import { Plus, ChevronDown, Calendar, MessageCircleQuestion } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { Header } from "./components/Header";
 import { NamePromptInline } from "./components/NamePromptInline";
+import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
+import { PollCard } from "./components/PollCard";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
 import { useMyName } from "./hooks/useMyName";
+import { usePolls } from "./hooks/usePolls";
 import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
 import { isPast } from "./lib/format";
-import type { NewTeeTimeInput, TeeTime } from "./lib/types";
+import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
 
 // ============================================================
 // APP
@@ -36,9 +39,12 @@ export default function App() {
   return <Board />;
 }
 
+type SheetKind = "teetime" | "poll" | null;
+
 function Board() {
   const [myName, setMyName] = useMyName();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [openSheet, setOpenSheet] = useState<SheetKind>(null);
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [editing, setEditing] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
   const toast = useToast();
@@ -54,6 +60,12 @@ function Board() {
     dropInterest,
     remove,
   } = useTeeTimes(toast.show);
+  const {
+    polls,
+    create: createPoll,
+    toggleResponse,
+    remove: removePoll,
+  } = usePolls(toast.show);
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -108,14 +120,27 @@ function Board() {
     }
   };
 
+  const handlePollSubmit = async (input: NewPollInput) => {
+    if (!myName) setMyName(input.host);
+    await createPoll(input);
+  };
+
   const handleCloseSheet = () => {
-    setSheetOpen(false);
+    setOpenSheet(null);
     setEditing(null);
   };
 
   const handleEdit = (t: TeeTime) => {
     setEditing(t);
-    setSheetOpen(true);
+    setOpenSheet("teetime");
+  };
+
+  const handleToggleVote = (pollId: string, optionIdx: number) => {
+    if (!myName) {
+      toast.show("Add your name first");
+      return;
+    }
+    toggleResponse(pollId, myName, optionIdx);
   };
 
   const handleClaim = (id: string) => {
@@ -148,6 +173,20 @@ function Board() {
           />
         )}
 
+        {polls.length > 0 && (
+          <div className="mb-3 space-y-3">
+            {polls.map((p) => (
+              <PollCard
+                key={p.id}
+                poll={p}
+                myName={myName}
+                onToggle={(idx) => handleToggleVote(p.id, idx)}
+                onDelete={() => removePoll(p.id)}
+              />
+            ))}
+          </div>
+        )}
+
         {!loaded ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
@@ -157,16 +196,17 @@ function Board() {
               />
             ))}
           </div>
-        ) : upcoming.length === 0 ? (
+        ) : upcoming.length === 0 && polls.length === 0 ? (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
             <p className="text-base font-medium text-stone-700">
-              No tee times yet
+              Nothing on the board yet
             </p>
             <p className="mt-1 text-sm text-stone-500">
-              Tap <span className="font-medium">+ New tee time</span> to post one.
+              Tap <span className="font-medium">+</span> to post a tee time or
+              ask the group.
             </p>
           </div>
-        ) : (
+        ) : upcoming.length === 0 ? null : (
           <div className="space-y-3">
             {upcoming.map((t) => (
               <TeeTimeCard
@@ -221,29 +261,77 @@ function Board() {
         )}
       </div>
 
-      {!sheetOpen && (
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          aria-label="New tee time"
-          className="fixed right-4 z-30 flex items-center gap-1.5 rounded-full bg-fairway-600 px-5 py-3 font-semibold text-white shadow-lg hover:bg-fairway-700"
+      {openSheet === null && (
+        <div
+          className="fixed right-4 z-30"
           style={{
             bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
           }}
         >
-          <Plus className="h-5 w-5" />
-          New tee time
-        </button>
+          {fabMenuOpen && (
+            <>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setFabMenuOpen(false)}
+                className="fixed inset-0 z-10 cursor-default"
+              />
+              <div className="absolute bottom-16 right-0 z-20 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFabMenuOpen(false);
+                    setOpenSheet("teetime");
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
+                >
+                  <Calendar className="h-4 w-4 text-fairway-700" />
+                  New tee time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFabMenuOpen(false);
+                    setOpenSheet("poll");
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
+                >
+                  <MessageCircleQuestion className="h-4 w-4 text-fairway-700" />
+                  Ask the group
+                </button>
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setFabMenuOpen((v) => !v)}
+            aria-label="New post"
+            className="relative z-20 flex h-14 w-14 items-center justify-center rounded-full bg-fairway-600 text-white shadow-lg hover:bg-fairway-700"
+          >
+            <Plus
+              className={`h-6 w-6 transition-transform ${
+                fabMenuOpen ? "rotate-45" : ""
+              }`}
+            />
+          </button>
+        </div>
       )}
 
       <NewTeeTimeSheet
-        open={sheetOpen}
+        open={openSheet === "teetime"}
         onClose={handleCloseSheet}
         onSubmit={handleSheetSubmit}
         defaultHost={myName}
         courseSuggestions={courseSuggestions}
         nameSuggestions={nameSuggestions}
         editing={editing}
+      />
+      <NewPollSheet
+        open={openSheet === "poll"}
+        onClose={handleCloseSheet}
+        onSubmit={handlePollSubmit}
+        defaultHost={myName}
+        nameSuggestions={nameSuggestions}
       />
     </div>
   );

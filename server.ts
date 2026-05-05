@@ -23,6 +23,16 @@ db.exec(`
     created_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_tee_times_when ON tee_times(date, time);
+
+  CREATE TABLE IF NOT EXISTS polls (
+    id         TEXT PRIMARY KEY,
+    prompt     TEXT NOT NULL,
+    options    TEXT NOT NULL,            -- JSON: string[]
+    responses  TEXT NOT NULL DEFAULT '[]', -- JSON: [{name, optionIdx, respondedAt}]
+    host       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_polls_created ON polls(created_at);
 `);
 
 // Migrations. SQLite has no `ADD COLUMN IF NOT EXISTS`, so check the table_info.
@@ -64,6 +74,26 @@ const rowToTeeTime = (row: TeeTimeRow) => ({
   createdAt: row.created_at,
 });
 
+type PollRow = {
+  id: string;
+  prompt: string;
+  options: string;
+  responses: string;
+  host: string;
+  created_at: string;
+};
+
+type PollResponse = { name: string; optionIdx: number; respondedAt: string };
+
+const rowToPoll = (row: PollRow) => ({
+  id: row.id,
+  prompt: row.prompt,
+  options: JSON.parse(row.options) as string[],
+  responses: JSON.parse(row.responses) as PollResponse[],
+  host: row.host,
+  createdAt: row.created_at,
+});
+
 // ============================================================
 // PREPARED STATEMENTS (hoisted to module scope so SQLite parses each only once)
 // ============================================================
@@ -92,6 +122,20 @@ const stmtUpdateFields = db.prepare(
    RETURNING *`
 );
 const stmtDelete = db.prepare(`DELETE FROM tee_times WHERE id = ?`);
+
+const stmtSelectAllPolls = db.prepare(
+  `SELECT * FROM polls ORDER BY created_at DESC`
+);
+const stmtSelectPollById = db.prepare(`SELECT * FROM polls WHERE id = ?`);
+const stmtInsertPoll = db.prepare(`
+  INSERT INTO polls (id, prompt, options, responses, host, created_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+  RETURNING *
+`);
+const stmtUpdatePollResponses = db.prepare(
+  `UPDATE polls SET responses = ? WHERE id = ? RETURNING *`
+);
+const stmtDeletePoll = db.prepare(`DELETE FROM polls WHERE id = ?`);
 
 // ============================================================
 // ACCESS GATE
@@ -153,6 +197,10 @@ const COURSE_MAX = 80;
 const NOTES_MAX = 240;
 const SPOTS_MIN = 1;
 const SPOTS_MAX = 6;
+const PROMPT_MAX = 140;
+const OPTION_MAX = 60;
+const POLL_OPTIONS_MIN = 2;
+const POLL_OPTIONS_MAX = 8;
 
 class ValidationError extends Error {
   status = 400;
@@ -199,6 +247,46 @@ const validateNewTeeTime = (body: any) => {
     notes = trimmed;
   }
   return { course, host, date, time, spots, notes };
+};
+
+const validateNewPoll = (body: any) => {
+  const prompt = trimStr(body?.prompt, PROMPT_MAX, "Prompt");
+  const host = trimStr(body?.host, NAME_MAX, "Host name");
+  const rawOptions = body?.options;
+  if (!Array.isArray(rawOptions)) {
+    throw new ValidationError("Options must be an array");
+  }
+  const options: string[] = [];
+  for (const raw of rawOptions) {
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (trimmed.length > OPTION_MAX) {
+      throw new ValidationError("Option is too long");
+    }
+    options.push(trimmed);
+  }
+  if (options.length < POLL_OPTIONS_MIN) {
+    throw new ValidationError(
+      `Poll needs at least ${POLL_OPTIONS_MIN} options`
+    );
+  }
+  if (options.length > POLL_OPTIONS_MAX) {
+    throw new ValidationError(
+      `Poll can have at most ${POLL_OPTIONS_MAX} options`
+    );
+  }
+  // Reject duplicate options (case-insensitive) — they can't be distinguished
+  // by the UI and would just be confusing.
+  const seen = new Set<string>();
+  for (const o of options) {
+    const key = o.toLowerCase();
+    if (seen.has(key)) {
+      throw new ValidationError("Options must be unique");
+    }
+    seen.add(key);
+  }
+  return { prompt, host, options };
 };
 
 // ============================================================
@@ -279,6 +367,38 @@ const dropInterestTx = db.transaction(
       JSON.stringify(interested),
       teeId
     ) as TeeTimeRow;
+  }
+);
+
+// Toggle a poll response: if (name, optionIdx) is already present, remove it;
+// otherwise append. Allows multi-select per voter without dedicated PUT/DELETE
+// endpoints.
+const togglePollResponseTx = db.transaction(
+  (pollId: string, name: string, optionIdx: number): PollRow => {
+    const row = stmtSelectPollById.get(pollId) as PollRow | undefined;
+    if (!row) throw new NotFoundError("Poll not found");
+    const options = JSON.parse(row.options) as string[];
+    if (optionIdx < 0 || optionIdx >= options.length) {
+      throw new ValidationError("Invalid option");
+    }
+    const responses = JSON.parse(row.responses) as PollResponse[];
+    const lower = name.toLowerCase();
+    const existingIdx = responses.findIndex(
+      (r) => r.name.toLowerCase() === lower && r.optionIdx === optionIdx
+    );
+    if (existingIdx !== -1) {
+      responses.splice(existingIdx, 1);
+    } else {
+      responses.push({
+        name,
+        optionIdx,
+        respondedAt: new Date().toISOString(),
+      });
+    }
+    return stmtUpdatePollResponses.get(
+      JSON.stringify(responses),
+      pollId
+    ) as PollRow;
   }
 );
 
@@ -433,6 +553,68 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("PATCH /api/teetimes/:id failed:", err);
       res.status(500).json({ error: "Failed to update tee time" });
+    }
+  });
+
+  app.get("/api/polls", (_req, res) => {
+    try {
+      const rows = stmtSelectAllPolls.all() as PollRow[];
+      res.json({ polls: rows.map(rowToPoll) });
+    } catch (err) {
+      console.error("GET /api/polls failed:", err);
+      res.status(500).json({ error: "Failed to load polls" });
+    }
+  });
+
+  app.post("/api/polls", (req, res) => {
+    try {
+      const v = validateNewPoll(req.body);
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const row = stmtInsertPoll.get(
+        id,
+        v.prompt,
+        JSON.stringify(v.options),
+        "[]",
+        v.host,
+        createdAt
+      ) as PollRow;
+      res.status(201).json({ poll: rowToPoll(row) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/polls failed:", err);
+      res.status(500).json({ error: "Failed to create poll" });
+    }
+  });
+
+  app.post("/api/polls/:id/responses", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = trimStr(req.body?.name, NAME_MAX, "Name");
+      const optionIdx = Number(req.body?.optionIdx);
+      if (!Number.isInteger(optionIdx)) {
+        throw new ValidationError("optionIdx must be an integer");
+      }
+      const updated = togglePollResponseTx.immediate(id, name, optionIdx);
+      res.json({ poll: rowToPoll(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/polls/:id/responses failed:", err);
+      res.status(500).json({ error: "Failed to record response" });
+    }
+  });
+
+  app.delete("/api/polls/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const result = stmtDeletePoll.run(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Poll not found" });
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("DELETE /api/polls/:id failed:", err);
+      res.status(500).json({ error: "Failed to delete poll" });
     }
   });
 

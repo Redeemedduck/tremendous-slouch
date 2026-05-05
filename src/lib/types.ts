@@ -23,3 +23,22 @@ export type NewTeeTimeInput = {
   host: string;
   notes?: string;
 };
+
+export type PollResponse = {
+  name: string;
+  optionIdx: number;
+  respondedAt: string;
+};
+export type Poll = {
+  id: string;
+  prompt: string;
+  options: string[];
+  responses: PollResponse[];
+  host: string;
+  createdAt: string;
+};
+export type NewPollInput = {
+  prompt: string;
+  options: string[];
+  host: string;
+};
