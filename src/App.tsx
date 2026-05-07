@@ -285,14 +285,14 @@ function Board() {
                 onClick={() => setFabMenuOpen(false)}
                 className="fixed inset-0 z-10 cursor-default"
               />
-              <div className="absolute bottom-16 right-0 z-20 flex flex-col gap-2">
+              <div className="absolute bottom-16 right-0 z-20 flex flex-col items-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setFabMenuOpen(false);
                     setOpenSheet("teetime");
                   }}
-                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
+                  className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
                 >
                   <Calendar className="h-4 w-4 text-fairway-700" />
                   New tee time
@@ -303,7 +303,7 @@ function Board() {
                     setFabMenuOpen(false);
                     setOpenSheet("poll");
                   }}
-                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
+                  className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
                 >
                   <MessageCircleQuestion className="h-4 w-4 text-fairway-700" />
                   Ask the group

@@ -127,7 +127,7 @@ export function TeeTimeCard({
         <p className="mt-2 text-sm text-stone-600">{teeTime.notes}</p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <SpotsIndicator
           filled={teeTime.claims.length}
           total={teeTime.spots}
@@ -137,7 +137,7 @@ export function TeeTimeCard({
           <button
             type="button"
             onClick={() => downloadIcs(teeTime)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-fairway-700 hover:text-fairway-900"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-fairway-700 hover:text-fairway-900"
           >
             <CalendarPlus className="h-3.5 w-3.5" /> Add to calendar
           </button>

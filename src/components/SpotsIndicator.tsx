@@ -34,10 +34,10 @@ export function SpotsIndicator({
           );
         })}
       </div>
-      <span className="text-xs font-medium text-stone-500">
-        <Users className="inline h-3 w-3 -mt-0.5" /> {filled} of {total} spots
+      <span className="whitespace-nowrap text-xs font-medium text-stone-500">
+        <Users className="inline h-3 w-3 -mt-0.5" /> {filled} of {total}
         {interested > 0 && (
-          <span className="ml-1 text-stone-400">+ {interested} maybe</span>
+          <span className="ml-1 text-stone-400">+ {interested}</span>
         )}
       </span>
     </div>
