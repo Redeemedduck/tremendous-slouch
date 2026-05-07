@@ -15,6 +15,9 @@ export function PlayerChip({
   onDrop?: () => void;
   variant?: Variant;
 }) {
+  // The chip is only actionable when it's the current user AND a drop
+  // handler was wired in (read-only past cards pass undefined).
+  const interactive = isMe && typeof onDrop === "function";
   const base =
     "inline-flex min-h-10 items-center gap-1 rounded-full px-3.5 py-1.5 text-sm";
   const cls =
@@ -28,15 +31,15 @@ export function PlayerChip({
   return (
     <button
       type="button"
-      disabled={!isMe}
+      disabled={!interactive}
       onClick={onDrop}
       className={`${base} ${cls} ${
-        isMe
+        interactive
           ? "transition-colors hover:bg-rose-100 hover:text-rose-700"
           : "cursor-default"
       }`}
       title={
-        isMe
+        interactive
           ? variant === "interested"
             ? "Tap to remove your maybe"
             : "Tap to drop your spot"
@@ -49,7 +52,7 @@ export function PlayerChip({
           host
         </span>
       )}
-      {isMe && <X className="h-3 w-3" />}
+      {interactive && <X className="h-3 w-3" />}
     </button>
   );
 }

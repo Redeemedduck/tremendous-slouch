@@ -182,7 +182,15 @@ export function TeeTimeCard({
               isMe={!!myName && eqName(i.name, myName)}
               onDrop={
                 !readOnly && !!myName && eqName(i.name, myName)
-                  ? () => onDropMaybe(i.name)
+                  ? () => {
+                      if (
+                        window.confirm(
+                          `Remove your maybe at ${teeTime.course}?`
+                        )
+                      ) {
+                        onDropMaybe(i.name);
+                      }
+                    }
                   : undefined
               }
             />
@@ -191,7 +199,7 @@ export function TeeTimeCard({
       )}
 
       {!readOnly && !meIn && (
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex items-stretch gap-2">
           <button
             type="button"
             onClick={onClaim}
@@ -204,7 +212,7 @@ export function TeeTimeCard({
             <button
               type="button"
               onClick={onMaybe}
-              className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-100"
+              className="flex-1 rounded-xl border border-stone-300 bg-white py-2.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-50"
             >
               Maybe
             </button>

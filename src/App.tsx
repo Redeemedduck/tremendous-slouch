@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ChevronDown, Calendar, MessageCircleQuestion } from "lucide-react";
+import {
+  Plus,
+  ChevronDown,
+  Calendar,
+  MessageCircleQuestion,
+  Flag,
+} from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { Header } from "./components/Header";
 import { NamePromptInline } from "./components/NamePromptInline";
@@ -198,6 +204,9 @@ function Board() {
           </div>
         ) : upcoming.length === 0 && polls.length === 0 ? (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
+              <Flag className="h-6 w-6" />
+            </div>
             <p className="text-base font-medium text-stone-700">
               Nothing on the board yet
             </p>
