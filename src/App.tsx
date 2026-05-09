@@ -14,6 +14,7 @@ import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
 import { ProfileSheet } from "./components/ProfileSheet";
 import { ScoresSheet } from "./components/ScoresSheet";
+import { Standings } from "./components/Standings";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
 import { useMyProfile } from "./hooks/useMyProfile";
@@ -199,6 +200,12 @@ function Board() {
             nameSuggestions={nameSuggestions}
           />
         )}
+
+        <Standings
+          teeTimes={teeTimes}
+          getHandicap={getHandicap}
+          myName={myName}
+        />
 
         {polls.length > 0 && (
           <div className="mb-3 space-y-3">
