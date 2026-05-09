@@ -12,9 +12,11 @@ import { NamePromptInline } from "./components/NamePromptInline";
 import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
+import { ProfileSheet } from "./components/ProfileSheet";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
-import { useMyName } from "./hooks/useMyName";
+import { useMyProfile } from "./hooks/useMyProfile";
+import { usePlayers } from "./hooks/usePlayers";
 import { usePolls } from "./hooks/usePolls";
 import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
@@ -48,8 +50,10 @@ export default function App() {
 type SheetKind = "teetime" | "poll" | null;
 
 function Board() {
-  const [myName, setMyName] = useMyName();
+  const [profile, setProfile] = useMyProfile();
+  const myName = profile.name;
   const [openSheet, setOpenSheet] = useState<SheetKind>(null);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [editing, setEditing] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
@@ -72,6 +76,7 @@ function Board() {
     toggleResponse,
     remove: removePoll,
   } = usePolls(toast.show);
+  const { upsert: upsertPlayer, getHandicap } = usePlayers(toast.show);
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -118,7 +123,7 @@ function Board() {
   }, [teeTimes]);
 
   const handleSheetSubmit = async (input: NewTeeTimeInput) => {
-    if (!myName) setMyName(input.host);
+    if (!myName) setProfile({ name: input.host });
     if (editing) {
       await update(editing.id, input);
     } else {
@@ -127,8 +132,17 @@ function Board() {
   };
 
   const handlePollSubmit = async (input: NewPollInput) => {
-    if (!myName) setMyName(input.host);
+    if (!myName) setProfile({ name: input.host });
     await createPoll(input);
+  };
+
+  const handleProfileSave = async (name: string, handicap: number | null) => {
+    setProfile({ name, handicap });
+    try {
+      await upsertPlayer(name, handicap);
+    } catch {
+      // toast surfaced by usePlayers
+    }
   };
 
   const handleCloseSheet = () => {
@@ -170,11 +184,15 @@ function Board() {
       <Toast message={toast.message} onDismiss={toast.dismiss} />
 
       <div className="mx-auto max-w-md px-4 pb-32">
-        <Header myName={myName} onChangeName={() => setMyName(null)} />
+        <Header
+          myName={myName}
+          myHandicap={profile.handicap}
+          onOpenProfile={() => setProfileSheetOpen(true)}
+        />
 
         {!myName && (
           <NamePromptInline
-            onSubmit={(n) => setMyName(n)}
+            onSubmit={(n, h) => handleProfileSave(n, h)}
             nameSuggestions={nameSuggestions}
           />
         )}
@@ -229,6 +247,7 @@ function Board() {
                 onDropMaybe={(name) => dropInterest(t.id, name)}
                 onDelete={() => remove(t.id)}
                 onEdit={() => handleEdit(t)}
+                getHandicap={getHandicap}
               />
             ))}
           </div>
@@ -262,6 +281,7 @@ function Board() {
                     onDropMaybe={() => {}}
                     onDelete={() => {}}
                     onEdit={() => {}}
+                    getHandicap={getHandicap}
                   />
                 ))}
               </div>
@@ -341,6 +361,15 @@ function Board() {
         onSubmit={handlePollSubmit}
         defaultHost={myName}
         nameSuggestions={nameSuggestions}
+      />
+      <ProfileSheet
+        open={profileSheetOpen}
+        onClose={() => setProfileSheetOpen(false)}
+        initialName={profile.name}
+        initialHandicap={profile.handicap}
+        nameSuggestions={nameSuggestions}
+        onSave={handleProfileSave}
+        onClear={() => setProfile(null)}
       />
     </div>
   );

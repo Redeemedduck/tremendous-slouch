@@ -2,6 +2,16 @@
 // HELPERS
 // ============================================================
 export const NAME_KEY = "golf.coordinator.myName";
+export const HANDICAP_KEY = "golf.coordinator.myHandicap";
+
+export const formatHandicap = (h: number | null | undefined) => {
+  if (h == null) return null;
+  // GHIN-style: + for plus handicaps, one decimal place.
+  const abs = Math.abs(h);
+  const formatted = abs.toFixed(1);
+  if (h < 0) return `+${formatted}`;
+  return formatted;
+};
 
 export const eqName = (a: string, b: string) =>
   a.trim().toLowerCase() === b.trim().toLowerCase();

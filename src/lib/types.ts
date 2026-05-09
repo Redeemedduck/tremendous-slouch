@@ -42,3 +42,9 @@ export type NewPollInput = {
   options: string[];
   host: string;
 };
+
+export type Player = {
+  name: string;
+  handicap: number | null;
+  updatedAt: string;
+};

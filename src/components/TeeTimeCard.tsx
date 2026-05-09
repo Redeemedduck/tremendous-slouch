@@ -28,6 +28,7 @@ export function TeeTimeCard({
   onDropMaybe,
   onDelete,
   onEdit,
+  getHandicap,
 }: {
   teeTime: TeeTime;
   myName: string;
@@ -38,6 +39,7 @@ export function TeeTimeCard({
   onDropMaybe: (name: string) => void;
   onDelete: () => void;
   onEdit: () => void;
+  getHandicap: (name: string) => number | null;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
@@ -152,6 +154,7 @@ export function TeeTimeCard({
               name={c.name}
               isHost={eqName(c.name, teeTime.host)}
               isMe={!!myName && eqName(c.name, myName)}
+              handicap={getHandicap(c.name)}
               onDrop={
                 !readOnly && !!myName && eqName(c.name, myName)
                   ? () => {
@@ -180,6 +183,7 @@ export function TeeTimeCard({
               variant="interested"
               isHost={false}
               isMe={!!myName && eqName(i.name, myName)}
+              handicap={getHandicap(i.name)}
               onDrop={
                 !readOnly && !!myName && eqName(i.name, myName)
                   ? () => {

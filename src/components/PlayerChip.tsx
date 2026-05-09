@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { formatHandicap } from "../lib/format";
 
 type Variant = "claimed" | "interested";
 
@@ -8,13 +9,16 @@ export function PlayerChip({
   isMe,
   onDrop,
   variant = "claimed",
+  handicap,
 }: {
   name: string;
   isHost: boolean;
   isMe: boolean;
   onDrop?: () => void;
   variant?: Variant;
+  handicap?: number | null;
 }) {
+  const hcp = formatHandicap(handicap);
   // The chip is only actionable when it's the current user AND a drop
   // handler was wired in (read-only past cards pass undefined).
   const interactive = isMe && typeof onDrop === "function";
@@ -47,6 +51,11 @@ export function PlayerChip({
       }
     >
       {name}
+      {hcp && (
+        <span className="ml-0.5 text-xs font-normal text-stone-500">
+          {hcp}
+        </span>
+      )}
       {isHost && (
         <span className="ml-0.5 text-[10px] uppercase tracking-wide text-stone-500">
           host

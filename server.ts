@@ -33,6 +33,12 @@ db.exec(`
     created_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_polls_created ON polls(created_at);
+
+  CREATE TABLE IF NOT EXISTS players (
+    name       TEXT PRIMARY KEY COLLATE NOCASE,
+    handicap   REAL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 // Migrations. SQLite has no `ADD COLUMN IF NOT EXISTS`, so check the table_info.
@@ -137,6 +143,28 @@ const stmtUpdatePollResponses = db.prepare(
 );
 const stmtDeletePoll = db.prepare(`DELETE FROM polls WHERE id = ?`);
 
+type PlayerRow = {
+  name: string;
+  handicap: number | null;
+  updated_at: string;
+};
+
+const rowToPlayer = (row: PlayerRow) => ({
+  name: row.name,
+  handicap: row.handicap,
+  updatedAt: row.updated_at,
+});
+
+const stmtSelectAllPlayers = db.prepare(
+  `SELECT * FROM players ORDER BY name COLLATE NOCASE ASC`
+);
+const stmtUpsertPlayer = db.prepare(`
+  INSERT INTO players (name, handicap, updated_at)
+  VALUES (?, ?, ?)
+  ON CONFLICT(name) DO UPDATE SET handicap = excluded.handicap, updated_at = excluded.updated_at
+  RETURNING *
+`);
+
 // ============================================================
 // ACCESS GATE
 // ============================================================
@@ -201,6 +229,8 @@ const PROMPT_MAX = 140;
 const OPTION_MAX = 60;
 const POLL_OPTIONS_MIN = 2;
 const POLL_OPTIONS_MAX = 8;
+const HANDICAP_MIN = -10;
+const HANDICAP_MAX = 54;
 
 class ValidationError extends Error {
   status = 400;
@@ -601,6 +631,45 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("POST /api/polls/:id/responses failed:", err);
       res.status(500).json({ error: "Failed to record response" });
+    }
+  });
+
+  app.get("/api/players", (_req, res) => {
+    try {
+      const rows = stmtSelectAllPlayers.all() as PlayerRow[];
+      res.json({ players: rows.map(rowToPlayer) });
+    } catch (err) {
+      console.error("GET /api/players failed:", err);
+      res.status(500).json({ error: "Failed to load players" });
+    }
+  });
+
+  app.put("/api/players/:name", (req, res) => {
+    try {
+      const name = trimStr(decodeURIComponent(req.params.name), NAME_MAX, "Name");
+      let handicap: number | null = null;
+      if (req.body?.handicap != null && req.body.handicap !== "") {
+        const h = Number(req.body.handicap);
+        if (!Number.isFinite(h)) {
+          throw new ValidationError("Handicap must be a number");
+        }
+        if (h < HANDICAP_MIN || h > HANDICAP_MAX) {
+          throw new ValidationError(
+            `Handicap must be between ${HANDICAP_MIN} and ${HANDICAP_MAX}`
+          );
+        }
+        handicap = Math.round(h * 10) / 10;
+      }
+      const row = stmtUpsertPlayer.get(
+        name,
+        handicap,
+        new Date().toISOString()
+      ) as PlayerRow;
+      res.json({ player: rowToPlayer(row) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("PUT /api/players/:name failed:", err);
+      res.status(500).json({ error: "Failed to save player" });
     }
   });
 
