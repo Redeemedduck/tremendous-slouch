@@ -6,15 +6,25 @@ const BASE = "http://localhost:3000";
 const VIEWPORT = { width: 393, height: 852 }; // iPhone 14 Pro
 const OUT = path.resolve("screenshots");
 
-async function setNameInLocalStorage(page: import("playwright").Page, name: string) {
-  await page.evaluate((n) => {
-    localStorage.setItem("golf.coordinator.myName", n);
-  }, name);
+async function setProfileInLocalStorage(
+  page: import("playwright").Page,
+  name: string,
+  handicap: number | null
+) {
+  await page.evaluate(
+    ([n, h]) => {
+      localStorage.setItem("golf.coordinator.myName", n as string);
+      if (h != null) localStorage.setItem("golf.coordinator.myHandicap", String(h));
+      else localStorage.removeItem("golf.coordinator.myHandicap");
+    },
+    [name, handicap] as const
+  );
 }
 
-async function clearNameInLocalStorage(page: import("playwright").Page) {
+async function clearProfileInLocalStorage(page: import("playwright").Page) {
   await page.evaluate(() => {
     localStorage.removeItem("golf.coordinator.myName");
+    localStorage.removeItem("golf.coordinator.myHandicap");
   });
 }
 
@@ -50,18 +60,26 @@ async function main() {
   });
   const page = await context.newPage();
 
-  // 1. Empty state, no name
+  // 1. Empty state, no profile
   await page.goto(BASE);
-  await clearNameInLocalStorage(page);
+  await clearProfileInLocalStorage(page);
   await page.reload();
   await page.waitForSelector("text=Nothing on the board yet");
   await page.screenshot({ path: path.join(OUT, "01-empty-no-name.png") });
 
-  // 2. Empty state, with name set
-  await setNameInLocalStorage(page, "Mike");
+  // 2. Empty state, with profile set (Mike, 12.4)
+  await setProfileInLocalStorage(page, "Mike", 12.4);
   await page.reload();
   await page.waitForSelector("text=Nothing on the board yet");
   await page.screenshot({ path: path.join(OUT, "02-empty-with-name.png") });
+
+  // Seed players with handicaps so chips and standings have content.
+  await api("PUT", "/api/players/Greg", { handicap: 8.0 });
+  await api("PUT", "/api/players/Mike", { handicap: 12.4 });
+  await api("PUT", "/api/players/Sam", { handicap: 18.6 });
+  await api("PUT", "/api/players/Alex", { handicap: 4.2 });
+  await api("PUT", "/api/players/Lee", { handicap: 22.0 });
+  await api("PUT", "/api/players/Chris", { handicap: 9.5 });
 
   // Seed: a tee time and a poll
   const tt1 = await api("POST", "/api/teetimes", {
@@ -135,25 +153,74 @@ async function main() {
   await page.screenshot({ path: path.join(OUT, "06-new-poll-sheet.png"), fullPage: true });
   await page.keyboard.press("Escape");
 
-  // 7. Past tee times: insert a past row directly
+  // 7. Past tee times with scores recorded — insert two past rows directly
+  // and seed scores so the past card has a Scores block AND the standings
+  // card has content.
   const sqlite3 = await import("better-sqlite3");
   const db = new (sqlite3 as any).default("golf_coordinator.db");
   db.prepare(
-    `INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, created_at)
-     VALUES (?, 'Old Course', '2024-01-01', '09:00', 4, 'Greg', NULL,
-             '[{"name":"Greg","claimedAt":"2024-01-01T00:00:00Z"},{"name":"Mike","claimedAt":"2024-01-01T00:00:00Z"}]',
-             '[]', '2024-01-01T00:00:00Z')`
+    `INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+     VALUES (?, 'Walnut Creek', '2024-09-15', '08:00', 4, 'Greg', NULL,
+             '[{"name":"Greg","claimedAt":"2024-09-15T00:00:00Z"},{"name":"Mike","claimedAt":"2024-09-15T00:00:00Z"},{"name":"Sam","claimedAt":"2024-09-15T00:00:00Z"},{"name":"Alex","claimedAt":"2024-09-15T00:00:00Z"}]',
+             '[]',
+             '[{"name":"Greg","gross":80,"recordedAt":"2024-09-15T13:00:00Z"},{"name":"Mike","gross":91,"recordedAt":"2024-09-15T13:00:00Z"},{"name":"Sam","gross":102,"recordedAt":"2024-09-15T13:00:00Z"},{"name":"Alex","gross":76,"recordedAt":"2024-09-15T13:00:00Z"}]',
+             '2024-09-15T00:00:00Z')`
   ).run("past-1");
+  db.prepare(
+    `INSERT INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+     VALUES (?, 'Murphy Creek', '2024-10-05', '13:30', 4, 'Alex', NULL,
+             '[{"name":"Alex","claimedAt":"2024-10-05T00:00:00Z"},{"name":"Greg","claimedAt":"2024-10-05T00:00:00Z"},{"name":"Chris","claimedAt":"2024-10-05T00:00:00Z"}]',
+             '[]',
+             '[{"name":"Alex","gross":74,"recordedAt":"2024-10-05T18:00:00Z"},{"name":"Greg","gross":78,"recordedAt":"2024-10-05T18:00:00Z"},{"name":"Chris","gross":86,"recordedAt":"2024-10-05T18:00:00Z"}]',
+             '2024-10-05T00:00:00Z')`
+  ).run("past-2");
   db.close();
 
   await page.reload();
   await page.locator("text=Past tee times").click();
-  await page.waitForSelector("text=Old Course");
+  await page.waitForSelector("text=Walnut Creek").catch(() => {});
   await page.screenshot({ path: path.join(OUT, "07-past-section-expanded.png"), fullPage: true });
 
-  // 8. Access gate (set ACCESS_CODE → reload)
-  // Skipping this in the unified script — the server already booted without it.
-  // We capture this in a separate run instead.
+  // 8. Standings expanded
+  await page.locator("button:has-text('Standings')").click();
+  await page.waitForSelector("text=Avg net");
+  await page.screenshot({ path: path.join(OUT, "08-standings-expanded.png"), fullPage: true });
+
+  // 9. Profile sheet open (handicap field visible)
+  await page.locator("button[aria-label*='Playing as']").click();
+  await page.waitForSelector("text=Your profile");
+  await page.screenshot({ path: path.join(OUT, "09-profile-sheet.png"), fullPage: true });
+  await page.keyboard.press("Escape");
+
+  // 10. Record scores sheet — set name to the host of the past round, open
+  // the host menu on the past card, click Edit scores. Best-effort: if the
+  // menu can't be opened in headless mode we just skip this shot rather
+  // than fail the whole run.
+  try {
+    await setProfileInLocalStorage(page, "Greg", 8);
+    await page.reload();
+    await page.locator("text=Past tee times").first().click();
+    await page.waitForSelector("text=Walnut Creek", { timeout: 5000 });
+    const pastWalnutCard = page
+      .locator("article", { hasText: "Walnut Creek" })
+      .filter({ hasText: "Hosted by Greg" })
+      .first();
+    await pastWalnutCard.scrollIntoViewIfNeeded();
+    await pastWalnutCard
+      .locator("button[aria-label='Host options']")
+      .click({ timeout: 5000 });
+    await page
+      .locator("button", { hasText: /(Edit|Record) scores/ })
+      .first()
+      .click({ timeout: 5000 });
+    await page.waitForSelector("text=Save scores", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "10-record-scores-sheet.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped screenshot 10 (record scores sheet):", (err as Error).message);
+  }
 
   await browser.close();
   console.log("Saved screenshots to", OUT);
