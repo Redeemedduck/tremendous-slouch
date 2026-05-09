@@ -3,6 +3,7 @@
 // ============================================================
 export type Claim = { name: string; claimedAt: string };
 export type Interest = { name: string; interestedAt: string };
+export type Score = { name: string; gross: number; recordedAt: string };
 export type TeeTime = {
   id: string;
   course: string;
@@ -13,6 +14,7 @@ export type TeeTime = {
   notes: string | null;
   claims: Claim[];
   interested: Interest[];
+  scores: Score[];
   createdAt: string;
 };
 export type NewTeeTimeInput = {

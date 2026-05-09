@@ -8,9 +8,15 @@ import {
   Calendar as CalendarIcon,
   CalendarPlus,
   Pencil,
+  ClipboardList,
 } from "lucide-react";
 import { downloadIcs } from "../lib/calendar";
-import { eqName, formatDateLabel, formatTimeLabel } from "../lib/format";
+import {
+  eqName,
+  formatDateLabel,
+  formatHandicap,
+  formatTimeLabel,
+} from "../lib/format";
 import type { TeeTime } from "../lib/types";
 import { PlayerChip } from "./PlayerChip";
 import { SpotsIndicator } from "./SpotsIndicator";
@@ -28,6 +34,7 @@ export function TeeTimeCard({
   onDropMaybe,
   onDelete,
   onEdit,
+  onRecordScores,
   getHandicap,
 }: {
   teeTime: TeeTime;
@@ -39,6 +46,7 @@ export function TeeTimeCard({
   onDropMaybe: (name: string) => void;
   onDelete: () => void;
   onEdit: () => void;
+  onRecordScores: () => void;
   getHandicap: (name: string) => number | null;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,7 +76,7 @@ export function TeeTimeCard({
             {teeTime.course}
           </h2>
         </div>
-        {!readOnly && isHost && (
+        {isHost && (
           <div className="relative">
             <button
               type="button"
@@ -86,17 +94,31 @@ export function TeeTimeCard({
                   onClick={() => setMenuOpen(false)}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-stone-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEdit();
-                    }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
-                  >
-                    <Pencil className="h-4 w-4" /> Edit tee time
-                  </button>
+                <div className="absolute right-0 top-8 z-20 w-48 rounded-lg bg-white p-1 shadow-lg ring-1 ring-stone-200">
+                  {readOnly ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onRecordScores();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {teeTime.scores.length > 0 ? "Edit scores" : "Record scores"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEdit();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                    >
+                      <Pencil className="h-4 w-4" /> Edit tee time
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -199,6 +221,52 @@ export function TeeTimeCard({
               }
             />
           ))}
+        </div>
+      )}
+
+      {teeTime.scores.length > 0 && (
+        <div className="mt-3 rounded-xl bg-stone-50 p-3">
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+            Scores
+          </div>
+          <ul className="space-y-1">
+            {[...teeTime.scores]
+              .sort((a, b) => {
+                const ha = getHandicap(a.name);
+                const hb = getHandicap(b.name);
+                const na = ha != null ? a.gross - ha : a.gross;
+                const nb = hb != null ? b.gross - hb : b.gross;
+                return na - nb;
+              })
+              .map((s) => {
+                const hcp = getHandicap(s.name);
+                const hcpLabel = formatHandicap(hcp);
+                const net = hcp != null ? s.gross - hcp : null;
+                return (
+                  <li
+                    key={s.name}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="text-stone-700">
+                      <span className="font-medium">{s.name}</span>
+                      {hcpLabel && (
+                        <span className="ml-1.5 text-xs text-stone-400">
+                          {hcpLabel}
+                        </span>
+                      )}
+                    </span>
+                    <span className="tabular-nums text-stone-700">
+                      {s.gross}
+                      {net != null && (
+                        <span className="ml-2 text-xs text-stone-500">
+                          net {(Math.round(net * 10) / 10).toFixed(1)}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
         </div>
       )}
 

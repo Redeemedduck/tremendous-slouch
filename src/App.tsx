@@ -13,6 +13,7 @@ import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
 import { ProfileSheet } from "./components/ProfileSheet";
+import { ScoresSheet } from "./components/ScoresSheet";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
 import { useMyProfile } from "./hooks/useMyProfile";
@@ -56,6 +57,7 @@ function Board() {
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [editing, setEditing] = useState<TeeTime | null>(null);
+  const [scoringTeeTime, setScoringTeeTime] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
   const toast = useToast();
 
@@ -68,6 +70,7 @@ function Board() {
     drop,
     markInterested,
     dropInterest,
+    recordScore,
     remove,
   } = useTeeTimes(toast.show);
   const {
@@ -247,6 +250,7 @@ function Board() {
                 onDropMaybe={(name) => dropInterest(t.id, name)}
                 onDelete={() => remove(t.id)}
                 onEdit={() => handleEdit(t)}
+                onRecordScores={() => setScoringTeeTime(t)}
                 getHandicap={getHandicap}
               />
             ))}
@@ -279,8 +283,9 @@ function Board() {
                     onDrop={() => {}}
                     onMaybe={() => {}}
                     onDropMaybe={() => {}}
-                    onDelete={() => {}}
+                    onDelete={() => remove(t.id)}
                     onEdit={() => {}}
+                    onRecordScores={() => setScoringTeeTime(t)}
                     getHandicap={getHandicap}
                   />
                 ))}
@@ -370,6 +375,14 @@ function Board() {
         nameSuggestions={nameSuggestions}
         onSave={handleProfileSave}
         onClear={() => setProfile(null)}
+      />
+      <ScoresSheet
+        open={!!scoringTeeTime}
+        onClose={() => setScoringTeeTime(null)}
+        teeTime={scoringTeeTime}
+        onRecord={(name, gross) =>
+          recordScore(scoringTeeTime!.id, name, gross)
+        }
       />
     </div>
   );

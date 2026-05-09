@@ -158,6 +158,39 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError]
   );
 
+  const recordScore = useCallback(
+    async (id: string, name: string, gross: number) => {
+      const r = await fetch(`/api/teetimes/${id}/scores`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, gross }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't record score");
+        throw new Error(data.error || "score failed");
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
+  const removeScore = useCallback(
+    async (id: string, name: string) => {
+      const r = await fetch(
+        `/api/teetimes/${id}/scores/${encodeURIComponent(name)}`,
+        { method: "DELETE" }
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't remove score");
+        return;
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
   return {
     teeTimes,
     loaded,
@@ -167,6 +200,8 @@ export function useTeeTimes(onError: (msg: string) => void) {
     drop,
     markInterested,
     dropInterest,
+    recordScore,
+    removeScore,
     remove,
   };
 }

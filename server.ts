@@ -50,6 +50,11 @@ if (!teeTimeColumns.some((c) => c.name === "interested")) {
     "ALTER TABLE tee_times ADD COLUMN interested TEXT NOT NULL DEFAULT '[]'"
   );
 }
+if (!teeTimeColumns.some((c) => c.name === "scores")) {
+  db.exec(
+    "ALTER TABLE tee_times ADD COLUMN scores TEXT NOT NULL DEFAULT '[]'"
+  );
+}
 
 type TeeTimeRow = {
   id: string;
@@ -61,11 +66,13 @@ type TeeTimeRow = {
   notes: string | null;
   claims: string;
   interested: string;
+  scores: string;
   created_at: string;
 };
 
 type Claim = { name: string; claimedAt: string };
 type Interest = { name: string; interestedAt: string };
+type Score = { name: string; gross: number; recordedAt: string };
 
 const rowToTeeTime = (row: TeeTimeRow) => ({
   id: row.id,
@@ -77,6 +84,7 @@ const rowToTeeTime = (row: TeeTimeRow) => ({
   notes: row.notes,
   claims: JSON.parse(row.claims) as Claim[],
   interested: JSON.parse(row.interested) as Interest[],
+  scores: JSON.parse(row.scores) as Score[],
   createdAt: row.created_at,
 });
 
@@ -120,6 +128,9 @@ const stmtUpdateClaimsAndInterested = db.prepare(
 );
 const stmtUpdateInterested = db.prepare(
   `UPDATE tee_times SET interested = ? WHERE id = ? RETURNING *`
+);
+const stmtUpdateScores = db.prepare(
+  `UPDATE tee_times SET scores = ? WHERE id = ? RETURNING *`
 );
 const stmtUpdateFields = db.prepare(
   `UPDATE tee_times
@@ -231,6 +242,8 @@ const POLL_OPTIONS_MIN = 2;
 const POLL_OPTIONS_MAX = 8;
 const HANDICAP_MIN = -10;
 const HANDICAP_MAX = 54;
+const SCORE_MIN = 1;
+const SCORE_MAX = 300;
 
 class ValidationError extends Error {
   status = 400;
@@ -400,6 +413,40 @@ const dropInterestTx = db.transaction(
   }
 );
 
+// Upsert a score for one player on a past tee time. Replaces the existing
+// score if (case-insensitive) name already has one.
+const recordScoreTx = db.transaction(
+  (teeId: string, name: string, gross: number): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const scores = JSON.parse(row.scores) as Score[];
+    const lower = name.toLowerCase();
+    const idx = scores.findIndex((s) => s.name.toLowerCase() === lower);
+    const entry: Score = {
+      name,
+      gross,
+      recordedAt: new Date().toISOString(),
+    };
+    if (idx === -1) scores.push(entry);
+    else scores[idx] = entry;
+    return stmtUpdateScores.get(JSON.stringify(scores), teeId) as TeeTimeRow;
+  }
+);
+
+// Remove a score entry (host wants to undo / fix a mistake).
+const removeScoreTx = db.transaction(
+  (teeId: string, name: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const scores = JSON.parse(row.scores) as Score[];
+    const lower = name.toLowerCase();
+    const idx = scores.findIndex((s) => s.name.toLowerCase() === lower);
+    if (idx === -1) throw new NotFoundError("No score by that name");
+    scores.splice(idx, 1);
+    return stmtUpdateScores.get(JSON.stringify(scores), teeId) as TeeTimeRow;
+  }
+);
+
 // Toggle a poll response: if (name, optionIdx) is already present, remove it;
 // otherwise append. Allows multi-select per voter without dedicated PUT/DELETE
 // endpoints.
@@ -537,6 +584,39 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("DELETE /api/teetimes/:id/interested/:name failed:", err);
       res.status(500).json({ error: "Failed to drop maybe" });
+    }
+  });
+
+  app.post("/api/teetimes/:id/scores", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = trimStr(req.body?.name, NAME_MAX, "Name");
+      const gross = Number(req.body?.gross);
+      if (!Number.isInteger(gross) || gross < SCORE_MIN || gross > SCORE_MAX) {
+        throw new ValidationError(
+          `Score must be an integer between ${SCORE_MIN} and ${SCORE_MAX}`
+        );
+      }
+      const updated = recordScoreTx.immediate(id, name, gross);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/teetimes/:id/scores failed:", err);
+      res.status(500).json({ error: "Failed to record score" });
+    }
+  });
+
+  app.delete("/api/teetimes/:id/scores/:name", (req, res) => {
+    try {
+      const id = req.params.id;
+      const name = decodeURIComponent(req.params.name).trim();
+      if (!name) throw new ValidationError("Name is required");
+      const updated = removeScoreTx.immediate(id, name);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("DELETE /api/teetimes/:id/scores/:name failed:", err);
+      res.status(500).json({ error: "Failed to remove score" });
     }
   });
 
