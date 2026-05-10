@@ -204,7 +204,11 @@ function Board() {
           />
         )}
 
-        <SeasonSchedule tournaments={tournaments} />
+        <SeasonSchedule
+          tournaments={tournaments}
+          teeTimes={teeTimes}
+          getHandicap={getHandicap}
+        />
 
         <Standings
           teeTimes={teeTimes}
