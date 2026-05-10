@@ -232,16 +232,18 @@ export function TeeTimeCard({
           <ul className="space-y-1">
             {[...teeTime.scores]
               .sort((a, b) => {
-                const ha = getHandicap(a.name);
-                const hb = getHandicap(b.name);
+                const ha = a.courseHcp ?? getHandicap(a.name);
+                const hb = b.courseHcp ?? getHandicap(b.name);
                 const na = ha != null ? a.gross - ha : a.gross;
                 const nb = hb != null ? b.gross - hb : b.gross;
                 return na - nb;
               })
               .map((s) => {
-                const hcp = getHandicap(s.name);
-                const hcpLabel = formatHandicap(hcp);
-                const net = hcp != null ? s.gross - hcp : null;
+                // Course handicap from this round wins over the GHIN index
+                // for net math (the league rule).
+                const usedHcp = s.courseHcp ?? getHandicap(s.name);
+                const fromCourse = s.courseHcp != null;
+                const net = usedHcp != null ? s.gross - usedHcp : null;
                 return (
                   <li
                     key={s.name}
@@ -249,9 +251,9 @@ export function TeeTimeCard({
                   >
                     <span className="text-stone-700">
                       <span className="font-medium">{s.name}</span>
-                      {hcpLabel && (
+                      {usedHcp != null && (
                         <span className="ml-1.5 text-xs text-stone-400">
-                          {hcpLabel}
+                          {fromCourse ? `CH ${usedHcp}` : formatHandicap(usedHcp)}
                         </span>
                       )}
                     </span>
@@ -259,7 +261,7 @@ export function TeeTimeCard({
                       {s.gross}
                       {net != null && (
                         <span className="ml-2 text-xs text-stone-500">
-                          net {(Math.round(net * 10) / 10).toFixed(1)}
+                          net {fromCourse ? net : (Math.round(net * 10) / 10).toFixed(1)}
                         </span>
                       )}
                     </span>

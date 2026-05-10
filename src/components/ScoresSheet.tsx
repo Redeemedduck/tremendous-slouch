@@ -3,30 +3,43 @@ import { X } from "lucide-react";
 import type { TeeTime } from "../lib/types";
 import { formatDateLabel, formatTimeLabel } from "../lib/format";
 
+type Draft = { gross: string; courseHcp: string };
+
 export function ScoresSheet({
   open,
   onClose,
   teeTime,
   onRecord,
+  isLeagueRound,
 }: {
   open: boolean;
   onClose: () => void;
   teeTime: TeeTime | null;
-  onRecord: (name: string, gross: number) => Promise<void>;
+  onRecord: (
+    name: string,
+    gross: number,
+    courseHcp: number | null
+  ) => Promise<void>;
+  /** True when this tee time falls inside a tournament window — course
+   *  handicap is required so net math is correct. */
+  isLeagueRound: boolean;
 }) {
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !teeTime) return;
     // Prefill from existing scores so edits are easy.
-    const prefill: Record<string, string> = {};
+    const prefill: Record<string, Draft> = {};
     for (const c of teeTime.claims) {
       const s = teeTime.scores.find(
         (x) => x.name.toLowerCase() === c.name.toLowerCase()
       );
-      prefill[c.name] = s ? String(s.gross) : "";
+      prefill[c.name] = {
+        gross: s ? String(s.gross) : "",
+        courseHcp: s?.courseHcp != null ? String(s.courseHcp) : "",
+      };
     }
     setDrafts(prefill);
     setError(null);
@@ -46,16 +59,34 @@ export function ScoresSheet({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const tasks: { name: string; gross: number }[] = [];
+    const tasks: { name: string; gross: number; courseHcp: number | null }[] =
+      [];
     for (const [name, raw] of Object.entries(drafts)) {
-      const trimmed = raw.trim();
-      if (!trimmed) continue;
-      const v = Number(trimmed);
+      const grossStr = raw.gross.trim();
+      const hcpStr = raw.courseHcp.trim();
+      if (!grossStr && !hcpStr) continue;
+      if (!grossStr) {
+        setError(`${name}: score is required`);
+        return;
+      }
+      const v = Number(grossStr);
       if (!Number.isInteger(v) || v < 1 || v > 300) {
         setError(`${name}: score must be a whole number between 1 and 300`);
         return;
       }
-      tasks.push({ name, gross: v });
+      let courseHcp: number | null = null;
+      if (hcpStr) {
+        const h = Number(hcpStr);
+        if (!Number.isInteger(h) || h < -10 || h > 54) {
+          setError(`${name}: course handicap must be a whole number between -10 and 54`);
+          return;
+        }
+        courseHcp = h;
+      } else if (isLeagueRound) {
+        setError(`${name}: league rounds need a course handicap (from GHIN)`);
+        return;
+      }
+      tasks.push({ name, gross: v, courseHcp });
     }
     if (tasks.length === 0) {
       setError("Enter at least one score");
@@ -63,8 +94,8 @@ export function ScoresSheet({
     }
     setSubmitting(true);
     try {
-      for (const { name, gross } of tasks) {
-        await onRecord(name, gross);
+      for (const { name, gross, courseHcp } of tasks) {
+        await onRecord(name, gross, courseHcp);
       }
       onClose();
     } catch (err: any) {
@@ -108,29 +139,66 @@ export function ScoresSheet({
               No one was claimed for this round.
             </p>
           ) : (
-            teeTime.claims.map((c) => (
-              <label key={c.name} className="flex items-center gap-3">
-                <span className="flex-1 text-sm font-medium text-stone-900">
-                  {c.name}
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={drafts[c.name] ?? ""}
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [c.name]: e.target.value,
-                    }))
-                  }
-                  step={1}
-                  min={1}
-                  max={300}
-                  placeholder="Gross"
-                  className="w-24 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                />
-              </label>
-            ))
+            <>
+              <div className="grid grid-cols-[1fr,5rem,5rem] items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                <span>Player</span>
+                <span className="text-right">Gross</span>
+                <span className="text-right">Course HCP</span>
+              </div>
+              {teeTime.claims.map((c) => {
+                const draft = drafts[c.name] ?? { gross: "", courseHcp: "" };
+                return (
+                  <div
+                    key={c.name}
+                    className="grid grid-cols-[1fr,5rem,5rem] items-center gap-2"
+                  >
+                    <label className="text-sm font-medium text-stone-900">
+                      {c.name}
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={draft.gross}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [c.name]: { ...draft, gross: e.target.value },
+                        }))
+                      }
+                      step={1}
+                      min={1}
+                      max={300}
+                      placeholder="-"
+                      aria-label={`${c.name} gross score`}
+                      className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={draft.courseHcp}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [c.name]: { ...draft, courseHcp: e.target.value },
+                        }))
+                      }
+                      step={1}
+                      min={-10}
+                      max={54}
+                      placeholder={isLeagueRound ? "req" : "-"}
+                      aria-label={`${c.name} course handicap`}
+                      className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                    />
+                  </div>
+                );
+              })}
+              {isLeagueRound && (
+                <p className="text-xs text-stone-500">
+                  League round — each player's course handicap (from the GHIN
+                  app) is required for net scoring.
+                </p>
+              )}
+            </>
           )}
 
           {error && (

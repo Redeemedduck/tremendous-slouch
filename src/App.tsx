@@ -392,8 +392,17 @@ function Board() {
         open={!!scoringTeeTime}
         onClose={() => setScoringTeeTime(null)}
         teeTime={scoringTeeTime}
-        onRecord={(name, gross) =>
-          recordScore(scoringTeeTime!.id, name, gross)
+        isLeagueRound={
+          !!scoringTeeTime &&
+          tournaments.some(
+            (t) =>
+              t.type !== "post" &&
+              scoringTeeTime.date >= t.windowStart &&
+              scoringTeeTime.date <= t.windowEnd
+          )
+        }
+        onRecord={(name, gross, courseHcp) =>
+          recordScore(scoringTeeTime!.id, name, gross, courseHcp)
         }
       />
     </div>

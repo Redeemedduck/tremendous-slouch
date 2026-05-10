@@ -284,7 +284,12 @@ type TeeTimeRow = {
 
 type Claim = { name: string; claimedAt: string };
 type Interest = { name: string; interestedAt: string };
-type Score = { name: string; gross: number; recordedAt: string };
+type Score = {
+  name: string;
+  gross: number;
+  courseHcp?: number | null;
+  recordedAt: string;
+};
 
 const rowToTeeTime = (row: TeeTimeRow) => ({
   id: row.id,
@@ -662,7 +667,12 @@ const dropInterestTx = db.transaction(
 // Upsert a score for one player on a past tee time. Replaces the existing
 // score if (case-insensitive) name already has one.
 const recordScoreTx = db.transaction(
-  (teeId: string, name: string, gross: number): TeeTimeRow => {
+  (
+    teeId: string,
+    name: string,
+    gross: number,
+    courseHcp: number | null
+  ): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
     const scores = JSON.parse(row.scores) as Score[];
@@ -671,6 +681,7 @@ const recordScoreTx = db.transaction(
     const entry: Score = {
       name,
       gross,
+      courseHcp,
       recordedAt: new Date().toISOString(),
     };
     if (idx === -1) scores.push(entry);
@@ -843,7 +854,17 @@ async function startServer() {
           `Score must be an integer between ${SCORE_MIN} and ${SCORE_MAX}`
         );
       }
-      const updated = recordScoreTx.immediate(id, name, gross);
+      let courseHcp: number | null = null;
+      if (req.body?.courseHcp != null && req.body.courseHcp !== "") {
+        const h = Number(req.body.courseHcp);
+        if (!Number.isInteger(h) || h < HANDICAP_MIN || h > HANDICAP_MAX) {
+          throw new ValidationError(
+            `Course handicap must be a whole number between ${HANDICAP_MIN} and ${HANDICAP_MAX}`
+          );
+        }
+        courseHcp = h;
+      }
+      const updated = recordScoreTx.immediate(id, name, gross, courseHcp);
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });

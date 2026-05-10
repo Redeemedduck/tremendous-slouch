@@ -159,11 +159,16 @@ export function useTeeTimes(onError: (msg: string) => void) {
   );
 
   const recordScore = useCallback(
-    async (id: string, name: string, gross: number) => {
+    async (
+      id: string,
+      name: string,
+      gross: number,
+      courseHcp: number | null
+    ) => {
       const r = await fetch(`/api/teetimes/${id}/scores`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, gross }),
+        body: JSON.stringify({ name, gross, courseHcp }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
