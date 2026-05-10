@@ -58,6 +58,10 @@ export type NewPollInput = {
 export type Player = {
   name: string;
   handicap: number | null;
+  /** True for full league members (paid the season buy-in, eligible for
+   *  season points + post-season, can attest other members' scores).
+   *  False = drop-in (one-tournament guest of a member). */
+  member: boolean;
   updatedAt: string;
 };
 

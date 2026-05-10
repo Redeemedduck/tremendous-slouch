@@ -36,6 +36,7 @@ export function TeeTimeCard({
   onEdit,
   onRecordScores,
   getHandicap,
+  isMember,
 }: {
   teeTime: TeeTime;
   myName: string;
@@ -48,7 +49,9 @@ export function TeeTimeCard({
   onEdit: () => void;
   onRecordScores: () => void;
   getHandicap: (name: string) => number | null;
+  isMember: (name: string) => boolean;
 }) {
+  const isDropInChip = (n: string) => !isMember(n);
   const [menuOpen, setMenuOpen] = useState(false);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
   const meMaybe =
@@ -177,6 +180,7 @@ export function TeeTimeCard({
               isHost={eqName(c.name, teeTime.host)}
               isMe={!!myName && eqName(c.name, myName)}
               handicap={getHandicap(c.name)}
+              isDropIn={isDropInChip(c.name)}
               onDrop={
                 !readOnly && !!myName && eqName(c.name, myName)
                   ? () => {
@@ -206,6 +210,7 @@ export function TeeTimeCard({
               isHost={false}
               isMe={!!myName && eqName(i.name, myName)}
               handicap={getHandicap(i.name)}
+              isDropIn={isDropInChip(i.name)}
               onDrop={
                 !readOnly && !!myName && eqName(i.name, myName)
                   ? () => {

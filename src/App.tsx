@@ -13,6 +13,7 @@ import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
 import { ProfileSheet } from "./components/ProfileSheet";
+import { Roster } from "./components/Roster";
 import { ScoresSheet } from "./components/ScoresSheet";
 import { SeasonSchedule } from "./components/SeasonSchedule";
 import { Standings } from "./components/Standings";
@@ -82,7 +83,12 @@ function Board() {
     toggleResponse,
     remove: removePoll,
   } = usePolls(toast.show);
-  const { upsert: upsertPlayer, getHandicap } = usePlayers(toast.show);
+  const {
+    players,
+    upsert: upsertPlayer,
+    getHandicap,
+    isMember,
+  } = usePlayers(toast.show);
   const { tournaments } = useTournaments();
 
   const { upcoming, past } = useMemo(() => {
@@ -146,7 +152,10 @@ function Board() {
   const handleProfileSave = async (name: string, handicap: number | null) => {
     setProfile({ name, handicap });
     try {
-      await upsertPlayer(name, handicap);
+      // Saving your own profile auto-promotes you to a full member. Drop-ins
+      // get added to the players table only when explicitly tagged via the
+      // Roster (or never, if they never play a league round).
+      await upsertPlayer(name, { handicap, member: true });
     } catch {
       // toast surfaced by usePlayers
     }
@@ -210,6 +219,12 @@ function Board() {
           getHandicap={getHandicap}
         />
 
+        <Roster
+          players={players}
+          teeTimes={teeTimes}
+          onUpdate={(n, patch) => upsertPlayer(n, patch)}
+        />
+
         <Standings
           teeTimes={teeTimes}
           getHandicap={getHandicap}
@@ -268,6 +283,7 @@ function Board() {
                 onEdit={() => handleEdit(t)}
                 onRecordScores={() => setScoringTeeTime(t)}
                 getHandicap={getHandicap}
+                isMember={isMember}
               />
             ))}
           </div>
@@ -303,6 +319,7 @@ function Board() {
                     onEdit={() => {}}
                     onRecordScores={() => setScoringTeeTime(t)}
                     getHandicap={getHandicap}
+                    isMember={isMember}
                   />
                 ))}
               </div>

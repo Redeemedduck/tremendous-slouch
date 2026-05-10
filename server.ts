@@ -71,6 +71,14 @@ if (!teeTimeColumns.some((c) => c.name === "scores")) {
     "ALTER TABLE tee_times ADD COLUMN scores TEXT NOT NULL DEFAULT '[]'"
   );
 }
+const playerColumns = db
+  .prepare("PRAGMA table_info(players)")
+  .all() as { name: string }[];
+if (!playerColumns.some((c) => c.name === "member")) {
+  db.exec(
+    "ALTER TABLE players ADD COLUMN member INTEGER NOT NULL DEFAULT 0"
+  );
+}
 
 // ============================================================
 // SEED — 2026 league schedule + first-weekend Common Ground tee times.
@@ -374,22 +382,30 @@ const stmtDeletePoll = db.prepare(`DELETE FROM polls WHERE id = ?`);
 type PlayerRow = {
   name: string;
   handicap: number | null;
+  member: number;
   updated_at: string;
 };
 
 const rowToPlayer = (row: PlayerRow) => ({
   name: row.name,
   handicap: row.handicap,
+  member: !!row.member,
   updatedAt: row.updated_at,
 });
 
 const stmtSelectAllPlayers = db.prepare(
   `SELECT * FROM players ORDER BY name COLLATE NOCASE ASC`
 );
+const stmtSelectPlayerByName = db.prepare(
+  `SELECT * FROM players WHERE name = ? COLLATE NOCASE`
+);
 const stmtUpsertPlayer = db.prepare(`
-  INSERT INTO players (name, handicap, updated_at)
-  VALUES (?, ?, ?)
-  ON CONFLICT(name) DO UPDATE SET handicap = excluded.handicap, updated_at = excluded.updated_at
+  INSERT INTO players (name, handicap, member, updated_at)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(name) DO UPDATE SET
+    handicap = excluded.handicap,
+    member = excluded.member,
+    updated_at = excluded.updated_at
   RETURNING *
 `);
 
@@ -1004,22 +1020,34 @@ async function startServer() {
   app.put("/api/players/:name", (req, res) => {
     try {
       const name = trimStr(decodeURIComponent(req.params.name), NAME_MAX, "Name");
-      let handicap: number | null = null;
-      if (req.body?.handicap != null && req.body.handicap !== "") {
-        const h = Number(req.body.handicap);
-        if (!Number.isFinite(h)) {
-          throw new ValidationError("Handicap must be a number");
+      // Merge with existing row so the caller can update one field at a time
+      // without clobbering the other.
+      const existing = stmtSelectPlayerByName.get(name) as PlayerRow | undefined;
+      let handicap: number | null = existing?.handicap ?? null;
+      if ("handicap" in (req.body ?? {})) {
+        if (req.body.handicap == null || req.body.handicap === "") {
+          handicap = null;
+        } else {
+          const h = Number(req.body.handicap);
+          if (!Number.isFinite(h)) {
+            throw new ValidationError("Handicap must be a number");
+          }
+          if (h < HANDICAP_MIN || h > HANDICAP_MAX) {
+            throw new ValidationError(
+              `Handicap must be between ${HANDICAP_MIN} and ${HANDICAP_MAX}`
+            );
+          }
+          handicap = Math.round(h * 10) / 10;
         }
-        if (h < HANDICAP_MIN || h > HANDICAP_MAX) {
-          throw new ValidationError(
-            `Handicap must be between ${HANDICAP_MIN} and ${HANDICAP_MAX}`
-          );
-        }
-        handicap = Math.round(h * 10) / 10;
+      }
+      let member: number = existing?.member ?? 0;
+      if ("member" in (req.body ?? {})) {
+        member = req.body.member ? 1 : 0;
       }
       const row = stmtUpsertPlayer.get(
         name,
         handicap,
+        member,
         new Date().toISOString()
       ) as PlayerRow;
       res.json({ player: rowToPlayer(row) });

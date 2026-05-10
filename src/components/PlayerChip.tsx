@@ -10,6 +10,7 @@ export function PlayerChip({
   onDrop,
   variant = "claimed",
   handicap,
+  isDropIn = false,
 }: {
   name: string;
   isHost: boolean;
@@ -17,6 +18,8 @@ export function PlayerChip({
   onDrop?: () => void;
   variant?: Variant;
   handicap?: number | null;
+  /** True if the player is a known drop-in (not a full league member). */
+  isDropIn?: boolean;
 }) {
   const hcp = formatHandicap(handicap);
   // The chip is only actionable when it's the current user AND a drop
@@ -59,6 +62,11 @@ export function PlayerChip({
       {isHost && (
         <span className="ml-0.5 text-[10px] uppercase tracking-wide text-stone-500">
           host
+        </span>
+      )}
+      {isDropIn && !isHost && (
+        <span className="ml-0.5 text-[10px] uppercase tracking-wide text-amber-700">
+          guest
         </span>
       )}
       {interactive && <X className="h-3 w-3" />}

@@ -24,15 +24,18 @@ export function usePlayers(onError: (msg: string) => void) {
   }, [refresh]);
 
   const upsert = useCallback(
-    async (name: string, handicap: number | null) => {
+    async (
+      name: string,
+      patch: { handicap?: number | null; member?: boolean }
+    ) => {
       const r = await fetch(`/api/players/${encodeURIComponent(name)}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handicap }),
+        body: JSON.stringify(patch),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        onError(data.error || "Couldn't save handicap");
+        onError(data.error || "Couldn't save player");
         throw new Error(data.error || "save failed");
       }
       setPlayers((prev) => {
@@ -54,10 +57,21 @@ export function usePlayers(onError: (msg: string) => void) {
     return m;
   }, [players]);
 
+  const memberByName = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const p of players) m.set(p.name.toLowerCase(), p.member);
+    return m;
+  }, [players]);
+
   const getHandicap = useCallback(
     (name: string) => handicapByName.get(name.toLowerCase()) ?? null,
     [handicapByName]
   );
 
-  return { players, upsert, getHandicap };
+  const isMember = useCallback(
+    (name: string) => memberByName.get(name.toLowerCase()) ?? false,
+    [memberByName]
+  );
+
+  return { players, upsert, getHandicap, isMember };
 }
