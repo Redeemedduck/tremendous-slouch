@@ -39,6 +39,22 @@ db.exec(`
     handicap   REAL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS tournaments (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    course          TEXT NOT NULL,
+    window_start    TEXT NOT NULL,            -- YYYY-MM-DD
+    window_end      TEXT NOT NULL,            -- YYYY-MM-DD
+    type            TEXT NOT NULL,            -- 'regular' | 'major' | 'post'
+    points_to_first INTEGER,
+    payout_first    INTEGER,
+    payout_second   INTEGER,
+    payout_third    INTEGER,
+    notes           TEXT,
+    created_at      TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_tournaments_when ON tournaments(window_start, window_end);
 `);
 
 // Migrations. SQLite has no `ADD COLUMN IF NOT EXISTS`, so check the table_info.
@@ -55,6 +71,202 @@ if (!teeTimeColumns.some((c) => c.name === "scores")) {
     "ALTER TABLE tee_times ADD COLUMN scores TEXT NOT NULL DEFAULT '[]'"
   );
 }
+
+// ============================================================
+// SEED — 2026 league schedule + first-weekend Common Ground tee times.
+// Idempotent: each row keyed by a deterministic id, INSERT OR IGNORE so
+// re-running on an existing DB doesn't duplicate or overwrite hand-edits.
+// ============================================================
+const NOW_ISO = new Date().toISOString();
+const stmtSeedTournament = db.prepare(`
+  INSERT OR IGNORE INTO tournaments
+  (id, name, course, window_start, window_end, type, points_to_first,
+   payout_first, payout_second, payout_third, notes, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+type SeedTournament = {
+  id: string;
+  name: string;
+  course: string;
+  window_start: string;
+  window_end: string;
+  type: "regular" | "major" | "post";
+  points_to_first: number | null;
+  payout_first: number | null;
+  payout_second: number | null;
+  payout_third: number | null;
+  notes: string | null;
+};
+const REGULAR_PAYOUT = 334; // from rule sheet @ $325 buy-in × 12 members
+const POST_PAYOUTS = { first: 1014, second: 390, third: 156 };
+const SEASON_TOURNAMENTS: SeedTournament[] = [
+  {
+    id: "2026-w1",
+    name: "Stop 1 — Common Ground",
+    course: "Common Ground",
+    window_start: "2026-05-01",
+    window_end: "2026-05-24",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: "Originally Murphy Creek; moved to Common Ground.",
+  },
+  {
+    id: "2026-w2",
+    name: "Stop 2 — Colorado National",
+    course: "Colorado National",
+    window_start: "2026-05-25",
+    window_end: "2026-06-14",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-w3",
+    name: "Stop 3 — Riverdale Dunes",
+    course: "Riverdale Dunes",
+    window_start: "2026-06-15",
+    window_end: "2026-07-05",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-w4",
+    name: "Stop 4 — Bear Dance",
+    course: "Bear Dance",
+    window_start: "2026-07-06",
+    window_end: "2026-07-26",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-w5",
+    name: "Stop 5 — Common Ground",
+    course: "Common Ground",
+    window_start: "2026-07-27",
+    window_end: "2026-08-16",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-w6",
+    name: "Stop 6 — Red Hawk Ridge",
+    course: "Red Hawk Ridge",
+    window_start: "2026-08-17",
+    window_end: "2026-09-06",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-w7",
+    name: "Stop 7 — Indian Peaks",
+    course: "Indian Peaks",
+    window_start: "2026-09-07",
+    window_end: "2026-09-27",
+    type: "regular",
+    points_to_first: 100,
+    payout_first: REGULAR_PAYOUT,
+    payout_second: null,
+    payout_third: null,
+    notes: null,
+  },
+  {
+    id: "2026-major",
+    name: "Mid-season major",
+    course: "TBD",
+    window_start: "2026-07-15",
+    window_end: "2026-07-15",
+    type: "major",
+    points_to_first: null, // major awards no season points per rules
+    payout_first: null,
+    payout_second: null,
+    payout_third: null,
+    notes: "Optional single-day live event with separate buy-in. Date + course TBD.",
+  },
+  {
+    id: "2026-post",
+    name: "Championship — 2-day post-season",
+    course: "TBD",
+    window_start: "2026-10-01",
+    window_end: "2026-10-31",
+    type: "post",
+    points_to_first: null,
+    payout_first: POST_PAYOUTS.first,
+    payout_second: POST_PAYOUTS.second,
+    payout_third: POST_PAYOUTS.third,
+    notes: "Top-4 regular-season seeds get stroke advantages: -4 / -3 / -2 / -1.",
+  },
+];
+for (const t of SEASON_TOURNAMENTS) {
+  stmtSeedTournament.run(
+    t.id,
+    t.name,
+    t.course,
+    t.window_start,
+    t.window_end,
+    t.type,
+    t.points_to_first,
+    t.payout_first,
+    t.payout_second,
+    t.payout_third,
+    t.notes,
+    NOW_ISO
+  );
+}
+
+// Pre-seed two foursome tee times for Sat 5/16 at Common Ground (Stop 1).
+const stmtSeedTeeTime = db.prepare(`
+  INSERT OR IGNORE INTO tee_times
+  (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', ?)
+`);
+const SEED_HOST = "Jason"; // organizer per the SMS thread
+const SEED_HOST_CLAIM = JSON.stringify([
+  { name: SEED_HOST, claimedAt: NOW_ISO },
+]);
+stmtSeedTeeTime.run(
+  "seed-2026-w1-1240",
+  "Common Ground",
+  "2026-05-16",
+  "12:40",
+  4,
+  SEED_HOST,
+  "Stop 1 — first foursome",
+  SEED_HOST_CLAIM,
+  NOW_ISO
+);
+stmtSeedTeeTime.run(
+  "seed-2026-w1-1250",
+  "Common Ground",
+  "2026-05-16",
+  "12:50",
+  4,
+  SEED_HOST,
+  "Stop 1 — second foursome (back-to-back with 12:40)",
+  SEED_HOST_CLAIM,
+  NOW_ISO
+);
 
 type TeeTimeRow = {
   id: string;
@@ -175,6 +387,40 @@ const stmtUpsertPlayer = db.prepare(`
   ON CONFLICT(name) DO UPDATE SET handicap = excluded.handicap, updated_at = excluded.updated_at
   RETURNING *
 `);
+
+type TournamentRow = {
+  id: string;
+  name: string;
+  course: string;
+  window_start: string;
+  window_end: string;
+  type: string;
+  points_to_first: number | null;
+  payout_first: number | null;
+  payout_second: number | null;
+  payout_third: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+const rowToTournament = (row: TournamentRow) => ({
+  id: row.id,
+  name: row.name,
+  course: row.course,
+  windowStart: row.window_start,
+  windowEnd: row.window_end,
+  type: row.type as "regular" | "major" | "post",
+  pointsToFirst: row.points_to_first,
+  payoutFirst: row.payout_first,
+  payoutSecond: row.payout_second,
+  payoutThird: row.payout_third,
+  notes: row.notes,
+  createdAt: row.created_at,
+});
+
+const stmtSelectAllTournaments = db.prepare(
+  `SELECT * FROM tournaments ORDER BY window_start ASC, type ASC`
+);
 
 // ============================================================
 // ACCESS GATE
@@ -711,6 +957,16 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("POST /api/polls/:id/responses failed:", err);
       res.status(500).json({ error: "Failed to record response" });
+    }
+  });
+
+  app.get("/api/tournaments", (_req, res) => {
+    try {
+      const rows = stmtSelectAllTournaments.all() as TournamentRow[];
+      res.json({ tournaments: rows.map(rowToTournament) });
+    } catch (err) {
+      console.error("GET /api/tournaments failed:", err);
+      res.status(500).json({ error: "Failed to load tournaments" });
     }
   });
 

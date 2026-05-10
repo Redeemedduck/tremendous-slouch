@@ -50,3 +50,19 @@ export type Player = {
   handicap: number | null;
   updatedAt: string;
 };
+
+export type TournamentType = "regular" | "major" | "post";
+export type Tournament = {
+  id: string;
+  name: string;
+  course: string;
+  windowStart: string;
+  windowEnd: string;
+  type: TournamentType;
+  pointsToFirst: number | null;
+  payoutFirst: number | null;
+  payoutSecond: number | null;
+  payoutThird: number | null;
+  notes: string | null;
+  createdAt: string;
+};

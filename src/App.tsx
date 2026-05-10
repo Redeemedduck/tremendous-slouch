@@ -14,6 +14,7 @@ import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
 import { ProfileSheet } from "./components/ProfileSheet";
 import { ScoresSheet } from "./components/ScoresSheet";
+import { SeasonSchedule } from "./components/SeasonSchedule";
 import { Standings } from "./components/Standings";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
@@ -22,6 +23,7 @@ import { usePlayers } from "./hooks/usePlayers";
 import { usePolls } from "./hooks/usePolls";
 import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
+import { useTournaments } from "./hooks/useTournaments";
 import { isPast } from "./lib/format";
 import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
 
@@ -81,6 +83,7 @@ function Board() {
     remove: removePoll,
   } = usePolls(toast.show);
   const { upsert: upsertPlayer, getHandicap } = usePlayers(toast.show);
+  const { tournaments } = useTournaments();
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -200,6 +203,8 @@ function Board() {
             nameSuggestions={nameSuggestions}
           />
         )}
+
+        <SeasonSchedule tournaments={tournaments} />
 
         <Standings
           teeTimes={teeTimes}
