@@ -60,6 +60,13 @@ async function main() {
   });
   const page = await context.newPage();
 
+  // The server pre-seeds two Common Ground tee times for the first weekend
+  // of the season. For the empty-state screenshots we want a truly empty
+  // board, so delete them up-front. (The other shots re-seed the data they
+  // need.)
+  await api("DELETE", "/api/teetimes/seed-2026-w1-1240");
+  await api("DELETE", "/api/teetimes/seed-2026-w1-1250");
+
   // 1. Empty state, no profile
   await page.goto(BASE);
   await clearProfileInLocalStorage(page);
@@ -73,13 +80,17 @@ async function main() {
   await page.waitForSelector("text=Nothing on the board yet");
   await page.screenshot({ path: path.join(OUT, "02-empty-with-name.png") });
 
-  // Seed players with handicaps so chips and standings have content.
-  await api("PUT", "/api/players/Greg", { handicap: 8.0 });
-  await api("PUT", "/api/players/Mike", { handicap: 12.4 });
-  await api("PUT", "/api/players/Sam", { handicap: 18.6 });
-  await api("PUT", "/api/players/Alex", { handicap: 4.2 });
-  await api("PUT", "/api/players/Lee", { handicap: 22.0 });
-  await api("PUT", "/api/players/Chris", { handicap: 9.5 });
+  // Seed players with handicaps + member flags so chips, standings, and
+  // the roster view all have content.
+  await api("PUT", "/api/players/Greg", { handicap: 8.0, member: true });
+  await api("PUT", "/api/players/Mike", { handicap: 12.4, member: true });
+  await api("PUT", "/api/players/Sam", { handicap: 18.6, member: true });
+  await api("PUT", "/api/players/Alex", { handicap: 4.2, member: true });
+  await api("PUT", "/api/players/Lee", { handicap: 22.0, member: true });
+  await api("PUT", "/api/players/Chris", { handicap: 9.5, member: true });
+  await api("PUT", "/api/players/Jason", { handicap: 6.8, member: true });
+  // Bob is a drop-in guest (Greg's college buddy)
+  await api("PUT", "/api/players/Bob", { handicap: 14.7, member: false });
 
   // Seed: a tee time and a poll
   const tt1 = await api("POST", "/api/teetimes", {
@@ -191,6 +202,61 @@ async function main() {
   await page.waitForSelector("text=Your profile");
   await page.screenshot({ path: path.join(OUT, "09-profile-sheet.png"), fullPage: true });
   await page.keyboard.press("Escape");
+
+  // 11. Season schedule expanded — shows the full season list with status
+  // badges (active / upcoming / past).
+  try {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("button", { hasText: "Season" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Stop 1", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "11-season-schedule.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 11 (season schedule):", (err as Error).message);
+  }
+
+  // 12. Tournament card expanded — leaderboard + rounds-in-window. Need
+  // some scores in a tournament window. Insert a real tournament round
+  // directly via SQLite.
+  try {
+    const sqlite3b = await import("better-sqlite3");
+    const db2 = new (sqlite3b as any).default("golf_coordinator.db");
+    db2.prepare(
+      `INSERT OR REPLACE INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+       VALUES (?, 'Common Ground', '2026-05-16', '12:40', 4, 'Jason', NULL,
+               '[{"name":"Jason","claimedAt":"2026-05-01T00:00:00Z"},{"name":"Greg","claimedAt":"2026-05-01T00:00:00Z"},{"name":"Mike","claimedAt":"2026-05-01T00:00:00Z"},{"name":"Bob","claimedAt":"2026-05-01T00:00:00Z"}]',
+               '[]',
+               '[{"name":"Jason","gross":78,"courseHcp":7,"recordedAt":"2026-05-16T19:00:00Z"},{"name":"Greg","gross":80,"courseHcp":9,"recordedAt":"2026-05-16T19:00:00Z"},{"name":"Mike","gross":86,"courseHcp":13,"recordedAt":"2026-05-16T19:00:00Z"},{"name":"Bob","gross":92,"courseHcp":15,"recordedAt":"2026-05-16T19:00:00Z"}]',
+               '2026-05-01T00:00:00Z')`
+    ).run("seed-2026-w1-1240");
+    db2.close();
+
+    await page.reload();
+    await page.locator("button", { hasText: "Season" }).first().click({ timeout: 5000 });
+    await page.locator("button", { hasText: "Stop 1" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Leaderboard", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "12-tournament-leaderboard.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 12 (tournament leaderboard):", (err as Error).message);
+  }
+
+  // 13. Roster expanded
+  try {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("button", { hasText: "Roster" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Member", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "13-roster.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 13 (roster):", (err as Error).message);
+  }
 
   // 10. Record scores sheet — set name to the host of the past round, open
   // the host menu on the past card, click Edit scores. Best-effort: if the

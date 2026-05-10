@@ -4,8 +4,8 @@ Real screenshots of the running app, captured at iPhone 14 Pro viewport
 (393 × 852 @ 2x) by [`scripts/screenshots.ts`](./scripts/screenshots.ts) via
 Playwright. The script boots the production build (`NODE_ENV=production
 npx tsx server.ts` after `npm run build`), seeds a fixture set of
-players, tee times, polls, and past scores via the public API, and drives
-the UI through each state.
+players, tee times, polls, scores, and tournaments via the public API,
+and drives the UI through each state.
 
 To regenerate after UI changes:
 
@@ -36,10 +36,10 @@ the profile sheet.
 
 ## 3. Populated board
 
-Top-down: Standings card (collapsed by default once there are scores in
-the system), poll card, then upcoming tee-time cards. Each player chip
-shows the handicap inline ("Greg 8.0", "Sam 18.6"). The maybe row
-shows "Lee 22.0" in dashed-italic style. Equal-width Claim/Maybe peers.
+Season schedule (collapsed), Roster, Standings, polls, tee-time cards.
+Each player chip shows the handicap inline ("Greg 8.0", "Sam 18.6").
+The maybe row shows "Lee 22.0" in dashed-italic style. Equal-width
+Claim/Maybe peers.
 
 ![populated board](./screenshots/03-populated-board.png)
 
@@ -53,7 +53,7 @@ and "Ask the group" — each on a single line.
 ## 5. New tee time bottom sheet
 
 Form: course (with autocomplete from past entries), date + time, total
-spots + host, optional notes. Native iOS-style date/time pickers.
+spots + host, optional notes.
 
 ![new tee time sheet](./screenshots/05-new-teetime-sheet.png)
 
@@ -69,18 +69,14 @@ remove `X` (only after the minimum 2 are present).
 Past cards render at `opacity-60`. When scores have been recorded for
 the round, a **Scores** block appears below the chips listing each
 player's gross + net (gross − handicap), sorted by net (lowest first).
-Past chips are not interactive — no `X` on your own chip, no rose
-hover.
 
 ![past expanded](./screenshots/07-past-section-expanded.png)
 
 ## 8. Standings expanded
 
 Aggregates every recorded score into a per-player leaderboard.
-Sortable by Avg net (default), Avg gross, or Rounds. Best column shows
-best-net or best-gross to match the active sort. Current user's row
-gets a fairway-50 highlight. Players with no recorded handicap fall to
-the bottom under the Avg net sort and show only gross stats.
+Sortable by Avg net (default), Avg gross, or Rounds. Current user's
+row gets a fairway-50 highlight.
 
 ![standings expanded](./screenshots/08-standings-expanded.png)
 
@@ -88,7 +84,34 @@ the bottom under the Avg net sort and show only gross stats.
 
 Name + Handicap (GHIN index, optional, -10 to +54). Saves both
 locally (so the device remembers) and globally (so every chip in the
-group can show the index). "Forget me on this device" clears the
-local copy without touching the server record.
+group can show the index). Saving auto-promotes you to a member.
 
 ![profile sheet](./screenshots/09-profile-sheet.png)
+
+## 11. Season schedule expanded
+
+The full 2026 league schedule, seeded from the rule sheet **with the
+Common Ground change**. Each tournament shows status (active /
+upcoming / past), course, date range, and type icon (Flag / Star /
+Trophy). Tap any to expand.
+
+![season schedule](./screenshots/11-season-schedule.png)
+
+## 12. Tournament expanded — leaderboard + rounds
+
+Stop 1 expanded: course note + payouts + per-tournament leaderboard
+(Pos · Player · Gross · Net, sorted by net) with a "Jason wins $334"
+footer, plus the list of rounds in the window with claimed/scored
+counts.
+
+![tournament leaderboard](./screenshots/12-tournament-leaderboard.png)
+
+## 13. Roster expanded
+
+Every name that's appeared on the board, with a **Member**/**Guest**
+toggle pill per row. Members count toward the season; guests are
+drop-in players. Names without a profile yet show "no profile" until
+they save handicap info.
+
+![roster](./screenshots/13-roster.png)
+
