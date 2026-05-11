@@ -18,6 +18,7 @@ import {
   formatTimeLabel,
 } from "../lib/format";
 import type { TeeTime } from "../lib/types";
+import { Comments } from "./Comments";
 import { PlayerChip } from "./PlayerChip";
 import { SpotsIndicator } from "./SpotsIndicator";
 
@@ -35,6 +36,8 @@ export function TeeTimeCard({
   onDelete,
   onEdit,
   onRecordScores,
+  onPostComment,
+  onDeleteComment,
   getHandicap,
   isMember,
 }: {
@@ -48,6 +51,8 @@ export function TeeTimeCard({
   onDelete: () => void;
   onEdit: () => void;
   onRecordScores: () => void;
+  onPostComment: (body: string) => void | Promise<void>;
+  onDeleteComment: (commentId: string) => void | Promise<void>;
   getHandicap: (name: string) => number | null;
   isMember: (name: string) => boolean;
 }) {
@@ -281,6 +286,14 @@ export function TeeTimeCard({
           </ul>
         </div>
       )}
+
+      <Comments
+        comments={teeTime.comments}
+        myName={myName}
+        readOnly={readOnly}
+        onPost={onPostComment}
+        onDelete={onDeleteComment}
+      />
 
       {!readOnly && !meIn && (
         <div className="mt-4 flex items-stretch gap-2">

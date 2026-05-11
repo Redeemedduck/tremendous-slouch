@@ -181,6 +181,38 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError, replace]
   );
 
+  const postComment = useCallback(
+    async (id: string, author: string, body: string) => {
+      const r = await fetch(`/api/teetimes/${id}/comments`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ author, body }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't post comment");
+        return;
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
+  const deleteComment = useCallback(
+    async (id: string, commentId: string) => {
+      const r = await fetch(`/api/teetimes/${id}/comments/${commentId}`, {
+        method: "DELETE",
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't delete comment");
+        return;
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
   const removeScore = useCallback(
     async (id: string, name: string) => {
       const r = await fetch(
@@ -208,6 +240,8 @@ export function useTeeTimes(onError: (msg: string) => void) {
     dropInterest,
     recordScore,
     removeScore,
+    postComment,
+    deleteComment,
     remove,
   };
 }

@@ -80,6 +80,11 @@ if (!teeTimeColumns.some((c) => c.name === "scores")) {
     "ALTER TABLE tee_times ADD COLUMN scores TEXT NOT NULL DEFAULT '[]'"
   );
 }
+if (!teeTimeColumns.some((c) => c.name === "comments")) {
+  db.exec(
+    "ALTER TABLE tee_times ADD COLUMN comments TEXT NOT NULL DEFAULT '[]'"
+  );
+}
 const playerColumns = db
   .prepare("PRAGMA table_info(players)")
   .all() as { name: string }[];
@@ -296,6 +301,7 @@ type TeeTimeRow = {
   claims: string;
   interested: string;
   scores: string;
+  comments: string;
   created_at: string;
 };
 
@@ -307,6 +313,12 @@ type Score = {
   courseHcp?: number | null;
   attestedBy?: string | null;
   recordedAt: string;
+};
+type Comment = {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
 };
 
 const rowToTeeTime = (row: TeeTimeRow) => ({
@@ -320,6 +332,7 @@ const rowToTeeTime = (row: TeeTimeRow) => ({
   claims: JSON.parse(row.claims) as Claim[],
   interested: JSON.parse(row.interested) as Interest[],
   scores: JSON.parse(row.scores) as Score[],
+  comments: JSON.parse(row.comments) as Comment[],
   createdAt: row.created_at,
 });
 
@@ -366,6 +379,9 @@ const stmtUpdateInterested = db.prepare(
 );
 const stmtUpdateScores = db.prepare(
   `UPDATE tee_times SET scores = ? WHERE id = ? RETURNING *`
+);
+const stmtUpdateComments = db.prepare(
+  `UPDATE tee_times SET comments = ? WHERE id = ? RETURNING *`
 );
 const stmtUpdateFields = db.prepare(
   `UPDATE tee_times
@@ -560,6 +576,7 @@ const HANDICAP_MIN = -10;
 const HANDICAP_MAX = 54;
 const SCORE_MIN = 1;
 const SCORE_MAX = 300;
+const COMMENT_MAX = 500;
 
 class ValidationError extends Error {
   status = 400;
@@ -803,6 +820,42 @@ const recordScoreTx = db.transaction(
   }
 );
 
+// Append a free-text comment. Honor-system: anyone can post. Author is
+// trusted from the request (the client passes their localStorage name).
+const addCommentTx = db.transaction(
+  (
+    teeId: string,
+    author: string,
+    body: string,
+    commentId: string,
+    createdAt: string
+  ): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const comments = JSON.parse(row.comments) as Comment[];
+    comments.push({ id: commentId, author, body, createdAt });
+    return stmtUpdateComments.get(
+      JSON.stringify(comments),
+      teeId
+    ) as TeeTimeRow;
+  }
+);
+
+const removeCommentTx = db.transaction(
+  (teeId: string, commentId: string): TeeTimeRow => {
+    const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
+    if (!row) throw new NotFoundError("Tee time not found");
+    const comments = JSON.parse(row.comments) as Comment[];
+    const idx = comments.findIndex((c) => c.id === commentId);
+    if (idx === -1) throw new NotFoundError("Comment not found");
+    comments.splice(idx, 1);
+    return stmtUpdateComments.get(
+      JSON.stringify(comments),
+      teeId
+    ) as TeeTimeRow;
+  }
+);
+
 // Remove a score entry (host wants to undo / fix a mistake).
 const removeScoreTx = db.transaction(
   (teeId: string, name: string): TeeTimeRow => {
@@ -1007,6 +1060,41 @@ async function startServer() {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("DELETE /api/teetimes/:id/scores/:name failed:", err);
       res.status(500).json({ error: "Failed to remove score" });
+    }
+  });
+
+  app.post("/api/teetimes/:id/comments", (req, res) => {
+    try {
+      const id = req.params.id;
+      const author = trimStr(req.body?.author, NAME_MAX, "Author");
+      const body = trimStr(req.body?.body, COMMENT_MAX, "Comment");
+      const commentId = randomUUID();
+      const createdAt = new Date().toISOString();
+      const updated = addCommentTx.immediate(
+        id,
+        author,
+        body,
+        commentId,
+        createdAt
+      );
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("POST /api/teetimes/:id/comments failed:", err);
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+  });
+
+  app.delete("/api/teetimes/:id/comments/:commentId", (req, res) => {
+    try {
+      const id = req.params.id;
+      const commentId = req.params.commentId;
+      const updated = removeCommentTx.immediate(id, commentId);
+      res.json({ teeTime: rowToTeeTime(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("DELETE /api/teetimes/:id/comments/:commentId failed:", err);
+      res.status(500).json({ error: "Failed to delete comment" });
     }
   });
 

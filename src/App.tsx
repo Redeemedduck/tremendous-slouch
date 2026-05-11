@@ -77,6 +77,8 @@ function Board() {
     markInterested,
     dropInterest,
     recordScore,
+    postComment,
+    deleteComment,
     remove,
   } = useTeeTimes(toast.show);
   const {
@@ -199,6 +201,14 @@ function Board() {
     markInterested(id, myName);
   };
 
+  const handlePostComment = (id: string, body: string) => {
+    if (!myName) {
+      toast.show("Add your name first");
+      return;
+    }
+    return postComment(id, myName, body);
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <Toast message={toast.message} onDismiss={toast.dismiss} />
@@ -297,6 +307,8 @@ function Board() {
                 onDelete={() => remove(t.id)}
                 onEdit={() => handleEdit(t)}
                 onRecordScores={() => setScoringTeeTime(t)}
+                onPostComment={(body) => handlePostComment(t.id, body)}
+                onDeleteComment={(cid) => deleteComment(t.id, cid)}
                 getHandicap={getHandicap}
                 isMember={isMember}
               />
@@ -333,6 +345,8 @@ function Board() {
                     onDelete={() => remove(t.id)}
                     onEdit={() => {}}
                     onRecordScores={() => setScoringTeeTime(t)}
+                    onPostComment={() => {}}
+                    onDeleteComment={() => {}}
                     getHandicap={getHandicap}
                     isMember={isMember}
                   />
