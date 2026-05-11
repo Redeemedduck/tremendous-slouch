@@ -227,6 +227,7 @@ function Board() {
 
         <Standings
           teeTimes={teeTimes}
+          tournaments={tournaments}
           getHandicap={getHandicap}
           myName={myName}
         />
