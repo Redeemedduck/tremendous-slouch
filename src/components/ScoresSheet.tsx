@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import type { TeeTime } from "../lib/types";
 import { formatDateLabel, formatTimeLabel } from "../lib/format";
 
-type Draft = { gross: string; courseHcp: string };
+type Draft = { gross: string; courseHcp: string; attestedBy: string };
 
 export function ScoresSheet({
   open,
@@ -11,6 +11,7 @@ export function ScoresSheet({
   teeTime,
   onRecord,
   isLeagueRound,
+  isMember,
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,11 +19,16 @@ export function ScoresSheet({
   onRecord: (
     name: string,
     gross: number,
-    courseHcp: number | null
+    courseHcp: number | null,
+    attestedBy: string | null
   ) => Promise<void>;
   /** True when this tee time falls inside a tournament window — course
-   *  handicap is required so net math is correct. */
+   *  handicap and attestation are required so net math is correct and the
+   *  league rule is honored. */
   isLeagueRound: boolean;
+  /** Whether a given name is a registered league member. Used to scope the
+   *  attester dropdown to other-members-only on the same tee time. */
+  isMember: (name: string) => boolean;
 }) {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +45,7 @@ export function ScoresSheet({
       prefill[c.name] = {
         gross: s ? String(s.gross) : "",
         courseHcp: s?.courseHcp != null ? String(s.courseHcp) : "",
+        attestedBy: s?.attestedBy ?? "",
       };
     }
     setDrafts(prefill);
@@ -59,12 +66,17 @@ export function ScoresSheet({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const tasks: { name: string; gross: number; courseHcp: number | null }[] =
-      [];
+    const tasks: {
+      name: string;
+      gross: number;
+      courseHcp: number | null;
+      attestedBy: string | null;
+    }[] = [];
     for (const [name, raw] of Object.entries(drafts)) {
       const grossStr = raw.gross.trim();
       const hcpStr = raw.courseHcp.trim();
-      if (!grossStr && !hcpStr) continue;
+      const attestedBy = raw.attestedBy.trim();
+      if (!grossStr && !hcpStr && !attestedBy) continue;
       if (!grossStr) {
         setError(`${name}: score is required`);
         return;
@@ -86,7 +98,16 @@ export function ScoresSheet({
         setError(`${name}: league rounds need a course handicap (from GHIN)`);
         return;
       }
-      tasks.push({ name, gross: v, courseHcp });
+      if (isLeagueRound && !attestedBy) {
+        setError(`${name}: league rounds need an attester (another member)`);
+        return;
+      }
+      tasks.push({
+        name,
+        gross: v,
+        courseHcp,
+        attestedBy: attestedBy || null,
+      });
     }
     if (tasks.length === 0) {
       setError("Enter at least one score");
@@ -94,8 +115,13 @@ export function ScoresSheet({
     }
     setSubmitting(true);
     try {
-      for (const { name, gross, courseHcp } of tasks) {
-        await onRecord(name, gross, courseHcp);
+      for (const task of tasks) {
+        await onRecord(
+          task.name,
+          task.gross,
+          task.courseHcp,
+          task.attestedBy
+        );
       }
       onClose();
     } catch (err: any) {
@@ -146,56 +172,93 @@ export function ScoresSheet({
                 <span className="text-right">Course HCP</span>
               </div>
               {teeTime.claims.map((c) => {
-                const draft = drafts[c.name] ?? { gross: "", courseHcp: "" };
+                const draft =
+                  drafts[c.name] ?? { gross: "", courseHcp: "", attestedBy: "" };
+                // Attester options: other claimers who are registered members.
+                const attesters = teeTime.claims
+                  .filter((other) => other.name !== c.name && isMember(other.name))
+                  .map((other) => other.name);
                 return (
-                  <div
-                    key={c.name}
-                    className="grid grid-cols-[1fr,5rem,5rem] items-center gap-2"
-                  >
-                    <label className="text-sm font-medium text-stone-900">
-                      {c.name}
-                    </label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={draft.gross}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [c.name]: { ...draft, gross: e.target.value },
-                        }))
-                      }
-                      step={1}
-                      min={1}
-                      max={300}
-                      placeholder="-"
-                      aria-label={`${c.name} gross score`}
-                      className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                    />
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={draft.courseHcp}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [c.name]: { ...draft, courseHcp: e.target.value },
-                        }))
-                      }
-                      step={1}
-                      min={-10}
-                      max={54}
-                      placeholder={isLeagueRound ? "req" : "-"}
-                      aria-label={`${c.name} course handicap`}
-                      className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                    />
+                  <div key={c.name} className="space-y-2">
+                    <div className="grid grid-cols-[1fr,5rem,5rem] items-center gap-2">
+                      <label className="text-sm font-medium text-stone-900">
+                        {c.name}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={draft.gross}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [c.name]: { ...draft, gross: e.target.value },
+                          }))
+                        }
+                        step={1}
+                        min={1}
+                        max={300}
+                        placeholder="-"
+                        aria-label={`${c.name} gross score`}
+                        className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={draft.courseHcp}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [c.name]: { ...draft, courseHcp: e.target.value },
+                          }))
+                        }
+                        step={1}
+                        min={-10}
+                        max={54}
+                        placeholder={isLeagueRound ? "req" : "-"}
+                        aria-label={`${c.name} course handicap`}
+                        className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                      />
+                    </div>
+                    {isLeagueRound && (
+                      <div className="ml-0 pl-0">
+                        {attesters.length > 0 ? (
+                          <select
+                            value={draft.attestedBy}
+                            onChange={(e) =>
+                              setDrafts((prev) => ({
+                                ...prev,
+                                [c.name]: {
+                                  ...draft,
+                                  attestedBy: e.target.value,
+                                },
+                              }))
+                            }
+                            aria-label={`${c.name} attested by`}
+                            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                          >
+                            <option value="">Attested by…</option>
+                            {attesters.map((a) => (
+                              <option key={a} value={a}>
+                                {a}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            No other members on this tee time — score can't be
+                            attested.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
               {isLeagueRound && (
                 <p className="text-xs text-stone-500">
-                  League round — each player's course handicap (from the GHIN
-                  app) is required for net scoring.
+                  League round — each player needs a course handicap (from
+                  GHIN) and an attester (another member who played in your
+                  group).
                 </p>
               )}
             </>

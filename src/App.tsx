@@ -423,8 +423,9 @@ function Board() {
               scoringTeeTime.date <= t.windowEnd
           )
         }
-        onRecord={(name, gross, courseHcp) =>
-          recordScore(scoringTeeTime!.id, name, gross, courseHcp)
+        isMember={isMember}
+        onRecord={(name, gross, courseHcp, attestedBy) =>
+          recordScore(scoringTeeTime!.id, name, gross, courseHcp, attestedBy)
         }
       />
     </div>

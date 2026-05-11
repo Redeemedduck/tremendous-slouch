@@ -163,12 +163,13 @@ export function useTeeTimes(onError: (msg: string) => void) {
       id: string,
       name: string,
       gross: number,
-      courseHcp: number | null
+      courseHcp: number | null,
+      attestedBy: string | null
     ) => {
       const r = await fetch(`/api/teetimes/${id}/scores`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, gross, courseHcp }),
+        body: JSON.stringify({ name, gross, courseHcp, attestedBy }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {

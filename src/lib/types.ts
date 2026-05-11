@@ -12,6 +12,12 @@ export type Score = {
    *  rounds. League scoring (tee times inside a tournament window) requires
    *  this to be present — server enforces in COL-107. */
   courseHcp?: number | null;
+  /** Name of the league member who corroborates this score. Required for
+   *  rounds inside a regular-tournament window per the league rule that
+   *  another member must have played in your group. Server validates that
+   *  the attester is (a) on the same tee time's claims, (b) a registered
+   *  member, and (c) not the scorer themselves. */
+  attestedBy?: string | null;
   recordedAt: string;
 };
 export type TeeTime = {

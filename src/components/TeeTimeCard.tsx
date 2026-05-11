@@ -261,6 +261,11 @@ export function TeeTimeCard({
                           {fromCourse ? `CH ${usedHcp}` : formatHandicap(usedHcp)}
                         </span>
                       )}
+                      {s.attestedBy && (
+                        <span className="ml-1.5 text-[10px] text-stone-400">
+                          · att. {s.attestedBy}
+                        </span>
+                      )}
                     </span>
                     <span className="tabular-nums text-stone-700">
                       {s.gross}

@@ -296,6 +296,7 @@ type Score = {
   name: string;
   gross: number;
   courseHcp?: number | null;
+  attestedBy?: string | null;
   recordedAt: string;
 };
 
@@ -681,23 +682,71 @@ const dropInterestTx = db.transaction(
 );
 
 // Upsert a score for one player on a past tee time. Replaces the existing
-// score if (case-insensitive) name already has one.
+// score if (case-insensitive) name already has one. Enforces the league
+// attestation rule when the tee time falls inside a non-post tournament
+// window: attestedBy must be (a) one of the other claims, (b) a registered
+// member, and (c) not the scorer themselves.
+const stmtSelectMatchingTournaments = db.prepare(`
+  SELECT * FROM tournaments
+  WHERE type != 'post'
+    AND ? BETWEEN window_start AND window_end
+  LIMIT 1
+`);
+const stmtSelectMemberByName = db.prepare(
+  `SELECT * FROM players WHERE name = ? COLLATE NOCASE AND member = 1`
+);
 const recordScoreTx = db.transaction(
   (
     teeId: string,
     name: string,
     gross: number,
-    courseHcp: number | null
+    courseHcp: number | null,
+    attestedBy: string | null
   ): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
+    const claims = JSON.parse(row.claims) as Claim[];
+    const lowerScorer = name.toLowerCase();
+
+    // Is this tee time inside a non-post tournament window?
+    const inTournament = stmtSelectMatchingTournaments.get(row.date) as
+      | TournamentRow
+      | undefined;
+    if (inTournament) {
+      if (!attestedBy) {
+        throw new ValidationError(
+          "League rounds need an attester (another member who played in your group)"
+        );
+      }
+      const lowerAttester = attestedBy.toLowerCase();
+      if (lowerAttester === lowerScorer) {
+        throw new ValidationError("Attester can't be the scorer themselves");
+      }
+      const attesterOnTeeTime = claims.some(
+        (c) => c.name.toLowerCase() === lowerAttester
+      );
+      if (!attesterOnTeeTime) {
+        throw new ValidationError(
+          `${attestedBy} wasn't on this tee time — pick someone who played in your group`
+        );
+      }
+      const memberRow = stmtSelectMemberByName.get(attestedBy) as
+        | PlayerRow
+        | undefined;
+      if (!memberRow) {
+        throw new ValidationError(
+          `${attestedBy} isn't a registered member — drop-ins can't attest scores`
+        );
+      }
+    }
+
     const scores = JSON.parse(row.scores) as Score[];
-    const lower = name.toLowerCase();
-    const idx = scores.findIndex((s) => s.name.toLowerCase() === lower);
+    const idx = scores.findIndex((s) => s.name.toLowerCase() === lowerScorer);
     const entry: Score = {
       name,
       gross,
       courseHcp,
+      attestedBy: attestedBy ?? null,
       recordedAt: new Date().toISOString(),
     };
     if (idx === -1) scores.push(entry);
@@ -880,7 +929,17 @@ async function startServer() {
         }
         courseHcp = h;
       }
-      const updated = recordScoreTx.immediate(id, name, gross, courseHcp);
+      let attestedBy: string | null = null;
+      if (req.body?.attestedBy != null && req.body.attestedBy !== "") {
+        attestedBy = trimStr(req.body.attestedBy, NAME_MAX, "Attester");
+      }
+      const updated = recordScoreTx.immediate(
+        id,
+        name,
+        gross,
+        courseHcp,
+        attestedBy
+      );
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });
