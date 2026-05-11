@@ -907,7 +907,12 @@ const togglePollResponseTx = db.transaction(
 // ============================================================
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
+  // Bind to loopback by default. Expose externally (LAN, Tailscale) by
+  // setting HOST=0.0.0.0 — or better, leave this as 127.0.0.1 and put a
+  // reverse proxy in front (Tailscale serve, nginx, Cloudflare Tunnel...)
+  // so the app never has to be reachable directly from the open network.
+  const HOST = process.env.HOST || "127.0.0.1";
 
   app.use(express.json());
   app.use(requireAccess);
@@ -1371,8 +1376,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Server listening on http://${HOST}:${PORT}`);
   });
 }
 
