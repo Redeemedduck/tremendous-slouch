@@ -55,6 +55,15 @@ db.exec(`
     created_at      TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_tournaments_when ON tournaments(window_start, window_end);
+
+  CREATE TABLE IF NOT EXISTS league_buyins (
+    player_name TEXT PRIMARY KEY COLLATE NOCASE,
+    amount      INTEGER NOT NULL DEFAULT 325,
+    paid        INTEGER NOT NULL DEFAULT 0,
+    paid_at     TEXT,
+    notes       TEXT,
+    updated_at  TEXT NOT NULL
+  );
 `);
 
 // Migrations. SQLite has no `ADD COLUMN IF NOT EXISTS`, so check the table_info.
@@ -399,6 +408,45 @@ const stmtSelectAllPlayers = db.prepare(
 );
 const stmtSelectPlayerByName = db.prepare(
   `SELECT * FROM players WHERE name = ? COLLATE NOCASE`
+);
+
+const LEAGUE_DEFAULT_BUYIN = 325;
+
+type BuyinRow = {
+  player_name: string;
+  amount: number;
+  paid: number;
+  paid_at: string | null;
+  notes: string | null;
+  updated_at: string;
+};
+
+const rowToBuyin = (row: BuyinRow) => ({
+  playerName: row.player_name,
+  amount: row.amount,
+  paid: !!row.paid,
+  paidAt: row.paid_at,
+  notes: row.notes,
+  updatedAt: row.updated_at,
+});
+
+const stmtSelectAllBuyins = db.prepare(
+  `SELECT * FROM league_buyins ORDER BY player_name COLLATE NOCASE ASC`
+);
+const stmtSelectBuyin = db.prepare(
+  `SELECT * FROM league_buyins WHERE player_name = ? COLLATE NOCASE`
+);
+const stmtInsertBuyin = db.prepare(`
+  INSERT OR IGNORE INTO league_buyins (player_name, amount, paid, paid_at, notes, updated_at)
+  VALUES (?, ?, 0, NULL, NULL, ?)
+`);
+const stmtUpdateBuyin = db.prepare(`
+  UPDATE league_buyins
+  SET amount = ?, paid = ?, paid_at = ?, notes = ?, updated_at = ?
+  WHERE player_name = ? COLLATE NOCASE
+`);
+const stmtDeleteBuyin = db.prepare(
+  `DELETE FROM league_buyins WHERE player_name = ? COLLATE NOCASE`
 );
 const stmtUpsertPlayer = db.prepare(`
   INSERT INTO players (name, handicap, member, updated_at)
@@ -1099,6 +1147,7 @@ async function startServer() {
           handicap = Math.round(h * 10) / 10;
         }
       }
+      const wasMember = existing?.member === 1;
       let member: number = existing?.member ?? 0;
       if ("member" in (req.body ?? {})) {
         member = req.body.member ? 1 : 0;
@@ -1109,11 +1158,87 @@ async function startServer() {
         member,
         new Date().toISOString()
       ) as PlayerRow;
+      // Auto-manage the buy-in entry: create on member-promotion, delete on
+      // member-demotion. INSERT OR IGNORE preserves any prior paid state if
+      // the player toggles back and forth.
+      if (member === 1 && !wasMember) {
+        stmtInsertBuyin.run(
+          row.name,
+          LEAGUE_DEFAULT_BUYIN,
+          new Date().toISOString()
+        );
+      } else if (member === 0 && wasMember) {
+        stmtDeleteBuyin.run(row.name);
+      }
       res.json({ player: rowToPlayer(row) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });
       console.error("PUT /api/players/:name failed:", err);
       res.status(500).json({ error: "Failed to save player" });
+    }
+  });
+
+  app.get("/api/buyins", (_req, res) => {
+    try {
+      const rows = stmtSelectAllBuyins.all() as BuyinRow[];
+      res.json({ buyins: rows.map(rowToBuyin) });
+    } catch (err) {
+      console.error("GET /api/buyins failed:", err);
+      res.status(500).json({ error: "Failed to load buy-ins" });
+    }
+  });
+
+  app.patch("/api/buyins/:name", (req, res) => {
+    try {
+      const name = trimStr(
+        decodeURIComponent(req.params.name),
+        NAME_MAX,
+        "Name"
+      );
+      const existing = stmtSelectBuyin.get(name) as BuyinRow | undefined;
+      if (!existing) throw new NotFoundError("No buy-in for that player");
+      let amount = existing.amount;
+      if ("amount" in (req.body ?? {})) {
+        const a = Number(req.body.amount);
+        if (!Number.isInteger(a) || a < 0 || a > 100000) {
+          throw new ValidationError(
+            "Amount must be a whole dollar amount between 0 and 100000"
+          );
+        }
+        amount = a;
+      }
+      let paid = existing.paid;
+      let paidAt = existing.paid_at;
+      if ("paid" in (req.body ?? {})) {
+        paid = req.body.paid ? 1 : 0;
+        paidAt = paid ? new Date().toISOString() : null;
+      }
+      let notes: string | null = existing.notes;
+      if ("notes" in (req.body ?? {})) {
+        const raw = req.body.notes;
+        if (raw == null || raw === "") notes = null;
+        else {
+          const trimmed = String(raw).trim();
+          if (trimmed.length > NOTES_MAX) {
+            throw new ValidationError("Notes are too long");
+          }
+          notes = trimmed || null;
+        }
+      }
+      stmtUpdateBuyin.run(
+        amount,
+        paid,
+        paidAt,
+        notes,
+        new Date().toISOString(),
+        existing.player_name
+      );
+      const updated = stmtSelectBuyin.get(existing.player_name) as BuyinRow;
+      res.json({ buyin: rowToBuyin(updated) });
+    } catch (err: any) {
+      if (err?.status) return res.status(err.status).json({ error: err.message });
+      console.error("PATCH /api/buyins/:name failed:", err);
+      res.status(500).json({ error: "Failed to update buy-in" });
     }
   });
 

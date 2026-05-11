@@ -71,6 +71,15 @@ export type Player = {
   updatedAt: string;
 };
 
+export type Buyin = {
+  playerName: string;
+  amount: number;
+  paid: boolean;
+  paidAt: string | null;
+  notes: string | null;
+  updatedAt: string;
+};
+
 export type TournamentType = "regular" | "major" | "post";
 export type Tournament = {
   id: string;

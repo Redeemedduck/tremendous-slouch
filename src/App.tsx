@@ -12,6 +12,7 @@ import { NamePromptInline } from "./components/NamePromptInline";
 import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
+import { Finances } from "./components/Finances";
 import { ProfileSheet } from "./components/ProfileSheet";
 import { Roster } from "./components/Roster";
 import { ScoresSheet } from "./components/ScoresSheet";
@@ -19,6 +20,7 @@ import { SeasonSchedule } from "./components/SeasonSchedule";
 import { Standings } from "./components/Standings";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
+import { useBuyins } from "./hooks/useBuyins";
 import { useMyProfile } from "./hooks/useMyProfile";
 import { usePlayers } from "./hooks/usePlayers";
 import { usePolls } from "./hooks/usePolls";
@@ -90,6 +92,8 @@ function Board() {
     isMember,
   } = usePlayers(toast.show);
   const { tournaments } = useTournaments();
+  const { buyins, patch: patchBuyin, refresh: refreshBuyins } =
+    useBuyins(toast.show);
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -222,7 +226,17 @@ function Board() {
         <Roster
           players={players}
           teeTimes={teeTimes}
-          onUpdate={(n, patch) => upsertPlayer(n, patch)}
+          onUpdate={async (n, patch) => {
+            await upsertPlayer(n, patch);
+            // Buy-ins auto-create/delete on the server when member flips;
+            // refresh so the Finances card reflects it immediately.
+            await refreshBuyins();
+          }}
+        />
+
+        <Finances
+          buyins={buyins}
+          onToggle={(n, paid) => patchBuyin(n, { paid })}
         />
 
         <Standings
