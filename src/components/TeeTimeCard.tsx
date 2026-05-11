@@ -287,14 +287,6 @@ export function TeeTimeCard({
         </div>
       )}
 
-      <Comments
-        comments={teeTime.comments}
-        myName={myName}
-        readOnly={readOnly}
-        onPost={onPostComment}
-        onDelete={onDeleteComment}
-      />
-
       {!readOnly && !meIn && (
         <div className="mt-4 flex items-stretch gap-2">
           <button
@@ -316,6 +308,14 @@ export function TeeTimeCard({
           )}
         </div>
       )}
+
+      <Comments
+        comments={teeTime.comments}
+        myName={myName}
+        readOnly={readOnly}
+        onPost={onPostComment}
+        onDelete={onDeleteComment}
+      />
     </article>
   );
 }

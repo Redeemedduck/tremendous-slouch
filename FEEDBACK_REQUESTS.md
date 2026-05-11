@@ -1,105 +1,126 @@
 # Feedback & Visuals Requests
 
-Hand this to whoever's helping with screenshots / design / copy review for the
-Golf Group Coordinator. The app is a small shared web app where ~12-15 friends
-post tee times and claim spots. Mobile-first.
+Hand this to whoever's helping with visual / copy review for **DJDI Golf
+Board**. The app is a shared web app for the 2026 DJDI summer golf league
+— coordination, scoring, season standings, post-season bracket, buy-in
+pool. Mobile-first.
 
-## How to run it
+Most of what you need to evaluate is already captured in
+[`SCREENSHOTS.md`](./SCREENSHOTS.md) (16 shots at iPhone 14 Pro viewport,
+covering every panel). Look at those first.
 
-```bash
+## How to run it yourself
+
+```sh
 npm install
-npm run dev
-# open http://localhost:3000
+npm run start
+# open http://localhost:3000 on the same machine
 ```
 
-To view from a phone on the same Wi-Fi: find the laptop's local IP
-(e.g. `ipconfig getifaddr en0` on macOS) and open
-`http://<that-IP>:3000` on the phone.
+To view from a phone on the same Wi-Fi:
 
----
+- **Tailscale** (recommended; no network changes needed): see
+  [`TAILSCALE.md`](./TAILSCALE.md). `tailscale serve --bg --https=443
+  http://localhost:3000` then open `https://<hostname>.<tailnet>.ts.net`
+  on the phone.
+- **LAN-direct**: set `HOST=0.0.0.0 npm run start` and open
+  `http://<laptop-ip>:3000` from the phone. Less secure.
 
-## 1. Screenshots wanted (highest priority)
+## What to look at
 
-Please capture these from a real phone (iOS Safari preferred; Android Chrome
-also fine). Portrait orientation. Reset between shots by clearing
-localStorage (Safari: Settings → Safari → Advanced → Website Data) and
-deleting `golf_coordinator.db` from the project root.
+### 1. Mobile feel (highest priority)
 
-- [ ] **Empty state**: fresh load, no name set, no tee times yet
-- [ ] **Name prompt + first claim**: enter a name, then a card with 1 of 4 spots
-- [ ] **Filled card**: 4 of 4 spots, your name visible as a chip
-- [ ] **Bottom-sheet form open**: tap "+ New tee time" — capture the full sheet
-      with the date/time pickers visible if possible
-- [ ] **Multiple cards**: 3+ tee times stacked, scrolled so the sticky header
-      is visible with backdrop blur
-- [ ] **Claim button states**: one shot showing the disabled "Full" state and
-      one showing the disabled "Add your name to claim" state (clear
-      localStorage to see the latter)
-- [ ] **Past section expanded**: insert a past row via SQLite to see this:
-      ```bash
-      sqlite3 golf_coordinator.db "INSERT INTO tee_times \
-        VALUES ('past1','Old Course','2024-01-01','09:00',4,'Greg',NULL,'[]','2024-01-01T00:00:00Z');"
-      ```
-- [ ] **Host overflow menu**: as the host, tap the `…` icon on your card to
-      capture the Delete menu
+Open the app on a real phone via the steps above. Look at:
 
-What we're looking for in these shots:
-- Bottom-sheet height and safe-area padding on iOS (no clipping at the bottom)
-- FAB (the green "+ New tee time" pill) not covering content
-- Chip tap targets feel finger-sized
-- Sticky header blur looks right while scrolling
-- Native date/time pickers render acceptably
+- **Bottom-sheet height + safe-area padding** on iOS — the New Tee Time,
+  New Poll, Profile, and Record Scores sheets should not clip at the
+  bottom. They should scroll inside the sheet when the keyboard is up.
+- **FAB position** (the green `+` bottom-right) — should not cover any
+  card content; rotates to `×` when its chooser is open.
+- **Chip tap targets** — player chips, score rows, finance Paid/Owed
+  pills, poll option cards. Should all feel finger-sized.
+- **Sticky header backdrop blur** when scrolling.
+- **Native date/time/number pickers** in the form sheets.
 
----
+### 2. Information density on tee-time cards
 
-## 2. Visual style review
+The tee-time card carries a lot when fully populated: date row, course,
+hosted-by, optional notes, spots indicator, calendar link, player chips,
+maybe chips, scores block, and comments. Does it feel readable or
+overpacked? Are there sections worth collapsing by default?
 
-Current direction is "clean utility" — think Apple Reminders / Linear:
-- Background: warm off-white (Tailwind `stone-50`)
-- Cards: white with hairline ring, rounded corners, soft shadow
-- Single accent color — fairway green `#16785A` — used only on the primary
-  button, the "filled" spot dots, and the "you" chip highlight
-- System font stack (no Google Fonts)
+### 3. League-specific panels
 
-Questions for a designer:
+These are the panels added on top of the original coordination layer:
+
+- **Season** schedule (collapsed by default)
+- **Roster** (Member vs Guest toggles)
+- **Pool** (buy-in tracker)
+- **Standings** (default sort = season points, with seed badges)
+- **Tournament expanded** view (per-tournament leaderboard + rounds)
+- **Championship expanded** (post-season bracket with stroke advantages)
+
+Each of these should be visible in the screenshots. Does the stack feel
+right? Should something move?
+
+### 4. Visual style
+
+- Background: warm off-white (`stone-50`).
+- Cards: white with hairline ring, rounded corners, soft shadow.
+- Accent: `#16785A` (fairway green) used on primary buttons, filled spot
+  dots, "you" chip highlight, seed badge.
+- Drop-in / Guest accent: amber.
+- System font stack (no Google Fonts).
+
+Open questions:
+
 - Does this read as "tasteful utility" or as "sterile / generic SaaS"?
-- Is `#16785A` the right green? Too dark? Too sage? Better suggestion?
+- Is `#16785A` the right green? Too dark? Better suggestion?
 - Should the cards have any course/golf motif (subtle), or is the accent
   green enough?
-- Does the type scale (16/18 body, ~20 card title, ~24 page title) feel
-  right on a phone, or should we go larger?
+- Does the type scale feel right on a phone, or should we go larger?
 
----
+### 5. Copy review
 
-## 3. Copy review
-
-Sanity-check these phrases — flag anything that feels off:
+Sanity-check these phrases. Flag anything that feels off:
 
 | Where | Current copy |
 |---|---|
-| Page title | "Golf Group" |
-| Name prompt | "What name should we put on your spots?" |
-| Header pill | "You're **Mike** · change" |
+| Page title | "DJDI Golf Board" |
+| Name prompt | "What name should we use for your spots?" |
+| Header pill | "You're **Mike** (12.4) · edit" |
 | Card host line | "Hosted by Greg" |
-| Card spots line | "3 of 4" with dot indicator |
-| Empty state | "No tee times yet — Tap **+** to post one." |
-| Primary CTA | "Claim a spot" / "Full" / "Add your name to claim" |
+| Spots line | "2 of 4 + 1" (the `+1` is "maybe"; dots show the breakdown) |
+| Empty state | "Nothing on the board yet — Tap **+** to post a tee time or ask the group." |
+| Primary CTA | "Claim a spot" / "Full" / "Add your name first" |
+| Maybe button | "Maybe" |
 | Drop confirm | "Drop your spot at Walnut Creek?" |
-| Delete confirm | "Delete this tee time at Walnut Creek? This can't be undone." |
-| Toast — full | "Tee time is full" |
-| Toast — dup | "Already claimed by that name" |
-| FAB | "+ New tee time" |
-| Past section | "Past tee times (3)" |
+| Maybe drop confirm | "Remove your maybe at Walnut Creek?" |
+| Delete confirm | "Delete Walnut Creek on Sat May 16 at 12:40 PM? This can't be undone." |
+| Toast — full | "That tee time is full" |
+| Toast — dup | "That name already has a spot" |
+| Section: Season | "Season — 1 active · 8 upcoming" |
+| Section: Roster | "Roster — 7 members · 1 guest" |
+| Section: Pool | "Pool — $975 collected of $2,275 · 3/7 paid" |
+| Section: Standings | "Standings — 7 players · 3 rounds" |
+| Section: Past tee times | "Past tee times (2)" |
+| Tournament card | "Stop 1 — Common Ground" (with status badge: ACTIVE / UPCOMING / PAST) |
+| Score row | "Greg CH 8 · att. Alex   80   net 72" |
+| Post-season seed pill | "1 / 2 / 3 / 4" (number) with hover title "Projected post-season seed 1" |
+| Leaderboard footer | "Jason wins $334 (best of multiple rounds)" |
+| Comments label | "Add a comment" (when empty) / "N comments" (when ≥1) |
 
 Specifically open to:
-- A more in-group name for the page title (e.g., the actual group's name)
-- Friendlier / more concise toast messages
-- Whether "Hosted by X" is clearer than "X's tee time"
 
----
+- A more in-group name for the page title.
+- Friendlier / more concise toast messages.
+- Whether "Hosted by X" is clearer than "X's tee time".
+- Whether `CH 8` for "course handicap 8" is clear enough.
+- Whether `att. Alex` is the right shorthand for "attested by Alex" (the
+  league-rule corroborator).
 
 ## How to send feedback back
 
 Anything works — comment on the PR
-(<https://github.com/Redeemedduck/tremendous-slouch/pull/1>),
-attach screenshots to a message, or just dump notes in this file.
+(<https://github.com/Redeemedduck/tremendous-slouch/pull/1>), attach
+annotated screenshots, or just dump notes in this file.

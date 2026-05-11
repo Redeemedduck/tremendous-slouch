@@ -3,10 +3,13 @@
 This app runs as a single Node 20 + Express process backed by a local
 SQLite (better-sqlite3) database. We deploy it to [Fly.io](https://fly.io)
 with a persistent volume so the SQLite file survives machine restarts.
+`Dockerfile` and `fly.toml` are checked in; `server.ts` already honors the
+`DB_PATH` env var that the Dockerfile sets to `/data/golf_coordinator.db`.
 
-> Status: Config artifacts are checked in (`Dockerfile`, `fly.toml`), but a
-> small code change in `server.ts` is still required before this will
-> actually persist data. See **Outstanding follow-up** at the bottom.
+Not on Fly? The Dockerfile is portable to Railway, Render, Cloud Run, a
+$5/mo VPS with `docker run`, etc. The only requirements are "long-running
+Node process" and "writable persistent volume for the SQLite file." See
+README.md → Configuration for the env vars.
 
 ---
 
@@ -126,26 +129,3 @@ That's it. The volume persists across deploys.
   docker run --rm -p 3000:3000 -v $(pwd)/.local-data:/data djdi-golf-board
   ```
 
----
-
-## Outstanding follow-up (BLOCKING for first real deploy)
-
-`server.ts` currently does:
-
-```ts
-const db = new Database("golf_coordinator.db");
-```
-
-This writes to the container's working directory (`/app`), which is **not**
-the mounted volume. The Fly volume is mounted at `/data`, and the Dockerfile
-already sets `DB_PATH=/data/golf_coordinator.db` in the environment. Before
-deploying, update `server.ts` to honor that env var:
-
-```ts
-// near the top of server.ts
-const DB_PATH = process.env.DB_PATH ?? "golf_coordinator.db";
-const db = new Database(DB_PATH);
-```
-
-The default keeps local dev (`npm run dev`) working unchanged. Once that
-one-line change is merged, this deploy is good to go.
