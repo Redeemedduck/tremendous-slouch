@@ -115,3 +115,36 @@ they save handicap info.
 
 ![roster](./screenshots/13-roster.png)
 
+## 14. Pool / buy-in tracker
+
+Header summarizes the prize pool ("$975 collected of $2,275 · 3/7
+paid"). Each member row toggles between **Paid** (green checkmark)
+and **Owed** (amber). Footer shows outstanding amount; default
+buy-in is $325 from the rule sheet. Buy-in rows are auto-created on
+member-promotion and deleted on demotion.
+
+![pool](./screenshots/14-finances-pool.png)
+
+## 15. Standings sorted by season points
+
+The new default Standings view. Points are awarded by finishing
+position in each regular tournament (1st = 100, 2nd = 80, 3rd = 65,
+… following the FedEx-Cup-style table). The top 4 by points get a
+small fairway-green seed badge next to their name — that's the
+projected post-season seeding. Notice the Common Ground card below
+shows the round that fed these points, and the Colorado National
+card shows the league-attested scores ("att. Greg", "att. Alex").
+
+![standings points](./screenshots/15-standings-points.png)
+
+## 16. Post-season bracket
+
+Championship tournament card expanded. Renders a sum-based
+leaderboard with seed badges (1..4) and stroke advantages (−4/−3/−2/−1)
+applied to the running net. Total column shows the adjusted score.
+Footer declares the payout winners ($1,014 / $390 / $156). When no
+post-season rounds are posted yet, the bracket shows the locked-in
+seeds and what stroke advantage they'll start at.
+
+![post-season](./screenshots/16-post-season.png)
+

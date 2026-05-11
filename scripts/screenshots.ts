@@ -258,6 +258,91 @@ async function main() {
     console.warn("Skipped 13 (roster):", (err as Error).message);
   }
 
+  // 14. Finances / Pool card expanded — toggle Greg paid to show mixed
+  // states.
+  try {
+    await api("PATCH", "/api/buyins/Greg", { paid: true });
+    await api("PATCH", "/api/buyins/Mike", { paid: true });
+    await api("PATCH", "/api/buyins/Jason", { paid: true });
+    await page.reload();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("button", { hasText: "Pool" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Paid", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "14-finances-pool.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 14 (finances):", (err as Error).message);
+  }
+
+  // 15. Standings sorted by Points — should show seed badges next to top 4.
+  // Need scores across multiple regular tournaments. We already inserted a
+  // Stop 1 round in shot 12; add a Stop 2 round so the points table has
+  // content.
+  try {
+    const sqlite3c = await import("better-sqlite3");
+    const db3 = new (sqlite3c as any).default("golf_coordinator.db");
+    db3.prepare(
+      `INSERT OR REPLACE INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+       VALUES (?, 'Colorado National', '2026-06-01', '08:00', 4, 'Greg', NULL,
+               '[{"name":"Greg","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Mike","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Alex","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Sam","claimedAt":"2026-06-01T00:00:00Z"}]',
+               '[]',
+               '[{"name":"Greg","gross":76,"courseHcp":8,"attestedBy":"Alex","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":13,"attestedBy":"Alex","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"attestedBy":"Greg","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Sam","gross":96,"courseHcp":19,"attestedBy":"Greg","recordedAt":"2026-06-01T19:00:00Z"}]',
+               '2026-06-01T00:00:00Z')`
+    ).run("stop2-r1");
+    db3.close();
+
+    await page.reload();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("button", { hasText: "Standings" }).first().click({ timeout: 5000 });
+    // Points sort is the default; ensure it's active.
+    await page.locator("button", { hasText: "Points" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Pts", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "15-standings-points.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 15 (standings-points):", (err as Error).message);
+  }
+
+  // 16. Post-season bracket — insert a Championship 2-day round and look
+  // at the post-season tournament card.
+  try {
+    const sqlite3d = await import("better-sqlite3");
+    const db4 = new (sqlite3d as any).default("golf_coordinator.db");
+    db4.prepare(
+      `INSERT OR REPLACE INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+       VALUES (?, 'Championship', '2026-10-10', '08:00', 4, 'Jason', 'Day 1',
+               '[{"name":"Jason","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Greg","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Alex","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Mike","claimedAt":"2026-10-10T00:00:00Z"}]',
+               '[]',
+               '[{"name":"Jason","gross":78,"courseHcp":7,"attestedBy":"Greg","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Greg","gross":80,"courseHcp":8,"attestedBy":"Jason","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"attestedBy":"Mike","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":12,"attestedBy":"Alex","recordedAt":"2026-10-10T19:00:00Z"}]',
+               '2026-10-10T00:00:00Z')`
+    ).run("post-d1");
+    db4.prepare(
+      `INSERT OR REPLACE INTO tee_times (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
+       VALUES (?, 'Championship', '2026-10-11', '08:00', 4, 'Jason', 'Day 2',
+               '[{"name":"Jason","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Greg","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Alex","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Mike","claimedAt":"2026-10-11T00:00:00Z"}]',
+               '[]',
+               '[{"name":"Jason","gross":76,"courseHcp":7,"attestedBy":"Greg","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Greg","gross":79,"courseHcp":8,"attestedBy":"Jason","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Alex","gross":75,"courseHcp":4,"attestedBy":"Mike","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Mike","gross":82,"courseHcp":12,"attestedBy":"Alex","recordedAt":"2026-10-11T19:00:00Z"}]',
+               '2026-10-11T00:00:00Z')`
+    ).run("post-d2");
+    db4.close();
+
+    await page.reload();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("button", { hasText: "Season" }).first().click({ timeout: 5000 });
+    await page.locator("button", { hasText: "Championship" }).first().click({ timeout: 5000 });
+    await page.waitForSelector("text=Post-season leaderboard", { timeout: 5000 });
+    await page.screenshot({
+      path: path.join(OUT, "16-post-season.png"),
+      fullPage: true,
+    });
+  } catch (err) {
+    console.warn("Skipped 16 (post-season):", (err as Error).message);
+  }
+
   // 10. Record scores sheet — set name to the host of the past round, open
   // the host menu on the past card, click Edit scores. Best-effort: if the
   // menu can't be opened in headless mode we just skip this shot rather
