@@ -34,7 +34,7 @@ export function NamePromptInline({
         What name should we use for your spots?
       </p>
       <form className="space-y-2" onSubmit={submit}>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex">
           <input
             autoFocus
             value={name}
@@ -42,7 +42,7 @@ export function NamePromptInline({
             maxLength={30}
             placeholder="Your name"
             list="name-suggestions"
-            className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+            className="col-span-2 min-w-0 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 sm:col-span-1 sm:flex-1"
           />
           <input
             type="number"
@@ -53,7 +53,7 @@ export function NamePromptInline({
             max={54}
             placeholder="Hcp"
             inputMode="decimal"
-            className="w-20 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+            className="min-w-0 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 sm:w-20"
             aria-label="Handicap (optional)"
           />
           <button

@@ -5,63 +5,56 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Dev server at localhost:3000 with HMR
-npm run build      # Production build to dist/
-npm run preview    # Preview production build
-npm run lint       # Type-check only (tsc --noEmit) — no linter configured
+npm run dev        # Express + Vite dev server at 127.0.0.1:3000 with HMR
+npm run build      # Production client build to dist/
+npm run preview    # Vite preview server for the built client
+npm run lint       # Type-check only (tsc --noEmit)
+npm run test       # Vitest rule and API test suite
+npm run start      # Start the production server; requires dist/ to already exist
+npm run start:prod # Build dist/ and then start the production server
 npm run clean      # Remove dist/
 ```
 
-No test framework is configured. There are no unit or integration tests.
-
 ## Environment
 
-Requires `GEMINI_API_KEY` in `.env.local` (see `.env.example`). Vite injects it at build time via `process.env.GEMINI_API_KEY` in `vite.config.ts`.
+Configuration is controlled by environment variables:
+
+| Var | Default | Purpose |
+|---|---|---|
+| `HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` only for LAN-direct access without a reverse proxy. |
+| `PORT` | `3000` | TCP port. |
+| `DB_PATH` | `./golf_coordinator.db` | SQLite file location. Fly uses `/data/golf_coordinator.db`. |
+| `ACCESS_CODE` | unset | Optional access gate for `/api/*` routes via the `golf_access` HttpOnly cookie. |
+| `NODE_ENV` | `development` | `production` serves `dist/` directly instead of Vite middleware. |
+
+No Gemini API key is required for this app.
 
 ## Architecture
 
-**Dispersion Lab** is a single-page React 19 golf analytics app with 6 interactive drills and an AI coach. Built with Vite + TypeScript + Tailwind CSS 4.
+**DJDI Golf Board** is a React 19 + Vite + TypeScript golf league coordination app backed by a single Express server and SQLite database. The user-facing package slug is `golf-group-coordinator`.
 
-### Single-file app
+### Client
 
-The entire application lives in `src/App.tsx` (~1130 lines). It is organized into sections separated by comment banners:
+- Main UI lives under `src/`, with reusable rule logic in `src/lib/`.
+- The app coordinates tee times, group polls, roster identity, league score entry, tournament leaderboards, season standings, championship/post-season ranking, and buy-in pool tracking.
+- Vite is mounted through Express in development so API routes and the client share one local origin.
 
-1. **Core Data Models & Math** (lines 5–57) — Golf dispersion/carry formulas, handicap estimation, proximity calculation. All scaling uses the 16-club `CLUBS` constant.
-2. **UI Components** (lines 59–126) — Reusable `DrillHeader`, `InputField`, `StatBox`, `GoldButton` components.
-3. **Drill Components** (lines 128–1030) — Six drills plus AI Coach and Bag Setup, each a standalone function component:
-   - `DispersionDrill` — 20-shot scatter plot (SVG) with dispersion ellipse overlay
-   - `CombineDrill` — 7-iron 10-shot proximity scoring (100 pts/shot, -3.5/yard)
-   - `WedgeMatrixDrill` — 50/75/100 yard distance control, letter grades
-   - `ScrambleDrill` — Chip proximity → expected scramble %
-   - `ImpactDrill` — Ball flight "Big 3" (spin/launch/smash) with manual and sim modes
-   - `DecadeDrill` — DECADE Tiger 5 error counting
-   - `AICoachView` — Image upload → Gemini AI extracts metrics, generates markdown insights
-   - `TargetTables` — Override default carry distances per club
-4. **Main App Shell** (lines 1035–1132) — Header, handicap slider (0–25), sticky tab navigation (8 tabs), content routing.
+### Server
 
-### State & persistence
+- `server.ts` owns schema migration, seed data, API routes, access-code gating, static asset serving, and startup.
+- Testable seams are exported as `createDb`, `createApp`, and `startServer`.
+- `createDb(dbPath = process.env.DB_PATH ?? "golf_coordinator.db")` enables temporary SQLite databases in tests and persistent volume paths in production.
+- SQLite uses WAL mode. State-changing operations are wrapped in transactions where consistency matters.
 
-- Component-level `useState` only — no context, no state library.
-- Session history persists in `localStorage` under key `golf_dispersion_history` as a JSON array of `{ id, date, drill, data }` objects.
-- `saveSession(drillName, data)` appends to history and writes to localStorage.
+### Tests
 
-### Styling
+- Vitest is configured in `vitest.config.ts`.
+- Pure rule tests live in `src/lib/*.test.ts`.
+- API/server integrity tests live in `server.test.ts` and use Supertest with temporary SQLite databases.
+- CI runs `npm run lint`, `npm run test`, `npm run build`, and `npm audit --audit-level=moderate`.
 
-All styling is inline `style={{}}` objects (not Tailwind utility classes, despite Tailwind being installed). "Quiet luxury" theme: dark background `#1A1A1A`, gold accent `#D4AF37`, serif headers (Cormorant Garamond), sans body (Montserrat). Google Fonts loaded via `<link>` in the render output.
+## Working Notes
 
-### Gemini AI integration
-
-`AICoachView` uses `@google/genai` (`GoogleGenAI`) to:
-- Accept image uploads (scorecards, trackman screenshots) with text context
-- Extract drill name and metrics from the image
-- Generate markdown analysis of full session history via `react-markdown`
-
-### Path alias
-
-`@/*` maps to project root in both `tsconfig.json` and `vite.config.ts`.
-
-## Adding a new drill
-
-1. Create a component function following the existing pattern (accept `saveSession` prop, use `DrillHeader`/`InputField`/`StatBox`).
-2. Add an entry to the `tabs` array in the main `App` component.
-3. Add a conditional render in the main content area (`{activeTab === "yourId" && <YourDrill ... />}`).
+- Do not touch untracked `AGENTS.md`.
+- Preserve concurrent edits from other workers.
+- When changing league rules, update the matching pure rule test or API integrity test in the same slice.

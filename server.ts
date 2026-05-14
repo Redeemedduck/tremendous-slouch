@@ -2,15 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 // ============================================================
 // DATABASE
 // ============================================================
-const DB_PATH = process.env.DB_PATH ?? "golf_coordinator.db";
-const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
-
-db.exec(`
+function migrateAndSeed(db: Database.Database) {
+  db.exec(`
   CREATE TABLE IF NOT EXISTS tee_times (
     id         TEXT PRIMARY KEY,
     course     TEXT NOT NULL,
@@ -289,6 +287,14 @@ stmtSeedTeeTime.run(
   SEED_HOST_CLAIM,
   NOW_ISO
 );
+}
+
+export function createDb(dbPath = process.env.DB_PATH ?? "golf_coordinator.db") {
+  const database = new Database(dbPath);
+  database.pragma("journal_mode = WAL");
+  migrateAndSeed(database);
+  return database;
+}
 
 type TeeTimeRow = {
   id: string;
@@ -357,8 +363,20 @@ const rowToPoll = (row: PollRow) => ({
 });
 
 // ============================================================
-// PREPARED STATEMENTS (hoisted to module scope so SQLite parses each only once)
+// PREPARED STATEMENTS
 // ============================================================
+export type CreateAppOptions = {
+  serveAssets?: boolean;
+};
+
+export function createApp(
+  db: Database.Database,
+  options: CreateAppOptions = {}
+) {
+  const app = express();
+  const serveAssets =
+    options.serveAssets ?? process.env.NODE_ENV === "production";
+
 const stmtSelectAll = db.prepare(
   `SELECT * FROM tee_times ORDER BY date ASC, time ASC`
 );
@@ -760,6 +778,7 @@ const stmtSelectMatchingTournaments = db.prepare(`
 const stmtSelectMemberByName = db.prepare(
   `SELECT * FROM players WHERE name = ? COLLATE NOCASE AND member = 1`
 );
+const normalizeName = (value: string) => value.trim().toLowerCase();
 const recordScoreTx = db.transaction(
   (
     teeId: string,
@@ -771,24 +790,32 @@ const recordScoreTx = db.transaction(
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
     const claims = JSON.parse(row.claims) as Claim[];
-    const lowerScorer = name.toLowerCase();
+    const lowerScorer = normalizeName(name);
 
     // Is this tee time inside a non-post tournament window?
     const inTournament = stmtSelectMatchingTournaments.get(row.date) as
       | TournamentRow
       | undefined;
     if (inTournament) {
+      const scorerOnTeeTime = claims.some(
+        (c) => normalizeName(c.name) === lowerScorer
+      );
+      if (!scorerOnTeeTime) {
+        throw new ValidationError(
+          "Player must claim this tee time before recording a score"
+        );
+      }
       if (!attestedBy) {
         throw new ValidationError(
           "League rounds need an attester (another member who played in your group)"
         );
       }
-      const lowerAttester = attestedBy.toLowerCase();
+      const lowerAttester = normalizeName(attestedBy);
       if (lowerAttester === lowerScorer) {
         throw new ValidationError("Attester can't be the scorer themselves");
       }
       const attesterOnTeeTime = claims.some(
-        (c) => c.name.toLowerCase() === lowerAttester
+        (c) => normalizeName(c.name) === lowerAttester
       );
       if (!attesterOnTeeTime) {
         throw new ValidationError(
@@ -901,18 +928,6 @@ const togglePollResponseTx = db.transaction(
     ) as PollRow;
   }
 );
-
-// ============================================================
-// SERVER
-// ============================================================
-async function startServer() {
-  const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
-  // Bind to loopback by default. Expose externally (LAN, Tailscale) by
-  // setting HOST=0.0.0.0 — or better, leave this as 127.0.0.1 and put a
-  // reverse proxy in front (Tailscale serve, nginx, Cloudflare Tunnel...)
-  // so the app never has to be reachable directly from the open network.
-  const HOST = process.env.HOST || "127.0.0.1";
 
   app.use(express.json());
   app.use(requireAccess);
@@ -1363,17 +1378,37 @@ async function startServer() {
     }
   });
 
+  if (serveAssets) {
+    app.use(express.static("dist"));
+    app.get("*", (_req, res) => {
+      res.sendFile("index.html", { root: "dist" });
+    });
+  }
+
+  return app;
+}
+
+// ============================================================
+// SERVER
+// ============================================================
+export async function startServer() {
+  const db = createDb();
+  const app = createApp(db, {
+    serveAssets: process.env.NODE_ENV === "production",
+  });
+  const PORT = Number(process.env.PORT) || 3000;
+  // Bind to loopback by default. Expose externally (LAN, Tailscale) by
+  // setting HOST=0.0.0.0 — or better, leave this as 127.0.0.1 and put a
+  // reverse proxy in front (Tailscale serve, nginx, Cloudflare Tunnel...)
+  // so the app never has to be reachable directly from the open network.
+  const HOST = process.env.HOST || "127.0.0.1";
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static("dist"));
-    app.get("*", (_req, res) => {
-      res.sendFile("index.html", { root: "dist" });
-    });
   }
 
   app.listen(PORT, HOST, () => {
@@ -1381,4 +1416,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startServer();
+}

@@ -12,18 +12,12 @@
 #     b) better-sqlite3 still needs to be rebuilt for the runtime stage anyway,
 #        so a fresh `npm ci` keeps things simple and predictable.
 #   We then `npm install --omit=dev tsx@^4` separately so we can run `server.ts`
-#   directly without touching package.json (tsx currently lives in
-#   devDependencies and the task forbids modifying package.json).
+#   directly while keeping the runtime image limited to production deps plus
+#   the TypeScript entrypoint runner.
 #
 # - The SQLite file is expected to live at `/data/golf_coordinator.db` so that
 #   it can sit on a Fly persistent volume mounted at `/data`. We expose this
 #   via the DB_PATH env var.
-#
-# TODO(COL-89 follow-up): `server.ts` currently hardcodes
-#   `new Database("golf_coordinator.db")`. Before this deploy will actually
-#   persist data across machine restarts, server.ts must be updated to read
-#   `process.env.DB_PATH` (defaulting to `"golf_coordinator.db"` for local dev).
-#   Tracked in DEPLOY.md.
 
 # ---------- Stage 1: builder ----------
 FROM node:20-bookworm-slim AS builder

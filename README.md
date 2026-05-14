@@ -41,7 +41,7 @@ See [`SCREENSHOTS.md`](./SCREENSHOTS.md) for visuals of every panel.
 
 ```sh
 npm install
-npm run start            # production build, listens on 127.0.0.1:3000
+npm run start:prod       # builds dist/, then listens on 127.0.0.1:3000
 ```
 
 Bound to `127.0.0.1` by default. Nothing on your LAN can reach it
@@ -60,6 +60,15 @@ npm run dev
 ```
 
 Vite serves the client via Express middleware on `127.0.0.1:3000`.
+
+### Start an existing production build
+
+```sh
+npm run start
+```
+
+This serves the existing `dist/` directory. Use `npm run start:prod` when
+you want to rebuild before starting.
 
 ### Production deploy
 
