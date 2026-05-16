@@ -40,10 +40,15 @@ export function TeeTimeCard({
   onDeleteComment,
   getHandicap,
   isMember,
+  leagueContext,
 }: {
   teeTime: TeeTime;
   myName: string;
   readOnly: boolean;
+  leagueContext?: {
+    label: string;
+    status: "league" | "needsScores" | "scored";
+  };
   onClaim: () => void;
   onDrop: (name: string) => void;
   onMaybe: () => void;
@@ -63,6 +68,22 @@ export function TeeTimeCard({
     !!myName && teeTime.interested.some((i) => eqName(i.name, myName));
   const isHost = !!myName && eqName(teeTime.host, myName);
   const full = teeTime.claims.length >= teeTime.spots;
+  const spotsLeft = Math.max(0, teeTime.spots - teeTime.claims.length);
+  const myStatus = meIn
+    ? "You're in"
+    : meMaybe
+      ? "You're maybe"
+      : full
+        ? "Full"
+        : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`;
+  const leagueStatusLabel =
+    leagueContext?.status === "needsScores"
+      ? "Needs scores"
+      : leagueContext?.status === "scored"
+        ? "Scored"
+        : leagueContext
+          ? "League round"
+          : null;
 
   return (
     <article
@@ -79,10 +100,41 @@ export function TeeTimeCard({
             <Clock className="h-3.5 w-3.5" />
             {formatTimeLabel(teeTime.time)}
           </div>
-          <h2 className="mt-1 flex items-center gap-1.5 text-lg font-semibold text-stone-900">
-            <MapPin className="h-4 w-4 text-fairway-700" />
-            {teeTime.course}
+          <h2 className="mt-1 flex flex-wrap items-center gap-1.5 text-lg font-semibold text-stone-900">
+            <MapPin className="h-4 w-4 shrink-0 text-fairway-700" />
+            <span>{teeTime.course}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                meIn
+                  ? "bg-fairway-100 text-fairway-900"
+                  : meMaybe
+                    ? "bg-amber-50 text-amber-700"
+                    : full
+                      ? "bg-stone-100 text-stone-500"
+                      : "bg-white text-fairway-700 ring-1 ring-fairway-100"
+              }`}
+            >
+              {myStatus}
+            </span>
           </h2>
+          {leagueContext && leagueStatusLabel && (
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+                {leagueContext.label}
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                  leagueContext.status === "needsScores"
+                    ? "bg-amber-50 text-amber-700"
+                    : leagueContext.status === "scored"
+                      ? "bg-fairway-100 text-fairway-900"
+                      : "bg-stone-100 text-stone-600"
+                }`}
+              >
+                {leagueStatusLabel}
+              </span>
+            </div>
+          )}
         </div>
         {isHost && (
           <div className="relative">
@@ -175,6 +227,29 @@ export function TeeTimeCard({
           </button>
         )}
       </div>
+
+      {!readOnly && meIn && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => downloadIcs(teeTime)}
+            className="rounded-xl bg-fairway-50 px-3 py-2 text-sm font-semibold text-fairway-800 hover:bg-fairway-100"
+          >
+            Calendar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Drop your spot at ${teeTime.course}?`)) {
+                onDrop(myName);
+              }
+            }}
+            className="rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-200"
+          >
+            Drop spot
+          </button>
+        </div>
+      )}
 
       {teeTime.claims.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">

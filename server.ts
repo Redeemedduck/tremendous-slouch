@@ -292,6 +292,8 @@ stmtSeedTeeTime.run(
 export function createDb(dbPath = process.env.DB_PATH ?? "golf_coordinator.db") {
   const database = new Database(dbPath);
   database.pragma("journal_mode = WAL");
+  database.pragma("busy_timeout = 5000");
+  database.pragma("foreign_keys = ON");
   migrateAndSeed(database);
   return database;
 }
@@ -686,6 +688,23 @@ const validateNewPoll = (body: any) => {
 // ============================================================
 // TRANSACTIONS
 // ============================================================
+const normalizeName = (value: string) => value.trim().toLowerCase();
+
+function assertClaimIsNotScoreLocked(row: TeeTimeRow, name: string) {
+  const lower = normalizeName(name);
+  const scores = JSON.parse(row.scores) as Score[];
+  const locksScore = scores.some(
+    (score) =>
+      normalizeName(score.name) === lower ||
+      (score.attestedBy != null && normalizeName(score.attestedBy) === lower)
+  );
+  if (locksScore) {
+    throw new ConflictError(
+      "Remove the score before changing a scored player or attester claim"
+    );
+  }
+}
+
 const claimTx = db.transaction(
   (teeId: string, claimerName: string, claimedAt: string): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
@@ -718,6 +737,7 @@ const dropTx = db.transaction(
     const lower = claimerName.toLowerCase();
     const idx = claims.findIndex((c) => c.name.toLowerCase() === lower);
     if (idx === -1) throw new NotFoundError("No claim by that name");
+    assertClaimIsNotScoreLocked(row, claimerName);
     claims.splice(idx, 1);
     return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
   }
@@ -732,6 +752,9 @@ const interestTx = db.transaction(
     const lower = claimerName.toLowerCase();
     if (interested.some((i) => i.name.toLowerCase() === lower)) {
       throw new ConflictError("That name is already marked maybe");
+    }
+    if (claims.some((c) => c.name.toLowerCase() === lower)) {
+      assertClaimIsNotScoreLocked(row, claimerName);
     }
     // If the person was claimed, move them to interested.
     const remainingClaims = claims.filter(
@@ -778,7 +801,6 @@ const stmtSelectMatchingTournaments = db.prepare(`
 const stmtSelectMemberByName = db.prepare(
   `SELECT * FROM players WHERE name = ? COLLATE NOCASE AND member = 1`
 );
-const normalizeName = (value: string) => value.trim().toLowerCase();
 const recordScoreTx = db.transaction(
   (
     teeId: string,
@@ -803,6 +825,19 @@ const recordScoreTx = db.transaction(
       if (!scorerOnTeeTime) {
         throw new ValidationError(
           "Player must claim this tee time before recording a score"
+        );
+      }
+      const scorerMemberRow = stmtSelectMemberByName.get(name) as
+        | PlayerRow
+        | undefined;
+      if (!scorerMemberRow) {
+        throw new ValidationError(
+          `${name} isn't a registered member — drop-ins can't record league scores`
+        );
+      }
+      if (courseHcp == null) {
+        throw new ValidationError(
+          "League rounds need a course handicap from GHIN"
         );
       }
       if (!attestedBy) {
@@ -930,6 +965,21 @@ const togglePollResponseTx = db.transaction(
 );
 
   app.use(express.json());
+
+  app.get("/api/health", (_req, res) => {
+    try {
+      const quickCheck = db.pragma("quick_check", { simple: true });
+      if (quickCheck !== "ok") {
+        return res
+          .status(503)
+          .json({ ok: false, database: "error", detail: String(quickCheck) });
+      }
+      res.json({ ok: true, database: "ok" });
+    } catch {
+      res.status(503).json({ ok: false, database: "error" });
+    }
+  });
+
   app.use(requireAccess);
 
   app.get("/api/access", (req, res) => {

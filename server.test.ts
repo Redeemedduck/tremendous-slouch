@@ -89,6 +89,18 @@ describe("server app factory", () => {
     expect(response.body.teeTimes.length).toBeGreaterThan(0);
   });
 
+  it("reports server and database readiness", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+
+    await request(app)
+      .get("/api/health")
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toMatchObject({ ok: true, database: "ok" });
+      });
+  });
+
   it("rejects a regular tee-time score for an unclaimed player", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
@@ -182,6 +194,42 @@ describe("server app factory", () => {
       .expect(400);
   });
 
+  it("rejects regular tee-time scores from drop-ins", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+
+    await createMember(app, "Alex", false);
+    await createMember(app, "Greg");
+    const teeTime = await createRegularTeeTime(app);
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/claims`)
+      .send({ name: "Alex" })
+      .expect(200);
+
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/scores`)
+      .send({ name: "Alex", gross: 80, courseHcp: 10, attestedBy: "Greg" })
+      .expect(400);
+  });
+
+  it("requires course handicap for regular tee-time scores", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+
+    await createMember(app, "Alex");
+    await createMember(app, "Greg");
+    const teeTime = await createRegularTeeTime(app);
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/claims`)
+      .send({ name: "Alex" })
+      .expect(200);
+
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/scores`)
+      .send({ name: "Alex", gross: 80, attestedBy: "Greg" })
+      .expect(400);
+  });
+
   it("rejects regular tee-time scores self-attested by the player", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
@@ -232,5 +280,33 @@ describe("server app factory", () => {
       .post(`/api/teetimes/${teeTime.id}/scores`)
       .send({ name: "Alex", gross: 80, courseHcp: 10, attestedBy: "Greg" })
       .expect(200);
+  });
+
+  it("prevents scored players and attesters from being removed from the tee time", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+
+    await createMember(app, "Alex");
+    await createMember(app, "Greg");
+    const teeTime = await createRegularTeeTime(app);
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/claims`)
+      .send({ name: "Alex" })
+      .expect(200);
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/scores`)
+      .send({ name: "Alex", gross: 80, courseHcp: 10, attestedBy: "Greg" })
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/teetimes/${teeTime.id}/claims/Alex`)
+      .expect(409);
+    await request(app)
+      .delete(`/api/teetimes/${teeTime.id}/claims/Greg`)
+      .expect(409);
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/interested`)
+      .send({ name: "Alex" })
+      .expect(409);
   });
 });

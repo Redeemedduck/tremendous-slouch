@@ -3,10 +3,15 @@ import {
   Plus,
   ChevronDown,
   Calendar,
+  ClipboardList,
+  Trophy,
   MessageCircleQuestion,
   Flag,
+  Banknote,
+  Users,
 } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
+import { CommandCenter } from "./components/CommandCenter";
 import { Header } from "./components/Header";
 import { NamePromptInline } from "./components/NamePromptInline";
 import { NewPollSheet } from "./components/NewPollSheet";
@@ -28,7 +33,11 @@ import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
 import { useTournaments } from "./hooks/useTournaments";
 import { isPast } from "./lib/format";
-import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
+import type {
+  NewPollInput,
+  NewTeeTimeInput,
+  TeeTime,
+} from "./lib/types";
 
 // ============================================================
 // APP
@@ -55,6 +64,7 @@ export default function App() {
 }
 
 type SheetKind = "teetime" | "poll" | null;
+type ViewMode = "board" | "season" | "money" | "roster";
 
 function Board() {
   const [profile, setProfile] = useMyProfile();
@@ -65,6 +75,7 @@ function Board() {
   const [editing, setEditing] = useState<TeeTime | null>(null);
   const [scoringTeeTime, setScoringTeeTime] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
+  const [view, setView] = useState<ViewMode>("board");
   const toast = useToast();
 
   const {
@@ -96,6 +107,35 @@ function Board() {
   const { tournaments } = useTournaments();
   const { buyins, patch: patchBuyin, refresh: refreshBuyins } =
     useBuyins(toast.show);
+
+  const tournamentFor = useMemo(
+    () => (teeTime: TeeTime) =>
+      tournaments.find(
+        (tournament) =>
+          teeTime.date >= tournament.windowStart &&
+          teeTime.date <= tournament.windowEnd
+      ) ?? null,
+    [tournaments]
+  );
+
+  const contextFor = (teeTime: TeeTime) => {
+    const tournament = tournamentFor(teeTime);
+    if (!tournament) return undefined;
+    const missingScores = teeTime.claims.some(
+      (claim) =>
+        !teeTime.scores.some((score) =>
+          score.name.trim().toLowerCase() === claim.name.trim().toLowerCase()
+        )
+    );
+    const pastRound = isPast(teeTime);
+    return {
+      label: tournament.name,
+      status: pastRound ? (missingScores ? "needsScores" : "scored") : "league",
+    } satisfies {
+      label: string;
+      status: "league" | "needsScores" | "scored";
+    };
+  };
 
   const { upcoming, past } = useMemo(() => {
     const upcoming: TeeTime[] = [];
@@ -227,141 +267,163 @@ function Board() {
           />
         )}
 
-        <SeasonSchedule
-          tournaments={tournaments}
-          teeTimes={teeTimes}
-          getHandicap={getHandicap}
-        />
+        {view === "board" && (
+          <>
+            <CommandCenter
+              teeTimes={teeTimes}
+              tournaments={tournaments}
+              buyins={buyins}
+              loaded={loaded}
+            />
 
-        <Roster
-          players={players}
-          teeTimes={teeTimes}
-          onUpdate={async (n, patch) => {
-            await upsertPlayer(n, patch);
-            // Buy-ins auto-create/delete on the server when member flips;
-            // refresh so the Finances card reflects it immediately.
-            await refreshBuyins();
-          }}
-        />
+            {polls.length > 0 && (
+              <div className="mb-3 space-y-3">
+                {polls.map((p) => (
+                  <PollCard
+                    key={p.id}
+                    poll={p}
+                    myName={myName}
+                    onToggle={(idx) => handleToggleVote(p.id, idx)}
+                    onDelete={() => removePoll(p.id)}
+                  />
+                ))}
+              </div>
+            )}
 
-        <Finances
-          buyins={buyins}
-          onToggle={(n, paid) => patchBuyin(n, { paid })}
-        />
-
-        <Standings
-          teeTimes={teeTimes}
-          tournaments={tournaments}
-          getHandicap={getHandicap}
-          myName={myName}
-        />
-
-        {polls.length > 0 && (
-          <div className="mb-3 space-y-3">
-            {polls.map((p) => (
-              <PollCard
-                key={p.id}
-                poll={p}
-                myName={myName}
-                onToggle={(idx) => handleToggleVote(p.id, idx)}
-                onDelete={() => removePoll(p.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {!loaded ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-32 animate-pulse rounded-2xl bg-stone-100"
-              />
-            ))}
-          </div>
-        ) : upcoming.length === 0 && polls.length === 0 ? (
-          <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
-              <Flag className="h-6 w-6" />
-            </div>
-            <p className="text-base font-medium text-stone-700">
-              Nothing on the board yet
-            </p>
-            <p className="mt-1 text-sm text-stone-500">
-              Tap <span className="font-medium">+</span> to post a tee time or
-              ask the group.
-            </p>
-          </div>
-        ) : upcoming.length === 0 ? null : (
-          <div className="space-y-3">
-            {upcoming.map((t) => (
-              <TeeTimeCard
-                key={t.id}
-                teeTime={t}
-                myName={myName}
-                readOnly={false}
-                onClaim={() => handleClaim(t.id)}
-                onDrop={(name) => drop(t.id, name)}
-                onMaybe={() => handleMaybe(t.id)}
-                onDropMaybe={(name) => dropInterest(t.id, name)}
-                onDelete={() => remove(t.id)}
-                onEdit={() => handleEdit(t)}
-                onRecordScores={() => setScoringTeeTime(t)}
-                onPostComment={(body) => handlePostComment(t.id, body)}
-                onDeleteComment={(cid) => deleteComment(t.id, cid)}
-                getHandicap={getHandicap}
-                isMember={isMember}
-              />
-            ))}
-          </div>
-        )}
-
-        {past.length > 0 && (
-          <section className="mt-8">
-            <button
-              type="button"
-              onClick={() => setPastOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm font-medium text-stone-500 hover:text-stone-700"
-            >
-              <span>Past tee times ({past.length})</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  pastOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {pastOpen && (
-              <div className="mt-2 space-y-3">
-                {past.map((t) => (
+            {!loaded ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-32 animate-pulse rounded-2xl bg-stone-100"
+                  />
+                ))}
+              </div>
+            ) : upcoming.length === 0 && polls.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
+                  <Flag className="h-6 w-6" />
+                </div>
+                <p className="text-base font-medium text-stone-700">
+                  Nothing on the board yet
+                </p>
+                <p className="mt-1 text-sm text-stone-500">
+                  Tap <span className="font-medium">+</span> to post a tee time
+                  or ask the group.
+                </p>
+              </div>
+            ) : upcoming.length === 0 ? null : (
+              <div className="space-y-3">
+                {upcoming.map((t) => (
                   <TeeTimeCard
                     key={t.id}
                     teeTime={t}
                     myName={myName}
-                    readOnly
-                    onClaim={() => {}}
-                    onDrop={() => {}}
-                    onMaybe={() => {}}
-                    onDropMaybe={() => {}}
+                    readOnly={false}
+                    leagueContext={contextFor(t)}
+                    onClaim={() => handleClaim(t.id)}
+                    onDrop={(name) => drop(t.id, name)}
+                    onMaybe={() => handleMaybe(t.id)}
+                    onDropMaybe={(name) => dropInterest(t.id, name)}
                     onDelete={() => remove(t.id)}
-                    onEdit={() => {}}
+                    onEdit={() => handleEdit(t)}
                     onRecordScores={() => setScoringTeeTime(t)}
-                    onPostComment={() => {}}
-                    onDeleteComment={() => {}}
+                    onPostComment={(body) => handlePostComment(t.id, body)}
+                    onDeleteComment={(cid) => deleteComment(t.id, cid)}
                     getHandicap={getHandicap}
                     isMember={isMember}
                   />
                 ))}
               </div>
             )}
-          </section>
+
+            {past.length > 0 && (
+              <section className="mt-8">
+                <button
+                  type="button"
+                  onClick={() => setPastOpen((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm font-medium text-stone-500 hover:text-stone-700"
+                >
+                  <span>Past tee times ({past.length})</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      pastOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {pastOpen && (
+                  <div className="mt-2 space-y-3">
+                    {past.map((t) => (
+                      <TeeTimeCard
+                        key={t.id}
+                        teeTime={t}
+                        myName={myName}
+                        readOnly
+                        leagueContext={contextFor(t)}
+                        onClaim={() => {}}
+                        onDrop={() => {}}
+                        onMaybe={() => {}}
+                        onDropMaybe={() => {}}
+                        onDelete={() => remove(t.id)}
+                        onEdit={() => {}}
+                        onRecordScores={() => setScoringTeeTime(t)}
+                        onPostComment={() => {}}
+                        onDeleteComment={() => {}}
+                        getHandicap={getHandicap}
+                        isMember={isMember}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
+        )}
+
+        {view === "season" && (
+          <>
+            <SeasonSchedule
+              tournaments={tournaments}
+              teeTimes={teeTimes}
+              getHandicap={getHandicap}
+            />
+            <Standings
+              teeTimes={teeTimes}
+              tournaments={tournaments}
+              getHandicap={getHandicap}
+              myName={myName}
+            />
+          </>
+        )}
+
+        {view === "money" && (
+          <Finances
+            buyins={buyins}
+            onToggle={(n, paid) => patchBuyin(n, { paid })}
+          />
+        )}
+
+        {view === "roster" && (
+          <Roster
+            players={players}
+            teeTimes={teeTimes}
+            onUpdate={async (n, patch) => {
+              await upsertPlayer(n, patch);
+              // Buy-ins auto-create/delete on the server when member flips;
+              // refresh so the Finances card reflects it immediately.
+              await refreshBuyins();
+            }}
+          />
         )}
       </div>
+
+      <BottomNav active={view} onChange={setView} />
 
       {openSheet === null && (
         <div
           className="fixed right-4 z-30"
           style={{
-            bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+            bottom: "calc(5.75rem + env(safe-area-inset-bottom))",
           }}
         >
           {fabMenuOpen && (
@@ -457,5 +519,71 @@ function Board() {
         }
       />
     </div>
+  );
+}
+
+function BottomNav({
+  active,
+  onChange,
+}: {
+  active: ViewMode;
+  onChange: (view: ViewMode) => void;
+}) {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-stone-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-8px_24px_rgba(28,25,23,0.08)] backdrop-blur">
+      <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+        <NavButton
+          active={active === "board"}
+          icon={ClipboardList}
+          label="Board"
+          onClick={() => onChange("board")}
+        />
+        <NavButton
+          active={active === "season"}
+          icon={Trophy}
+          label="Season"
+          onClick={() => onChange("season")}
+        />
+        <NavButton
+          active={active === "money"}
+          icon={Banknote}
+          label="Money"
+          onClick={() => onChange("money")}
+        />
+        <NavButton
+          active={active === "roster"}
+          icon={Users}
+          label="Roster"
+          onClick={() => onChange("roster")}
+        />
+      </div>
+    </nav>
+  );
+}
+
+function NavButton({
+  active,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: typeof ClipboardList;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-14 flex-col items-center justify-center rounded-xl text-xs font-semibold transition-colors ${
+        active
+          ? "bg-fairway-50 text-fairway-800"
+          : "text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+      }`}
+    >
+      <Icon className="mb-0.5 h-4 w-4" />
+      {label}
+    </button>
   );
 }
