@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Buyin } from "../lib/types";
 
-export function useBuyins(onError: (msg: string) => void) {
+export function useBuyins(onError: (msg: string) => void, enabled = true) {
   const [buyins, setBuyins] = useState<Buyin[]>([]);
 
   const refresh = useCallback(async () => {
+    if (!enabled) {
+      setBuyins([]);
+      return;
+    }
     try {
       const r = await fetch("/api/buyins");
       if (!r.ok) return;
@@ -13,9 +17,13 @@ export function useBuyins(onError: (msg: string) => void) {
     } catch {
       // silent on poll errors
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setBuyins([]);
+      return;
+    }
     refresh();
     // Buy-ins change rarely; refresh on visibility change but no recurring
     // poll.
@@ -24,13 +32,22 @@ export function useBuyins(onError: (msg: string) => void) {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [refresh]);
+  }, [enabled, refresh]);
 
   const patch = useCallback(
     async (
       name: string,
-      change: { amount?: number; paid?: boolean; notes?: string | null }
+      change: {
+        amount?: number;
+        paid?: boolean;
+        paymentStatus?: Buyin["paymentStatus"];
+        paymentMethod?: string | null;
+        paymentActor?: string | null;
+        paidAt?: string | null;
+        notes?: string | null;
+      }
     ) => {
+      if (!enabled) return;
       const r = await fetch(`/api/buyins/${encodeURIComponent(name)}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -52,7 +69,7 @@ export function useBuyins(onError: (msg: string) => void) {
         );
       });
     },
-    [onError]
+    [enabled, onError]
   );
 
   return { buyins, patch, refresh };

@@ -1,42 +1,43 @@
 import {
-  AlertTriangle,
-  Banknote,
   CalendarClock,
   CheckCircle2,
   Flag,
+  ShieldCheck,
   Users,
 } from "lucide-react";
+import { auditLeagueRules } from "../lib/audit";
 import {
-  eqName,
   formatDateLabel,
   formatTimeLabel,
   isPast,
   todayISO,
 } from "../lib/format";
 import type { Buyin, TeeTime, Tournament } from "../lib/types";
-
-function isInTournament(teeTime: TeeTime, tournament: Tournament) {
-  return (
-    teeTime.date >= tournament.windowStart && teeTime.date <= tournament.windowEnd
-  );
-}
-
-function missingScoreCount(teeTime: TeeTime) {
-  return teeTime.claims.filter(
-    (claim) => !teeTime.scores.some((score) => eqName(score.name, claim.name))
-  ).length;
-}
+import type { Player } from "../lib/types";
 
 export function CommandCenter({
   teeTimes,
   tournaments,
   buyins,
+  players,
+  accessCodeRequired,
+  launchChecks,
   loaded,
+  onOpenView,
 }: {
   teeTimes: TeeTime[];
   tournaments: Tournament[];
   buyins: Buyin[];
+  players: Player[];
+  accessCodeRequired: boolean;
+  launchChecks: {
+    dockerBuildVerified: boolean;
+    tailnetServeVerified: boolean;
+    productionUrlVerified: boolean;
+    mobileSafariVerified: boolean;
+  };
   loaded: boolean;
+  onOpenView?: (view: "money" | "roster" | "ops") => void;
 }) {
   const today = todayISO();
   const activeTournament =
@@ -53,17 +54,17 @@ export function CommandCenter({
   const maybeCount = teeTimes
     .filter((teeTime) => !isPast(teeTime))
     .reduce((total, teeTime) => total + teeTime.interested.length, 0);
-  const unscoredLeagueRounds = teeTimes.filter(
-    (teeTime) =>
-      isPast(teeTime) &&
-      tournaments.some(
-        (tournament) => tournament.type !== "post" && isInTournament(teeTime, tournament)
-      ) &&
-      missingScoreCount(teeTime) > 0
+  const ruleIssues = auditLeagueRules(teeTimes, tournaments, players, today);
+  const postedScores = teeTimes.reduce(
+    (total, teeTime) => total + teeTime.scores.length,
+    0
   );
-  const unpaid = buyins.filter((buyin) => !buyin.paid);
-  const urgentCount =
-    unscoredLeagueRounds.length + unpaid.length + (openSpots > 0 ? 1 : 0);
+  const boardStatus =
+    openSpots > 0
+      ? `${openSpots} spot${openSpots === 1 ? "" : "s"} open`
+      : nextTeeTime
+        ? "Groups set"
+        : "Ready";
 
   return (
     <section className="mb-3 overflow-hidden rounded-2xl bg-stone-900 text-white shadow-sm">
@@ -78,7 +79,7 @@ export function CommandCenter({
             </h2>
           </div>
           <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
-            {urgentCount === 0 ? "Clean" : `${urgentCount} open`}
+            {boardStatus}
           </span>
         </div>
       </div>
@@ -115,33 +116,21 @@ export function CommandCenter({
           />
           <Metric icon={Flag} label="Maybe" value={String(maybeCount)} />
           <Metric
-            icon={Banknote}
-            label="Unpaid"
-            value={String(unpaid.length)}
-            tone={unpaid.length > 0 ? "warn" : "ok"}
+            icon={ShieldCheck}
+            label="Scores"
+            value={String(postedScores)}
+            tone={ruleIssues.length > 0 ? "warn" : "ok"}
           />
         </div>
 
-        {unscoredLeagueRounds.length > 0 ? (
-          <div className="rounded-xl bg-amber-400/15 p-3 text-sm text-amber-50 ring-1 ring-amber-300/20">
-            <div className="flex items-center gap-2 font-semibold">
-              <AlertTriangle className="h-4 w-4" />
-              {unscoredLeagueRounds.length} league round
-              {unscoredLeagueRounds.length === 1 ? "" : "s"} need closeout
-            </div>
-            <p className="mt-1 text-xs text-amber-100">
-              Record missing scores, course handicaps, and attestations before
-              trusting standings.
-            </p>
+        <div className="rounded-xl bg-white/10 p-3 text-sm text-stone-200">
+          <div className="flex items-center gap-2 font-semibold text-white">
+            <CheckCircle2 className="h-4 w-4 text-fairway-100" />
+            {nextTeeTime
+              ? "Coordinate the next group and post scores after the round."
+              : "Post the next tee time when the group is ready."}
           </div>
-        ) : (
-          <div className="rounded-xl bg-white/10 p-3 text-sm text-stone-200">
-            <div className="flex items-center gap-2 font-semibold text-white">
-              <CheckCircle2 className="h-4 w-4 text-fairway-100" />
-              No league score closeout blockers
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </section>
   );

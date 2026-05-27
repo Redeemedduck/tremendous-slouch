@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import {
   Clock,
   MapPin,
@@ -9,6 +9,7 @@ import {
   CalendarPlus,
   Pencil,
   ClipboardList,
+  UserPlus,
 } from "lucide-react";
 import { downloadIcs } from "../lib/calendar";
 import {
@@ -29,46 +30,72 @@ export function TeeTimeCard({
   teeTime,
   myName,
   readOnly,
+  commissionerUnlocked = false,
   onClaim,
+  onClaimName,
   onDrop,
   onMaybe,
   onDropMaybe,
   onDelete,
   onEdit,
   onRecordScores,
+  onAttestScore,
   onPostComment,
+  onEditComment,
   onDeleteComment,
+  commentsReadOnly,
   getHandicap,
   isMember,
+  nameSuggestions = [],
   leagueContext,
 }: {
   teeTime: TeeTime;
   myName: string;
   readOnly: boolean;
+  commissionerUnlocked?: boolean;
   leagueContext?: {
     label: string;
     status: "league" | "needsScores" | "scored";
   };
   onClaim: () => void;
+  onClaimName: (name: string) => void | Promise<void>;
   onDrop: (name: string) => void;
   onMaybe: () => void;
   onDropMaybe: (name: string) => void;
   onDelete: () => void;
   onEdit: () => void;
   onRecordScores: () => void;
+  onAttestScore: (name: string) => void | Promise<void>;
   onPostComment: (body: string) => void | Promise<void>;
+  onEditComment: (commentId: string, body: string) => void | Promise<void>;
   onDeleteComment: (commentId: string) => void | Promise<void>;
+  commentsReadOnly?: boolean;
   getHandicap: (name: string) => number | null;
   isMember: (name: string) => boolean;
+  nameSuggestions?: string[];
 }) {
   const isDropInChip = (n: string) => !isMember(n);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addingName, setAddingName] = useState(false);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
   const meMaybe =
     !!myName && teeTime.interested.some((i) => eqName(i.name, myName));
   const isHost = !!myName && eqName(teeTime.host, myName);
+  const canManageTeeTime = isHost || commissionerUnlocked;
   const full = teeTime.claims.length >= teeTime.spots;
   const spotsLeft = Math.max(0, teeTime.spots - teeTime.claims.length);
+  const guestCount = teeTime.claims.filter((claim) => isDropInChip(claim.name)).length;
+  const missingScoreCount = teeTime.claims.filter(
+    (claim) => !teeTime.scores.some((score) => eqName(score.name, claim.name))
+  ).length;
+  const pendingForMe = teeTime.scores.filter(
+    (score) =>
+      (score.attestationStatus == null || score.attestationStatus === "pending") &&
+      !!myName &&
+      !!score.attestedBy &&
+      eqName(score.attestedBy, myName)
+  ).length;
   const myStatus = meIn
     ? "You're in"
     : meMaybe
@@ -84,6 +111,18 @@ export function TeeTimeCard({
         : leagueContext
           ? "League round"
           : null;
+  const submitHostAdd = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = addName.trim();
+    if (!name || addingName || full) return;
+    setAddingName(true);
+    try {
+      await onClaimName(name);
+      setAddName("");
+    } finally {
+      setAddingName(false);
+    }
+  };
 
   return (
     <article
@@ -136,11 +175,11 @@ export function TeeTimeCard({
             </div>
           )}
         </div>
-        {isHost && (
+        {canManageTeeTime && (
           <div className="relative">
             <button
               type="button"
-              aria-label="Host options"
+              aria-label={isHost ? "Host options" : "Commissioner tee-time options"}
               onClick={() => setMenuOpen((v) => !v)}
               className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
             >
@@ -211,13 +250,43 @@ export function TeeTimeCard({
         <p className="mt-2 text-sm text-stone-600">{teeTime.notes}</p>
       )}
 
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <CoordStat
+          label="Committed"
+          value={`${teeTime.claims.length} of ${teeTime.spots}`}
+          tone={full ? "full" : "ok"}
+        />
+        <CoordStat
+          label="Open"
+          value={String(spotsLeft)}
+          tone={spotsLeft > 0 ? "ok" : "full"}
+        />
+        <CoordStat
+          label="Maybe"
+          value={String(teeTime.interested.length)}
+          tone={teeTime.interested.length > 0 ? "maybe" : "neutral"}
+        />
+        <CoordStat
+          label={pendingForMe > 0 ? "Needs action" : "Guests"}
+          value={String(pendingForMe > 0 ? pendingForMe : guestCount)}
+          tone={pendingForMe > 0 ? "action" : guestCount > 0 ? "maybe" : "neutral"}
+        />
+      </div>
+
+      {leagueContext?.status === "needsScores" && missingScoreCount > 0 && (
+        <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          Needs scores from {missingScoreCount} committed player
+          {missingScoreCount === 1 ? "" : "s"}.
+        </p>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <SpotsIndicator
           filled={teeTime.claims.length}
           total={teeTime.spots}
           interested={teeTime.interested.length}
         />
-        {!readOnly && (
+        {!readOnly && !meIn && (
           <button
             type="button"
             onClick={() => downloadIcs(teeTime)}
@@ -262,10 +331,16 @@ export function TeeTimeCard({
               handicap={getHandicap(c.name)}
               isDropIn={isDropInChip(c.name)}
               onDrop={
-                !readOnly && !!myName && eqName(c.name, myName)
+                !readOnly &&
+                !!myName &&
+                (eqName(c.name, myName) || canManageTeeTime)
                   ? () => {
                       if (
-                        window.confirm(`Drop your spot at ${teeTime.course}?`)
+                        window.confirm(
+                          eqName(c.name, myName)
+                            ? `Drop your spot at ${teeTime.course}?`
+                            : `Remove ${c.name} from ${teeTime.course}?`
+                        )
                       ) {
                         onDrop(c.name);
                       }
@@ -292,11 +367,15 @@ export function TeeTimeCard({
               handicap={getHandicap(i.name)}
               isDropIn={isDropInChip(i.name)}
               onDrop={
-                !readOnly && !!myName && eqName(i.name, myName)
+                !readOnly &&
+                !!myName &&
+                (eqName(i.name, myName) || canManageTeeTime)
                   ? () => {
                       if (
                         window.confirm(
-                          `Remove your maybe at ${teeTime.course}?`
+                          eqName(i.name, myName)
+                            ? `Remove your maybe at ${teeTime.course}?`
+                            : `Remove ${i.name}'s maybe at ${teeTime.course}?`
                         )
                       ) {
                         onDropMaybe(i.name);
@@ -307,6 +386,44 @@ export function TeeTimeCard({
             />
           ))}
         </div>
+      )}
+
+      {!readOnly && canManageTeeTime && (
+        <form
+          onSubmit={submitHostAdd}
+          className="mt-3 rounded-xl bg-stone-50 p-2 ring-1 ring-stone-200"
+        >
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <label className="sr-only" htmlFor={`add-player-${teeTime.id}`}>
+              Add player to tee time
+            </label>
+            <input
+              id={`add-player-${teeTime.id}`}
+              value={addName}
+              onChange={(event) => setAddName(event.target.value)}
+              maxLength={30}
+              list={`name-suggestions-${teeTime.id}`}
+              placeholder={full ? "Group is full" : "Add player"}
+              disabled={full || addingName}
+              className="min-w-0 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 disabled:bg-stone-100 disabled:text-stone-400"
+            />
+            <button
+              type="submit"
+              disabled={full || addingName || !addName.trim()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+          {nameSuggestions.length > 0 && (
+            <datalist id={`name-suggestions-${teeTime.id}`}>
+              {nameSuggestions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          )}
+        </form>
       )}
 
       {teeTime.scores.length > 0 && (
@@ -329,31 +446,72 @@ export function TeeTimeCard({
                 const usedHcp = s.courseHcp ?? getHandicap(s.name);
                 const fromCourse = s.courseHcp != null;
                 const net = usedHcp != null ? s.gross - usedHcp : null;
+                const status = s.attestationStatus ?? "legacy_unconfirmed";
+                const canAttest =
+                  (status === "pending" || status === "legacy_unconfirmed") &&
+                  !!myName &&
+                  !!s.attestedBy &&
+                  eqName(myName, s.attestedBy);
+                const hcpSource =
+                  s.courseHcpSource === "manual_unverified"
+                    ? "unverified CH"
+                    : s.courseHcpSource === "commissioner_override"
+                      ? "CH override"
+                      : s.courseHcpSource === "calculated"
+                        ? "calculated CH"
+                        : s.courseHcpSource === "calculated_unverified"
+                          ? "unverified calculated CH"
+                          : s.courseHcpSource === "ghin"
+                            ? "GHIN CH"
+                            : null;
                 return (
                   <li
                     key={s.name}
-                    className="flex items-center justify-between text-sm"
+                    className="flex items-center justify-between gap-2 text-sm"
                   >
-                    <span className="text-stone-700">
-                      <span className="font-medium">{s.name}</span>
-                      {usedHcp != null && (
-                        <span className="ml-1.5 text-xs text-stone-400">
-                          {fromCourse ? `CH ${usedHcp}` : formatHandicap(usedHcp)}
-                        </span>
-                      )}
-                      {s.attestedBy && (
-                        <span className="ml-1.5 text-[10px] text-stone-400">
-                          · att. {s.attestedBy}
-                        </span>
-                      )}
+                    <span className="min-w-0 text-stone-700">
+                      <span>
+                        <span className="font-medium">{s.name}</span>
+                        {usedHcp != null && (
+                          <span className="ml-1.5 text-xs text-stone-400">
+                            {fromCourse ? `CH ${usedHcp}` : formatHandicap(usedHcp)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] text-stone-400">
+                        {status === "pending"
+                          ? `pending ${s.attestedBy ?? "attester"}`
+                          : status === "attested"
+                            ? `attested ${s.attestedBy ?? ""}`
+                            : status === "overridden"
+                              ? "commissioner override"
+                              : status === "legacy_unconfirmed"
+                                ? `needs confirm ${s.attestedBy ?? "attester"}`
+                                : "draft"}
+                        {hcpSource ? ` · ${hcpSource}` : ""}
+                      </span>
                     </span>
-                    <span className="tabular-nums text-stone-700">
-                      {s.gross}
-                      {net != null && (
-                        <span className="ml-2 text-xs text-stone-500">
-                          net {fromCourse ? net : (Math.round(net * 10) / 10).toFixed(1)}
-                        </span>
+                    <span className="flex shrink-0 items-center gap-2 tabular-nums text-stone-700">
+                      {canAttest && (
+                        <button
+                          type="button"
+                          onClick={() => onAttestScore(s.name)}
+                          className="rounded-full bg-fairway-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-fairway-800"
+                        >
+                          Confirm
+                        </button>
                       )}
+                      <span>
+                        {s.gross}
+                        {net != null && (
+                          <span className="ml-2 text-xs text-stone-500">
+                            net{" "}
+                            {fromCourse
+                              ? net
+                              : (Math.round(net * 10) / 10).toFixed(1)}
+                          </span>
+                        )}
+                      </span>
                     </span>
                   </li>
                 );
@@ -387,10 +545,42 @@ export function TeeTimeCard({
       <Comments
         comments={teeTime.comments}
         myName={myName}
-        readOnly={readOnly}
+        readOnly={commentsReadOnly ?? readOnly}
         onPost={onPostComment}
+        onEdit={onEditComment}
         onDelete={onDeleteComment}
       />
     </article>
+  );
+}
+
+function CoordStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "ok" | "full" | "maybe" | "action" | "neutral";
+}) {
+  const toneClass =
+    tone === "action"
+      ? "bg-amber-50 text-amber-800 ring-amber-100"
+      : tone === "maybe"
+        ? "bg-amber-50 text-amber-800 ring-amber-100"
+        : tone === "full"
+          ? "bg-stone-100 text-stone-700 ring-stone-200"
+          : tone === "ok"
+            ? "bg-fairway-50 text-fairway-900 ring-fairway-100"
+            : "bg-stone-50 text-stone-600 ring-stone-100";
+  return (
+    <div className={`rounded-xl px-3 py-2 ring-1 ${toneClass}`}>
+      <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-70">
+        {label}
+      </span>
+      <span className="mt-0.5 block text-sm font-semibold tabular-nums">
+        {value}
+      </span>
+    </div>
   );
 }

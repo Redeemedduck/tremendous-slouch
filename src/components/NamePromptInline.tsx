@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 
 export function NamePromptInline({
   onSubmit,
@@ -8,24 +8,12 @@ export function NamePromptInline({
   nameSuggestions: string[];
 }) {
   const [name, setName] = useState("");
-  const [handicap, setHandicap] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     const n = name.trim();
     if (!n) return;
-    let h: number | null = null;
-    if (handicap.trim() !== "") {
-      const v = Number(handicap);
-      if (!Number.isFinite(v) || v < -10 || v > 54) {
-        setError("Handicap must be between -10 and 54");
-        return;
-      }
-      h = Math.round(v * 10) / 10;
-    }
-    onSubmit(n, h);
+    onSubmit(n, null);
   };
 
   return (
@@ -44,18 +32,6 @@ export function NamePromptInline({
             list="name-suggestions"
             className="col-span-2 min-w-0 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 sm:col-span-1 sm:flex-1"
           />
-          <input
-            type="number"
-            value={handicap}
-            onChange={(e) => setHandicap(e.target.value)}
-            step={0.1}
-            min={-10}
-            max={54}
-            placeholder="Hcp"
-            inputMode="decimal"
-            className="min-w-0 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 sm:w-20"
-            aria-label="Handicap (optional)"
-          />
           <button
             type="submit"
             disabled={!name.trim()}
@@ -72,13 +48,8 @@ export function NamePromptInline({
           </datalist>
         )}
         <p className="text-xs text-stone-400">
-          Handicap is optional — same number you have in GHIN.
+          GHIN and course handicaps are handled in the roster with a source.
         </p>
-        {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
       </form>
     </div>
   );

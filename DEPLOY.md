@@ -48,16 +48,19 @@ README.md → Configuration for the env vars.
    - `--size 1` = 1 GiB, plenty for a tee-times SQLite DB.
    - Use the same `--region` you chose for the app.
 
-3. **Set the group access code** (recommended). When `ACCESS_CODE` is set,
+3. **Set the group access and commissioner codes.** When `ACCESS_CODE` is set,
    the server requires anyone hitting `/api/*` to first POST the code to
    `/api/access` and receive the `golf_access` HttpOnly cookie. Without this
-   env var, the URL is fully public.
+   env var, the URL is fully public. `COMMISSIONER_CODE` is separate and
+   required for money, roster, launch checks, backups, destructive cleanup,
+   and exports; commissioner routes fail closed when it is missing.
    ```sh
    fly secrets set ACCESS_CODE=<pick-a-shared-code>
+   fly secrets set COMMISSIONER_CODE=<pick-a-different-admin-code>
    ```
-   Pick something memorable but not guessable (e.g. an inside-joke phrase).
-   Share it with the group via SMS once. To rotate, just `fly secrets set`
-   again — existing cookies become invalid the next request.
+   Pick memorable but not guessable phrases. Share only `ACCESS_CODE` with the
+   group. To rotate either code, run `fly secrets set` again; existing cookies
+   become invalid on the next request.
 
 ---
 
@@ -84,6 +87,89 @@ Fly will build the `Dockerfile`, push the image, attach the volume at
 3. Check logs:
    ```sh
    fly logs
+   ```
+4. Build and smoke-test the production Docker image locally:
+   ```sh
+   npm run verify:docker
+   ```
+5. Run the full local proof suite before deploy:
+   ```sh
+   npm run verify:all
+   ```
+   This covers typecheck, tests, build, live DB state, backup, persistence,
+   production smoke, mobile UX smoke, Docker smoke, dependency audit, and
+   whitespace diff hygiene. The smoke checks include the season JSON,
+   readiness JSON, text summary, launch packet, and database backup surfaces.
+6. Check deploy prerequisites before mutating Fly state:
+   ```sh
+   npm run verify:deploy-prereqs
+   ```
+   This checks Fly CLI availability, Fly auth, app visibility, the persistent
+   `data` volume, local access-code configuration, and remote-smoke URL
+   configuration. It exits non-zero while a required prerequisite is missing.
+7. Verify the real local league database state before deploy:
+   ```sh
+   npm run verify:live-state
+   ```
+   This is read-only. It checks SQLite health, roster/buy-in/tournament counts,
+   known Stop 1 scores, rule blockers, payment-like notes on unpaid buy-ins,
+   and prints the remaining risk inventory from the actual DB.
+8. Verify a restorable SQLite backup inside the running machine:
+   ```sh
+   fly ssh console -C "cd /app && npm run verify:backup"
+   ```
+9. Verify SQLite persistence with an isolated restart probe:
+   ```sh
+   fly ssh console -C "cd /app && npm run verify:persistence"
+   ```
+10. Verify the built client and access-gated API path:
+   ```sh
+   fly ssh console -C "cd /app && npm run verify:prod-smoke"
+   ```
+11. Verify the phone-sized commissioner golden path locally against an isolated
+   database:
+   ```sh
+   npm run build
+   npm run verify:mobile-ux
+   ```
+   This uses a 390×844 Chromium viewport, verifies access unlock, bottom
+   navigation, Season standings, Money, Roster, and Ops, and does not touch the
+   live league database.
+12. Verify the public production URL from your local machine without mutating
+   the live league database:
+   ```sh
+   REMOTE_SMOKE_URL=https://djdi-golf-board.fly.dev \
+   REMOTE_SMOKE_ACCESS_CODE=<shared-code> \
+   REMOTE_SMOKE_COMMISSIONER_CODE=<admin-code> \
+   npm run verify:remote-smoke
+   ```
+   This checks the built client, `/api/health`, access gate, tournaments, JSON
+   export, text summary export, and launch-packet export. It does **not**
+   create a tee time. The script also accepts `DJDI_REMOTE_SMOKE_URL` and
+   `DJDI_REMOTE_SMOKE_ACCESS_CODE` and
+   `DJDI_REMOTE_SMOKE_COMMISSIONER_CODE` if you prefer project-prefixed env vars.
+13. Verify the public URL's mobile browser layout without mutating the live
+   league database:
+   ```sh
+   REMOTE_MOBILE_URL=https://djdi-golf-board.fly.dev \
+   REMOTE_MOBILE_ACCESS_CODE=<shared-code> \
+   REMOTE_MOBILE_COMMISSIONER_CODE=<admin-code> \
+   npm run verify:remote-mobile-ux
+   ```
+   This drives a 390×844 Chromium viewport through access unlock, bottom
+   navigation, Season, Money, Roster, Ops, launch-risk copy, and export links.
+   It is remote browser proof, not a substitute for the physical iPhone Safari
+   launch gate.
+   `npm run verify:phone-access` accepts the same `REMOTE_MOBILE_ACCESS_CODE`
+   and `REMOTE_MOBILE_COMMISSIONER_CODE` values, so the full launch verifier
+   does not require duplicating them as `ACCESS_CODE` and `COMMISSIONER_CODE`.
+14. Once a gate is proven in the target environment, set the matching launch
+   flag or mark it in the Ops Launch Gates panel so Ops stops listing it as an
+   external risk:
+   ```sh
+   fly secrets set DJDI_DOCKER_BUILD_VERIFIED=1
+   fly secrets set DJDI_PRODUCTION_URL_VERIFIED=1
+   fly secrets set DJDI_MOBILE_SAFARI_VERIFIED=1
    ```
 
 ---
@@ -128,4 +214,3 @@ That's it. The volume persists across deploys.
   docker build -t djdi-golf-board .
   docker run --rm -p 3000:3000 -v $(pwd)/.local-data:/data djdi-golf-board
   ```
-

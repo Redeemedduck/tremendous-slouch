@@ -261,9 +261,18 @@ async function main() {
   // 14. Finances / Pool card expanded — toggle Greg paid to show mixed
   // states.
   try {
-    await api("PATCH", "/api/buyins/Greg", { paid: true });
-    await api("PATCH", "/api/buyins/Mike", { paid: true });
-    await api("PATCH", "/api/buyins/Jason", { paid: true });
+    await api("PATCH", "/api/buyins/Greg", {
+      paid: true,
+      notes: "Screenshot fixture payment evidence",
+    });
+    await api("PATCH", "/api/buyins/Mike", {
+      paid: true,
+      notes: "Screenshot fixture payment evidence",
+    });
+    await api("PATCH", "/api/buyins/Jason", {
+      paid: true,
+      notes: "Screenshot fixture payment evidence",
+    });
     await page.reload();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.locator("button", { hasText: "Pool" }).first().click({ timeout: 5000 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ACTIVE_RULES_VERSION } from "./leagueRules";
 import { computeTournamentLeaderboard } from "./tournamentLeaderboard";
 import type { Score, TeeTime, Tournament } from "./types";
 
@@ -28,7 +29,12 @@ function teeTime(date: string, scores: Score[]): TeeTime {
     notes: null,
     claims: [],
     interested: [],
-    scores,
+    scores: scores.map((score) => ({
+      ...score,
+      attestationStatus: score.attestationStatus ?? "attested",
+      attestedAt: score.attestedAt ?? "2026-04-03T19:00:00.000Z",
+      attestationActor: score.attestationActor ?? score.attestedBy ?? "Test",
+    })),
     comments: [],
     createdAt: "2026-01-01T00:00:00.000Z",
   };
@@ -59,7 +65,14 @@ describe("computeTournamentLeaderboard", () => {
       () => null
     );
 
-    expect(rows).toMatchObject([{ name: "Alex", bestGross: 80, bestNet: 70 }]);
+    expect(rows).toMatchObject([
+      {
+        rulesVersion: ACTIVE_RULES_VERSION,
+        name: "Alex",
+        bestGross: 80,
+        bestNet: 70,
+      },
+    ]);
   });
 
   it("prioritizes score-level course handicap over member handicap", () => {
@@ -99,6 +112,69 @@ describe("computeTournamentLeaderboard", () => {
     );
 
     expect(rows.map((row) => row.name)).toEqual(["Net Player", "No Net"]);
+  });
+
+  it("breaks equal net ties by best gross and then stable input order", () => {
+    const rows = computeTournamentLeaderboard(
+      regularTournament,
+      [
+        teeTime("2026-04-03", [
+          {
+            name: "Lower Gross",
+            gross: 78,
+            courseHcp: 8,
+            recordedAt: "2026-04-03T18:00:00.000Z",
+          },
+          {
+            name: "Stable First",
+            gross: 80,
+            courseHcp: 10,
+            recordedAt: "2026-04-03T18:05:00.000Z",
+          },
+          {
+            name: "Stable Second",
+            gross: 80,
+            courseHcp: 10,
+            recordedAt: "2026-04-03T18:10:00.000Z",
+          },
+        ]),
+      ],
+      () => null
+    );
+
+    expect(rows.map((row) => `${row.position}:${row.name}`)).toEqual([
+      "1:Lower Gross",
+      "2:Stable First",
+      "3:Stable Second",
+    ]);
+    expect(rows.map((row) => row.bestNet)).toEqual([70, 70, 70]);
+  });
+
+  it("excludes score entries that are still pending attestation", () => {
+    const rows = computeTournamentLeaderboard(
+      regularTournament,
+      [
+        teeTime("2026-04-03", [
+          {
+            name: "Pending",
+            gross: 70,
+            courseHcp: 10,
+            attestationStatus: "pending",
+            recordedAt: "2026-04-03T18:00:00.000Z",
+          },
+          {
+            name: "Official",
+            gross: 82,
+            courseHcp: 10,
+            attestationStatus: "attested",
+            recordedAt: "2026-04-03T18:00:00.000Z",
+          },
+        ]),
+      ],
+      () => null
+    );
+
+    expect(rows.map((row) => row.name)).toEqual(["Official"]);
   });
 
   it("merges player names case-insensitively", () => {

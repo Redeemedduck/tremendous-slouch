@@ -26,7 +26,16 @@ export function usePlayers(onError: (msg: string) => void) {
   const upsert = useCallback(
     async (
       name: string,
-      patch: { handicap?: number | null; member?: boolean }
+      patch: {
+        handicap?: number | null;
+        handicapSource?: string | null;
+        handicapNote?: string | null;
+        ghinNumber?: string | null;
+        handicapSourceType?: string | null;
+        handicapVerifiedAt?: string | null;
+        handicapVerifiedBy?: string | null;
+        member?: boolean;
+      }
     ) => {
       const r = await fetch(`/api/players/${encodeURIComponent(name)}`, {
         method: "PUT",
@@ -68,10 +77,17 @@ export function usePlayers(onError: (msg: string) => void) {
     [handicapByName]
   );
 
+  const getPlayer = useCallback(
+    (name: string) =>
+      players.find((player) => player.name.toLowerCase() === name.toLowerCase()) ??
+      null,
+    [players]
+  );
+
   const isMember = useCallback(
     (name: string) => memberByName.get(name.toLowerCase()) ?? false,
     [memberByName]
   );
 
-  return { players, upsert, getHandicap, isMember };
+  return { players, refresh, upsert, getHandicap, getPlayer, isMember };
 }

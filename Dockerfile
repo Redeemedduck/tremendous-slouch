@@ -74,6 +74,8 @@ RUN npm install --omit=dev --no-save tsx@^4
 # Copy built client and the server entrypoint.
 COPY --from=builder /app/dist ./dist
 COPY server.ts ./server.ts
+COPY src ./src
+COPY scripts ./scripts
 COPY tsconfig.json ./tsconfig.json
 
 # Fly will mount the persistent volume here at runtime.

@@ -6,14 +6,14 @@ Board**. The app is a shared web app for the 2026 DJDI summer golf league
 pool. Mobile-first.
 
 Most of what you need to evaluate is already captured in
-[`SCREENSHOTS.md`](./SCREENSHOTS.md) (16 shots at iPhone 14 Pro viewport,
-covering every panel). Look at those first.
+[`SCREENSHOTS.md`](./SCREENSHOTS.md): core mobile shots at iPhone 14 Pro
+viewport plus current Ops proof images. Look at those first.
 
 ## How to run it yourself
 
 ```sh
 npm install
-npm run start
+npm run start:prod
 # open http://localhost:3000 on the same machine
 ```
 
@@ -57,6 +57,8 @@ These are the panels added on top of the original coordination layer:
 - **Roster** (Member vs Guest toggles)
 - **Pool** (buy-in tracker)
 - **Standings** (default sort = season points, with seed badges)
+- **Ops** (commissioner readiness, open tasks, launch gates, closeout packets,
+  exports, and bulk reply intake)
 - **Tournament expanded** view (per-tournament leaderboard + rounds)
 - **Championship expanded** (post-season bracket with stroke advantages)
 
@@ -101,9 +103,12 @@ Sanity-check these phrases. Flag anything that feels off:
 | Toast — dup | "That name already has a spot" |
 | Section: Season | "Season — 1 active · 8 upcoming" |
 | Section: Roster | "Roster — 7 members · 1 guest" |
-| Section: Pool | "Pool — $975 collected of $2,275 · 3/7 paid" |
+| Section: Pool | "Pool — $975 recorded paid of $2,275 · 3/7 paid" |
 | Section: Standings | "Standings — 7 players · 3 rounds" |
+| Section: Ops | "Ops — X open · Y blockers" |
 | Section: Past tee times | "Past tee times (2)" |
+| Ops task CTA | "Copy tasks" / "Download request packet" |
+| Ops launch gate | "Docker build verified" / "Production URL smoke verified" / "Physical iPhone Safari verified" |
 | Tournament card | "Stop 1 — Common Ground" (with status badge: ACTIVE / UPCOMING / PAST) |
 | Score row | "Greg CH 8 · att. Alex   80   net 72" |
 | Post-season seed pill | "1 / 2 / 3 / 4" (number) with hover title "Projected post-season seed 1" |

@@ -1,11 +1,13 @@
 # DJDI Golf Board — Screenshots
 
-Real screenshots of the running app, captured at iPhone 14 Pro viewport
+Core mobile screenshots of the running app, captured at iPhone 14 Pro viewport
 (393 × 852 @ 2x) by [`scripts/screenshots.ts`](./scripts/screenshots.ts) via
 Playwright. The script boots the production build (`NODE_ENV=production
 npx tsx server.ts` after `npm run build`), seeds a fixture set of
 players, tee times, polls, scores, and tournaments via the public API,
-and drives the UI through each state.
+and drives the UI through the Board, Season, Money, Roster, scoring, and
+post-season states. Ops has separate proof screenshots below because that
+surface now depends on live readiness/export state.
 
 To regenerate after UI changes:
 
@@ -117,7 +119,7 @@ they save handicap info.
 
 ## 14. Pool / buy-in tracker
 
-Header summarizes the prize pool ("$975 collected of $2,275 · 3/7
+Header summarizes the prize pool ("$975 recorded paid of $2,275 · 3/7
 paid"). Each member row toggles between **Paid** (green checkmark)
 and **Owed** (amber). Footer shows outstanding amount; default
 buy-in is $325 from the rule sheet. Buy-in rows are auto-created on
@@ -148,3 +150,19 @@ seeds and what stroke advantage they'll start at.
 
 ![post-season](./screenshots/16-post-season.png)
 
+## 17. Ops launch gates
+
+Current mobile Ops evidence for the persisted launch-gate panel. This is
+the screen used to mark Docker, production URL, and physical iPhone Safari
+verification as proven in the readiness JSON, launch packet, completion
+audit, and launch-check exports.
+
+![ops launch gates](./djdi-launch-check-current.png)
+
+## 18. Completion audit CSV export
+
+Current browser evidence for the completion-audit CSV export path. The
+same completion audit is available as JSON for machine-readable launch
+handoff checks.
+
+![completion audit csv](./djdi-completion-csv-live.png)
