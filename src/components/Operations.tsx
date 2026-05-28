@@ -1289,7 +1289,7 @@ export function Operations({
         )}
 
         <a
-          href="/api/export/completion-audit.json"
+          href={apiPath("/api/export/completion-audit.json")}
           download
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-100 px-3 py-2 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-200"
         >
@@ -2584,9 +2584,11 @@ export function Operations({
                   )}
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <a
-                      href={`/api/export/closeout/${encodeURIComponent(
-                        tournament.id
-                      )}.txt`}
+                      href={apiPath(
+                        `/api/export/closeout/${encodeURIComponent(
+                          tournament.id
+                        )}.txt`
+                      )}
                       download
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-fairway-50 px-3 py-2 text-xs font-semibold text-fairway-800 ring-1 ring-fairway-100 hover:bg-fairway-100"
                     >
@@ -2594,9 +2596,11 @@ export function Operations({
                       Closeout packet
                     </a>
                     <a
-                      href={`/api/export/closeout/${encodeURIComponent(
-                        tournament.id
-                      )}.json`}
+                      href={apiPath(
+                        `/api/export/closeout/${encodeURIComponent(
+                          tournament.id
+                        )}.json`
+                      )}
                       download
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-100 px-3 py-2 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-200"
                     >

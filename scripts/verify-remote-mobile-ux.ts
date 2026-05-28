@@ -62,6 +62,29 @@ function remoteApiPath(path: string) {
   return `${apiBasePath}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function mountedApiHref(path: string) {
+  const suffix = path.startsWith("/api/") ? path.slice(4) : path;
+  return `${apiBasePath}${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
+}
+
+async function expectMountedLinkHref(
+  page: Page,
+  name: string | RegExp,
+  path: string,
+  options: { prefix?: boolean } = {}
+) {
+  const link = page.getByRole("link", { name }).first();
+  await link.waitFor();
+  const href = await link.getAttribute("href");
+  const expected = mountedApiHref(path);
+  const ok = options.prefix ? href?.startsWith(expected) : href === expected;
+  if (!ok) {
+    throw new Error(
+      `Expected ${String(name)} href ${options.prefix ? "to start with " : ""}${expected}, got ${href}`
+    );
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit) {
   const response = await fetch(`${base.origin}${path}`, init);
   const text = await response.text();
@@ -526,6 +549,11 @@ try {
       .getByRole("link", { name: "Database Backup", exact: true })
       .waitFor();
     await page.getByRole("heading", { name: "Full Admin Workbench" }).waitFor();
+    await expectMountedLinkHref(
+      page,
+      "Download proof map",
+      "/api/export/completion-audit.json"
+    );
     await page.getByRole("heading", { name: "Commissioner Readiness" }).waitFor();
     await page.getByRole("heading", { name: "League Checklist" }).waitFor();
     await page.getByText("Buy-in tracking", { exact: true }).first().waitFor();
@@ -554,8 +582,18 @@ try {
       .getByText("Open the direct Tailscale-IP phone URL on physical iPhone Safari.")
       .waitFor();
     await page.getByRole("heading", { name: "Tournament Closeout" }).waitFor();
-    await page.getByRole("link", { name: "Closeout packet" }).first().waitFor();
-    await page.getByRole("link", { name: "Closeout ledger" }).first().waitFor();
+    await expectMountedLinkHref(
+      page,
+      "Closeout packet",
+      "/api/export/closeout/",
+      { prefix: true }
+    );
+    await expectMountedLinkHref(
+      page,
+      "Closeout ledger",
+      "/api/export/closeout/",
+      { prefix: true }
+    );
     await page.getByRole("link", { name: "Download rules JSON" }).waitFor();
     await page.getByRole("link", { name: "Download buy-ins CSV" }).waitFor();
     await page.getByRole("link", { name: "Download payouts CSV" }).waitFor();
@@ -566,7 +604,11 @@ try {
       .getByRole("link", { name: "Download attestations CSV" })
       .waitFor();
     await page.getByRole("link", { name: "Download standings CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download readiness JSON" }).waitFor();
+    await expectMountedLinkHref(
+      page,
+      "Download readiness JSON",
+      "/api/export/readiness.json"
+    );
     await page.getByRole("link", { name: "Download task JSON" }).waitFor();
     await page.getByRole("link", { name: "Download task CSV" }).waitFor();
     await page.getByRole("link", { name: "Download checklist JSON" }).first().waitFor();
