@@ -69,7 +69,7 @@ const taskFor = (tasks: CommissionerTask[], taskId: string) =>
 function gapSummary(items: EvidenceGapItem[]) {
   return {
     total: items.length,
-    onePasteReady: items.filter((item) => item.intakePath === "Ops > One-Paste Intake")
+    onePasteReady: items.filter((item) => item.intakePath === "Admin > One-Paste Intake")
       .length,
     launchVerification: items.filter((item) => item.area === "launch").length,
     money: items.filter((item) => item.area === "money").length,
@@ -108,7 +108,7 @@ export function buildEvidenceGapPacket({
         "en-US"
       )}, including method/date/source note if paid or comped.`,
       pasteBackTemplate: `${buyin.playerName} paid $${buyin.amount} via <Venmo/Zelle/cash/check> on YYYY-MM-DD. Source: <receipt, text reply, or commissioner confirmation>.`,
-      intakePath: "Ops > One-Paste Intake",
+      intakePath: "Admin > One-Paste Intake",
       ...moneySource,
       relatedTaskId: taskFor(tasks, "collect-buyins")?.id ?? null,
     });
@@ -124,7 +124,7 @@ export function buildEvidenceGapPacket({
       requestedEvidence:
         "Current handicap index and source/date, preferably from GHIN/CGA or the player directly.",
       pasteBackTemplate: `${player.name} handicap index <number> as of YYYY-MM-DD. Source: <GHIN/CGA/player reply>.`,
-      intakePath: "Ops > One-Paste Intake",
+      intakePath: "Admin > One-Paste Intake",
       ...rosterSource,
       relatedTaskId: taskFor(tasks, "collect-ghin-indexes")?.id ?? null,
     });
@@ -144,7 +144,7 @@ export function buildEvidenceGapPacket({
       requestedEvidence:
         "Confirmed course, window start/end, and any final notes replacing TBD details.",
       pasteBackTemplate: `${tournament.name}: <course>, ${tournament.windowStart} to ${tournament.windowEnd}, <final notes>.`,
-      intakePath: "Ops > One-Paste Intake",
+      intakePath: "Admin > One-Paste Intake",
       ...scheduleSource,
       relatedTaskId: taskFor(tasks, "confirm-schedule")?.id ?? null,
     });
@@ -161,8 +161,8 @@ export function buildEvidenceGapPacket({
       requestedEvidence:
         "Final public or always-on URL plus passing remote-smoke command output.",
       pasteBackTemplate:
-        "Production URL verified: https://<final-url>. Remote smoke passed at YYYY-MM-DDTHH:MM:SSZ. Marked in Ops > Launch Gates.",
-      intakePath: "Ops > Launch Gates",
+        "Production URL verified: https://<final-url>. Remote smoke passed at YYYY-MM-DDTHH:MM:SSZ. Marked in Admin > Launch Gates.",
+      intakePath: "Admin > Launch Gates",
       ...sourceFor(sourceEntries, "production-url-gate"),
       relatedTaskId: productionTask.id,
     });
@@ -179,8 +179,8 @@ export function buildEvidenceGapPacket({
       requestedEvidence:
         "Physical iPhone Safari golden-path pass with device/date notes.",
       pasteBackTemplate:
-        "iPhone Safari verified on <device> at YYYY-MM-DDTHH:MM:SSZ. Board, Season, Money, Roster, Ops, closeout/export links all usable. Marked in Ops > Launch Gates.",
-      intakePath: "Ops > Launch Gates",
+        "iPhone Safari verified on <device> at YYYY-MM-DDTHH:MM:SSZ. Board, Season, Money, Roster, Admin, closeout/export links all usable. Marked in Admin > Launch Gates.",
+      intakePath: "Admin > Launch Gates",
       ...sourceFor(sourceEntries, "iphone-safari-gate"),
       relatedTaskId: iphoneTask.id,
     });

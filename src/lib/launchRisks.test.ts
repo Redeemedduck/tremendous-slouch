@@ -102,7 +102,7 @@ describe("buildLaunchRisks", () => {
     expect(
       risks.find((risk) => risk.label === "Schedule confirmation")?.nextAction
     ).toBe(
-      "Open Ops Schedule Confirmation and replace TBD details for Mid-season major."
+      "Open Admin Schedule Confirmation and replace TBD details for Mid-season major."
     );
     expect(
       risks.find((risk) => risk.label === "iPhone Safari")?.nextAction

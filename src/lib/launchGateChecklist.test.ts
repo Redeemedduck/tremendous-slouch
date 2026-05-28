@@ -130,7 +130,7 @@ describe("launch gate checklist", () => {
     ).toMatchObject({
       status: "open",
       finalAction:
-        "Mark Production URL smoke verified in Ops only after remote smoke passes against the final URL.",
+        "Mark Production URL smoke verified in Admin only after remote smoke passes against the final URL.",
     });
   });
 });

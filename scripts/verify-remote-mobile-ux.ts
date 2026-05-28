@@ -151,8 +151,8 @@ try {
     if ((await nav.getByRole("button", { name: "Money", exact: true }).count()) > 0) {
       throw new Error("remote locked player nav exposed Money");
     }
-    if ((await nav.getByRole("button", { name: "Ops", exact: true }).count()) > 0) {
-      throw new Error("remote locked player nav exposed Ops");
+    if ((await nav.getByRole("button", { name: "Admin", exact: true }).count()) > 0) {
+      throw new Error("remote locked player nav exposed Admin");
     }
 
     const playerFlow = await page.evaluate(async (apiPrefix) => {
@@ -280,7 +280,7 @@ try {
     await page.getByRole("button", { name: "Unlock commissioner tools" }).click();
     await nav.getByRole("button", { name: "Money", exact: true }).waitFor();
     await nav.getByRole("button", { name: "Roster", exact: true }).waitFor();
-    await nav.getByRole("button", { name: "Ops", exact: true }).waitFor();
+    await nav.getByRole("button", { name: "Admin", exact: true }).waitFor();
 
     await nav.getByRole("button", { name: "Board", exact: true }).click();
     await page.getByRole("button", { name: /Past tee times/ }).click();
@@ -377,11 +377,11 @@ try {
     }
     const settled = readiness.money.expected - readiness.money.outstanding;
 
-    for (const tab of ["Board", "Season", "Money", "Roster", "Ops"]) {
+    for (const tab of ["Board", "Season", "Money", "Roster", "Admin"]) {
       await nav.getByRole("button", { name: tab, exact: true }).waitFor();
     }
 
-    await nav.getByRole("button", { name: "Ops", exact: true }).click();
+    await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
     await page.getByText("Buy-in tracking", { exact: true }).first().waitFor();
     if (readiness.money.outstanding <= 0) {
@@ -417,7 +417,7 @@ try {
       .click();
     await page.getByRole("button", { name: "Copy records" }).waitFor();
 
-    await nav.getByRole("button", { name: "Ops", exact: true }).click();
+    await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Do Next" }).waitFor();
     const readinessPanel = page.locator(
@@ -461,7 +461,7 @@ try {
     await page.getByText("Backup verified").waitFor();
     await page.getByRole("button", { name: /Exports/ }).waitFor();
     await page.getByRole("button", { name: /Audit log/ }).waitFor();
-    await page.getByRole("button", { name: /Advanced Ops/ }).waitFor();
+    await page.getByRole("button", { name: /Advanced Admin/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).click();
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
@@ -521,7 +521,7 @@ try {
     await page
       .getByRole("link", { name: "Database Backup", exact: true })
       .waitFor();
-    await page.getByRole("heading", { name: "Full Operations Workbench" }).waitFor();
+    await page.getByRole("heading", { name: "Full Admin Workbench" }).waitFor();
     await page.getByRole("heading", { name: "Commissioner Readiness" }).waitFor();
     await page.getByRole("heading", { name: "League Checklist" }).waitFor();
     await page.getByText("Buy-in tracking", { exact: true }).first().waitFor();
@@ -531,7 +531,7 @@ try {
     await page.getByRole("button", { name: "Copy tasks" }).waitFor();
     await page.getByRole("button", { name: "Copy handoff" }).waitFor();
     await page.getByText("Evidence path", { exact: true }).first().waitFor();
-    await page.getByText("Ops > One-Paste Intake").first().waitFor();
+    await page.getByText("Admin > One-Paste Intake").first().waitFor();
     await page.getByRole("heading", { name: "Launch Gates" }).waitFor();
     await page.getByRole("button", { name: "Copy launch checklist" }).waitFor();
     await page.getByText("Evidence checklist").first().waitFor();

@@ -49,7 +49,7 @@ describe("blocker handoff", () => {
           taskId: "collect-buyins",
           evidenceStatus: "blocked_source",
           manualEvidencePath: expect.stringContaining(
-            "Ops > One-Paste Intake"
+            "Admin > One-Paste Intake"
           ),
           sourceSearchEntryIds: expect.arrayContaining([
             "additional-buyin-searches",
@@ -81,7 +81,7 @@ describe("blocker handoff", () => {
     expect(text).toContain("[1. Confirm schedule]");
     expect(text).toContain("Evidence: blocked_source");
     expect(text).toContain("Manual evidence path:");
-    expect(text).toContain("Ops > One-Paste Intake");
+    expect(text).toContain("Admin > One-Paste Intake");
     expect(text).toContain("Left the mid-season major and championship details as TBD.");
   });
 });

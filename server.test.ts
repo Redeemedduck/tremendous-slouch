@@ -1507,7 +1507,7 @@ describe.sequential("server app factory", () => {
         expect(res.text).toContain("DJDI request packet");
         expect(res.text).toContain("Launch Check Evidence");
         expect(res.text).toContain(
-          "OPEN - Docker image build: set DJDI_DOCKER_BUILD_VERIFIED or mark verified in Ops"
+          "OPEN - Docker image build: set DJDI_DOCKER_BUILD_VERIFIED or mark verified in Admin"
         );
         expect(res.text).toContain("Closeout Readiness");
         expect(res.text).toContain("Stop 1 — Common Ground: active");
@@ -1754,7 +1754,7 @@ describe.sequential("server app factory", () => {
         expect(res.text).toContain("Outstanding total: $3,900");
         expect(res.text).toContain("[2. Record handicap indexes]");
         expect(res.text).toContain("DJDI handicap records still needed");
-        expect(res.text).toContain("Paste replies back into Ops > One-Paste Intake");
+        expect(res.text).toContain("Paste replies back into Admin > One-Paste Intake");
       });
   });
 
@@ -2028,7 +2028,7 @@ describe.sequential("server app factory", () => {
       });
   });
 
-  it("persists launch check verification for Ops and readiness exports", async () => {
+  it("persists launch check verification for Admin and readiness exports", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
     const admin = await commissionerAgent(app);
@@ -2593,12 +2593,12 @@ describe.sequential("server app factory", () => {
           expect.arrayContaining([
             expect.objectContaining({
               blockerId: "money-collected",
-              intakePath: "Ops > One-Paste Intake",
+              intakePath: "Admin > One-Paste Intake",
               pasteBackTemplate: expect.stringContaining("paid $325"),
             }),
             expect.objectContaining({
               blockerId: "iphone-safari-gate",
-              intakePath: "Ops > Launch Gates",
+              intakePath: "Admin > Launch Gates",
             }),
           ])
         );
@@ -4036,7 +4036,7 @@ describe.sequential("server app factory", () => {
           "Action: Open Roster and record source-backed handicap indexes for Beck, Chris, Jayson Post, John + 8 more."
         );
         expect(res.text).toContain(
-          "Action: Open Ops Schedule Confirmation and replace TBD details for Championship — 2-day post-season, Mid-season major."
+          "Action: Open Admin Schedule Confirmation and replace TBD details for Championship — 2-day post-season, Mid-season major."
         );
         expect(res.text).toContain(
           "EXTERNAL - Access code: ACCESS_CODE is not set in this runtime; set it before public deploy"
@@ -4051,7 +4051,7 @@ describe.sequential("server app factory", () => {
           "EXTERNAL - iPhone Safari: Physical iPhone Safari golden path is not verified in this local run"
         );
         expect(res.text).toContain(
-          "Action: Open the deployed URL on iPhone Safari and complete the board, claim, score, Ops, and export path."
+          "Action: Open the deployed URL on iPhone Safari and complete the board, claim, score, Admin, and export path."
         );
         expect(res.text).toContain("12 members:");
         expect(res.text).toContain("Expected: $3,900");

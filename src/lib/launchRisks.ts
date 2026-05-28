@@ -162,7 +162,7 @@ export function buildLaunchRisks({
       severity: "risk",
       label: "Schedule confirmation",
       detail: `${unconfirmedEvents.length} TBD: ${unconfirmedEvents.join(", ")}`,
-      nextAction: `Open Ops Schedule Confirmation and replace TBD details for ${shortList(
+      nextAction: `Open Admin Schedule Confirmation and replace TBD details for ${shortList(
         unconfirmedEvents,
         2
       )}.`,
@@ -196,7 +196,7 @@ export function buildLaunchRisks({
       label: "Tailnet URL",
       detail: "Tailscale Funnel URL is not recorded as verified in this runtime",
       nextAction:
-        "Run tailscale funnel status plus tailnet remote smoke/mobile checks, then mark Tailscale Funnel smoke verified in Ops.",
+        "Run tailscale funnel status plus tailnet remote smoke/mobile checks, then mark Tailscale Funnel smoke verified in Admin.",
     });
   }
 
@@ -217,7 +217,7 @@ export function buildLaunchRisks({
       severity: "external",
       label: "iPhone Safari",
       detail: "Physical iPhone Safari golden path is not verified in this local run",
-      nextAction: "Open the deployed URL on iPhone Safari and complete the board, claim, score, Ops, and export path.",
+      nextAction: "Open the deployed URL on iPhone Safari and complete the board, claim, score, Admin, and export path.",
     });
   }
 

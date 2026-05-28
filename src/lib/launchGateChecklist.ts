@@ -55,11 +55,11 @@ const checklistSteps: Record<
       },
       {
         id: "docker-note",
-        label: "Record Docker gate evidence in Ops.",
-        requiredEvidence: "Ops Launch Gates shows Docker image build verified.",
+        label: "Record Docker gate evidence in Admin.",
+        requiredEvidence: "Admin Launch Gates shows Docker image build verified.",
       },
     ],
-    finalAction: "Mark Docker image build verified in Ops after the smoke passes.",
+    finalAction: "Mark Docker image build verified in Admin after the smoke passes.",
   },
   tailnetServeVerified: {
     steps: [
@@ -94,13 +94,13 @@ const checklistSteps: Record<
       },
       {
         id: "funnel-note",
-        label: "Record Funnel evidence in Ops.",
+        label: "Record Funnel evidence in Admin.",
         requiredEvidence:
-          "Ops Launch Gates shows Tailscale Funnel smoke verified with the Funnel URL and date.",
+          "Admin Launch Gates shows Tailscale Funnel smoke verified with the Funnel URL and date.",
       },
     ],
     finalAction:
-      "Mark Tailscale Funnel smoke verified in Ops after Funnel status, health, remote smoke, and mobile smoke pass.",
+      "Mark Tailscale Funnel smoke verified in Admin after Funnel status, health, remote smoke, and mobile smoke pass.",
   },
   productionUrlVerified: {
     steps: [
@@ -134,13 +134,13 @@ const checklistSteps: Record<
       },
       {
         id: "production-note",
-        label: "Record URL and smoke timestamp in Ops.",
+        label: "Record URL and smoke timestamp in Admin.",
         requiredEvidence:
-          "Ops Launch Gates shows Production URL smoke verified with a note naming the final URL.",
+          "Admin Launch Gates shows Production URL smoke verified with a note naming the final URL.",
       },
     ],
     finalAction:
-      "Mark Production URL smoke verified in Ops only after remote smoke passes against the final URL.",
+      "Mark Production URL smoke verified in Admin only after remote smoke passes against the final URL.",
   },
   mobileSafariVerified: {
     steps: [
@@ -157,24 +157,24 @@ const checklistSteps: Record<
       },
       {
         id: "iphone-navigation",
-        label: "Check Board, Season, Money, Roster, and Ops navigation.",
+        label: "Check Board, Season, Money, Roster, and Admin navigation.",
         requiredEvidence: "All five sections are reachable without clipped or overlapping controls.",
       },
       {
         id: "iphone-score-ops",
-        label: "Check score controls and Ops export links.",
+        label: "Check score controls and Admin export links.",
         requiredEvidence:
           "Score controls, League Checklist, Commissioner Tasks, Closeout exports, Archive, handoff, and launch gate controls are usable.",
       },
       {
         id: "iphone-note",
-        label: "Record physical device evidence in Ops.",
+        label: "Record physical device evidence in Admin.",
         requiredEvidence:
-          "Ops Launch Gates shows iPhone Safari golden path verified with device/date notes.",
+          "Admin Launch Gates shows iPhone Safari golden path verified with device/date notes.",
       },
     ],
     finalAction:
-      "Mark iPhone Safari verified in Ops only after the physical-device golden path passes.",
+      "Mark iPhone Safari verified in Admin only after the physical-device golden path passes.",
   },
 };
 

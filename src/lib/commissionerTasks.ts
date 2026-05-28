@@ -266,7 +266,7 @@ export function buildCommissionerTasks({
       severity: "external",
       title: "Verify Docker image",
       detail: "Production Docker image has not been recorded as verified.",
-      nextAction: "Run npm run verify:docker, then mark Docker verified in Ops.",
+      nextAction: "Run npm run verify:docker, then mark Docker verified in Admin.",
       items: ["npm run verify:docker"],
       copyText: "npm run verify:docker",
       done: false,
@@ -281,7 +281,7 @@ export function buildCommissionerTasks({
       title: "Verify tailnet URL",
       detail: "Tailscale Funnel URL is not recorded as verified.",
       nextAction:
-        "Run Tailscale Funnel status, remote smoke, and mobile smoke, then mark Tailscale Funnel smoke verified in Ops.",
+        "Run Tailscale Funnel status, remote smoke, and mobile smoke, then mark Tailscale Funnel smoke verified in Admin.",
       items: ["https://duckbookpro.clouded-tailor.ts.net/golf"],
       copyText:
         "tailscale funnel status\nREMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke\nREMOTE_MOBILE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_MOBILE_ACCESS_CODE=<code> REMOTE_MOBILE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-mobile-ux",
@@ -298,7 +298,7 @@ export function buildCommissionerTasks({
       detail:
         "Optional public/always-on production URL is required but not recorded as verified.",
       nextAction:
-        "Run remote smoke against the final URL, then mark Production URL smoke verified in Ops.",
+        "Run remote smoke against the final URL, then mark Production URL smoke verified in Admin.",
       items: [
         "fly auth login",
         "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131",
@@ -317,7 +317,7 @@ export function buildCommissionerTasks({
       title: "Verify iPhone Safari",
       detail: "Physical iPhone Safari golden path is not recorded as verified.",
       nextAction:
-        "Open the direct Tailscale-IP phone URL on iPhone Safari and complete board, score, Ops, and export checks.",
+        "Open the direct Tailscale-IP phone URL on iPhone Safari and complete board, score, Admin, and export checks.",
       items: ["Physical iPhone Safari"],
       copyText: buildIphoneSafariChecklist(),
       done: false,
@@ -356,7 +356,7 @@ export function buildCommissionerRequestPacket(tasks: CommissionerTask[]) {
 
   return [
     "DJDI request packet",
-    "Paste replies back into Ops > One-Paste Intake when they come in.",
+    "Paste replies back into Admin > One-Paste Intake when they come in.",
     ...accessLines,
     "",
     ...copyReadyTasks.flatMap((task, index) => [

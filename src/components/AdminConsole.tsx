@@ -683,7 +683,7 @@ export function AdminConsole({
           </button>
           <AdminActionButton
             icon={Settings}
-            label="Full Ops"
+            label="Workbench"
             onClick={() => scrollToAdminSection("admin-full-workbench")}
           />
           <AdminActionButton icon={WalletCards} label="Money" onClick={() => onOpenView("money")} />
@@ -812,7 +812,7 @@ export function AdminConsole({
           />
           <AdminToolButton
             icon={Settings}
-            label="Advanced Ops"
+            label="Advanced Admin"
             detail="full workbench"
             onClick={() => scrollToAdminSection("admin-full-workbench")}
           />
@@ -825,10 +825,10 @@ export function AdminConsole({
             <Settings className="mt-0.5 h-5 w-5 shrink-0 text-fairway-100" />
             <div className="min-w-0">
               <h2 className="text-base font-semibold">
-                Full Operations Workbench
+                Full Admin Workbench
               </h2>
               <p className="mt-0.5 text-sm leading-5 text-fairway-100">
-                Legacy Ops tools are still here: settings, commissioner tasks,
+                Advanced admin tools are still here: settings, commissioner tasks,
                 one-paste intake, launch gates, rule audit, exports, closeout,
                 payout ledger, and evidence packets.
               </p>
@@ -1289,10 +1289,10 @@ export function AdminConsole({
         >
           <div className="px-1 pb-3">
             <h2 className="text-base font-semibold text-stone-900">
-              Advanced Ops
+              Advanced Admin
             </h2>
             <p className="mt-0.5 text-sm text-stone-500">
-              Full Operations workbench retained here: settings, task queue,
+              Full admin workbench retained here: settings, task queue,
               launch gates, schedule confirmation, rule audit, exports,
               closeout, payout ledger, and source evidence.
             </p>

@@ -82,7 +82,7 @@ is `golf-group-coordinator`.
 ### Client
 
 - Main app shell: `src/App.tsx`
-- Mobile-first screens: Board, Season, Money, Roster, and Ops.
+- Mobile-first screens: Board, Season, Money, Roster, and Admin.
 - Reusable components: `src/components/`
 - Rule/export helpers and pure logic: `src/lib/`
 - Data hooks: `src/hooks/`
@@ -91,7 +91,7 @@ is `golf-group-coordinator`.
 The app coordinates tee times, group polls, comments, roster identity,
 member/guest status, buy-ins, league score entry, score attestation,
 tournament leaderboards, season standings, championship/post-season logic,
-commissioner Ops workflows, launch gates, and evidence exports.
+commissioner Admin workflows, launch gates, and evidence exports.
 
 ### Server
 
@@ -127,6 +127,6 @@ commissioner Ops workflows, launch gates, and evidence exports.
   or physical-device verification.
 - When changing league rules, update the matching pure rule test or API
   integrity test in the same slice.
-- When changing Ops/export behavior, update the relevant smoke verifier so the
+- When changing Admin/export behavior, update the relevant smoke verifier so the
   proof suite exercises the new surface.
 - Local app proof and public/tailnet access proof are separate claims.

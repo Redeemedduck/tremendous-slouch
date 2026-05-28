@@ -116,11 +116,11 @@ export function buildIphoneSafariChecklist(
     `1. On physical iPhone Safari, open ${appUrl}.`,
     "   Use https://duckbookpro.clouded-tailor.ts.net/golf only after the direct Tailscale-IP link works.",
     "2. Enter the shared access code and confirm the board unlocks.",
-    "3. Confirm bottom navigation opens Board, Season, Money, Roster, and Ops.",
+    "3. Confirm bottom navigation opens Board, Season, Money, Roster, and Admin.",
     "4. Board: open an active or past tee time and confirm score controls are usable without overlap.",
     "5. Season: confirm standings and net/gross values are readable.",
     "6. Money and Roster: confirm copy/action buttons are reachable.",
-    "7. Ops: confirm League Checklist, Commissioner Tasks, Closeout packet/ledger, and Archive export links are visible.",
-    "8. If all pass, mark iPhone Safari verified in Ops > Launch Gates.",
+    "7. Admin: confirm League Checklist, Commissioner Tasks, Closeout packet/ledger, and Archive export links are visible.",
+    "8. If all pass, mark iPhone Safari verified in Admin > Launch Gates.",
   ].join("\n");
 }

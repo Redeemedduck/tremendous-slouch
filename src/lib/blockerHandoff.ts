@@ -35,13 +35,13 @@ const manualEvidencePath = (
   if (relatedSources.some((entry) => entry.id === "messages-access-denied")) {
     return [
       "Fast path: copy the request packet into the group chat or player DMs,",
-      "then paste replies into Ops > One-Paste Intake.",
+      "then paste replies into Admin > One-Paste Intake.",
       "Messages source path: grant Full Disk Access to the terminal/Codex app,",
       "then rerun the source-search sweep before changing league facts.",
     ].join(" ");
   }
   if (relatedSources.some((entry) => entry.status === "not_found")) {
-    return "Paste direct player or commissioner replies into Ops > One-Paste Intake before changing league facts.";
+    return "Paste direct player or commissioner replies into Admin > One-Paste Intake before changing league facts.";
   }
   return task.nextAction;
 };

@@ -99,7 +99,7 @@ export const SOURCE_SEARCH_LEDGER: SourceSearchEntry[] = [
     sourceChecked: "Direct local read attempt against ~/Library/Messages/chat.db.",
     result: "macOS denied access with authorization denied.",
     decision:
-      "Do not claim group-chat confirmation from Messages until access is granted or replies are pasted into Ops.",
+      "Do not claim group-chat confirmation from Messages until access is granted or replies are pasted into Admin.",
     evidenceIds: [],
     relatedOpenItems: ["roster-ghin", "money-collected", "schedule-confirmed"],
   },
@@ -113,7 +113,7 @@ export const SOURCE_SEARCH_LEDGER: SourceSearchEntry[] = [
     sourceChecked:
       "Combined result of the Gmail, Calendar, Drive, local-file, and Messages checks.",
     result: "No additional direct evidence was available in the searched sources.",
-    decision: "Keep the request packet and Ops tasks as the active path for those facts.",
+    decision: "Keep the request packet and Admin tasks as the active path for those facts.",
     evidenceIds: [],
     relatedOpenItems: ["roster-ghin", "money-collected", "schedule-confirmed"],
   },

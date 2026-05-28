@@ -1050,7 +1050,7 @@ function BottomNav({
             <NavButton
               active={active === "ops"}
               icon={ShieldCheck}
-              label="Ops"
+              label="Admin"
               onClick={() => onChange("ops")}
             />
           </>

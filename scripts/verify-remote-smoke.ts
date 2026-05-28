@@ -802,7 +802,7 @@ try {
     evidenceGapPacket.body.summary.onePasteReady < 1 ||
     evidenceGapPacket.body.summary.launchVerification < 1 ||
     !evidenceGapPacket.body.items.some(
-      (item) => item.blockerId === "money-collected" && item.intakePath === "Ops > One-Paste Intake"
+      (item) => item.blockerId === "money-collected" && item.intakePath === "Admin > One-Paste Intake"
     ) ||
     !evidenceGapPacket.body.items.some(
       (item) => item.blockerId === "iphone-safari-gate"

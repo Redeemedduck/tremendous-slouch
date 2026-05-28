@@ -314,8 +314,8 @@ async function verifyMobileBrowser(url: string) {
     if ((await nav.getByRole("button", { name: "Money", exact: true }).count()) > 0) {
       throw new Error("locked player nav exposed Money");
     }
-    if ((await nav.getByRole("button", { name: "Ops", exact: true }).count()) > 0) {
-      throw new Error("locked player nav exposed Ops");
+    if ((await nav.getByRole("button", { name: "Admin", exact: true }).count()) > 0) {
+      throw new Error("locked player nav exposed Admin");
     }
 
     const playerFlow = await page.evaluate(async () => {
@@ -439,7 +439,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Unlock commissioner tools" }).click();
     await nav.getByRole("button", { name: "Money", exact: true }).waitFor();
     await nav.getByRole("button", { name: "Roster", exact: true }).waitFor();
-    await nav.getByRole("button", { name: "Ops", exact: true }).waitFor();
+    await nav.getByRole("button", { name: "Admin", exact: true }).waitFor();
     await page.evaluate(async () => {
       const response = await fetch("/api/teetimes", {
         method: "POST",
@@ -470,7 +470,7 @@ async function verifyMobileBrowser(url: string) {
     await commissionerOversightCard
       .getByRole("button", { name: "Commissioner tee-time options" })
       .waitFor();
-    await nav.getByRole("button", { name: "Ops", exact: true }).click();
+    await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Do Next" }).waitFor();
     await page.getByRole("button", { name: "Money", exact: true }).nth(1).waitFor();
@@ -634,7 +634,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Save Beck handicap" }).waitFor();
     logPhase("browser:roster-flow");
 
-    await nav.getByRole("button", { name: "Ops", exact: true }).click();
+    await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Do Next" }).waitFor();
     const readinessPanel = page.locator(
@@ -658,7 +658,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Verify backup" }).click();
     await page.getByText("Backup verified").waitFor();
     logPhase("browser:admin-backup");
-    await page.getByRole("button", { name: "Full Ops" }).waitFor();
+    await page.getByRole("button", { name: "Workbench", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Roles" }).waitFor();
     const rolesSection = page
       .getByRole("heading", { name: "Roles" })
@@ -680,7 +680,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: /Backup proof/ }).waitFor();
     await page.getByRole("button", { name: /Exports/ }).waitFor();
     await page.getByRole("button", { name: /Audit log/ }).waitFor();
-    await page.getByRole("button", { name: /Advanced Ops/ }).waitFor();
+    await page.getByRole("button", { name: /Advanced Admin/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).click();
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
@@ -694,7 +694,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: /Audit log/ }).click();
     await expectSectionAnchored(page, "admin-audit-log");
     await page
-      .getByRole("heading", { name: "Full Operations Workbench" })
+      .getByRole("heading", { name: "Full Admin Workbench" })
       .waitFor();
     await page.getByRole("button", { name: "Open full workbench" }).waitFor();
     await page.getByRole("heading", { name: "Tee-Time Oversight" }).waitFor();
@@ -791,7 +791,7 @@ async function verifyMobileBrowser(url: string) {
     await page
       .getByRole("link", { name: "Database Backup", exact: true })
       .waitFor();
-    await page.getByRole("heading", { name: "Advanced Ops" }).waitFor();
+    await page.getByRole("heading", { name: "Advanced Admin" }).waitFor();
     await page.getByRole("heading", { name: "Commissioner Readiness" }).waitFor();
     await page.getByText("Commissioner Settings").click();
     await page.getByText("Buy-in, payout, points, and coordination routes.").waitFor();
@@ -810,7 +810,7 @@ async function verifyMobileBrowser(url: string) {
       .getByRole("button", { name: "Copy Record handicap indexes" })
       .waitFor();
     await page.getByText("Evidence path", { exact: true }).first().waitFor();
-    await page.getByText("Ops > One-Paste Intake").first().waitFor();
+    await page.getByText("Admin > One-Paste Intake").first().waitFor();
     await page.getByRole("heading", { name: "One-Paste Intake" }).waitFor();
     await page
       .getByLabel("Paste group replies")

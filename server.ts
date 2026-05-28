@@ -1959,7 +1959,7 @@ function buildCompletionAudit({
       nextAction:
         unconfirmedEvents.length === 0
           ? null
-          : "Open Ops Schedule Confirmation and replace TBD details.",
+          : "Open Admin Schedule Confirmation and replace TBD details.",
     },
     {
       id: "commissioner-workflows",
@@ -2079,7 +2079,7 @@ function buildCompletionAudit({
       ],
       nextAction: launchChecks.dockerBuildVerified
         ? null
-        : "Run npm run verify:docker, then mark Docker verified in Ops.",
+        : "Run npm run verify:docker, then mark Docker verified in Admin.",
     },
     {
       id: "tailnet-url-gate",
@@ -2166,7 +2166,7 @@ function buildCompletionAudit({
       ],
       nextAction: launchChecks.mobileSafariVerified
         ? null
-        : "Complete physical iPhone Safari checklist, then mark verified in Ops.",
+        : "Complete physical iPhone Safari checklist, then mark verified in Admin.",
     },
     {
       id: "source-search-ledger",
@@ -7293,7 +7293,7 @@ const togglePollResponseTx = db.transaction(
             `${check.verified ? "OK" : "OPEN"} - ${check.label}: ${
               check.verified
                 ? `${check.source}${check.verifiedAt ? ` ${check.verifiedAt.slice(0, 10)}` : ""}`
-                : `set ${check.envVar} or mark verified in Ops`
+                : `set ${check.envVar} or mark verified in Admin`
             }${check.note ? ` — ${check.note}` : ""}`
         ),
         "",

@@ -196,7 +196,7 @@ describe("buildCommissionerTasks", () => {
     expect(requestPacket).toContain("DJDI handicap records still needed:");
     expect(requestPacket).toContain("[3. Confirm schedule details]");
     expect(requestPacket).toContain("DJDI schedule details still needed:");
-    expect(requestPacket).toContain("Paste replies back into Ops > One-Paste Intake");
+    expect(requestPacket).toContain("Paste replies back into Admin > One-Paste Intake");
     expect(requestPacket).not.toContain("Tailnet board URL");
   });
 

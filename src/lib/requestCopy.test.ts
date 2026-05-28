@@ -196,7 +196,7 @@ describe("request copy builders", () => {
     const text = buildIphoneSafariChecklist();
     expect(text).toContain("http://100.102.92.28:3131/golf");
     expect(text).toContain("https://duckbookpro.clouded-tailor.ts.net/golf");
-    expect(text).toContain("Board, Season, Money, Roster, and Ops");
+    expect(text).toContain("Board, Season, Money, Roster, and Admin");
     expect(text).toContain("Archive export links");
     expect(text).toContain("mark iPhone Safari verified");
   });

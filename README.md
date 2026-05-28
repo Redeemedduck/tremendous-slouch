@@ -57,12 +57,12 @@ manager that follows the rule sheet end-to-end.
   packet/ledger, remaining risk, task, and a SHA-256 snapshot hash.
 - **Completion audit** — one JSON export maps each objective area to current
   proof status, evidence links, and next action so "done" is not guessed.
-- **Launch gates** — Ops can persist Docker, production URL, and physical
+- **Launch gates** — Admin can persist Docker, production URL, and physical
   iPhone Safari verification evidence into the readiness JSON, launch packet,
   `/api/export/launch-checks.json`, `/api/export/launch-checks.csv`, and the
   launch-gate checklist exports. The Launch Gates panel also shows the
   evidence checklist inline and can copy the full checklist for external proof.
-- **Commissioner settings** — Ops has a mobile settings toggle for coordination
+- **Commissioner settings** — Admin has a mobile settings toggle for coordination
   routes plus adjustable unpaid buy-in amounts, tournament points, and payout
   values. Bulk buy-in changes deliberately skip paid rows so receipt-backed
   evidence is not overwritten.
@@ -77,7 +77,7 @@ manager that follows the rule sheet end-to-end.
   outbound ask into one copy-ready packet for the group chat.
 - **Blocker handoff** — `/api/export/blocker-handoff.json` and
   `/api/export/blocker-handoff.txt` join open tasks to source-search decisions
-  and the Ops commissioner task panel can copy the same evidence-grade handoff
+  and the Admin commissioner task panel can copy the same evidence-grade handoff
   directly for chat.
 - **Evidence gap packet** — `/api/export/evidence-gap-packet.json`,
   `/api/export/evidence-gap-packet.csv`, and
@@ -91,7 +91,7 @@ manager that follows the rule sheet end-to-end.
 - **Bulk reply intake** — Money and Roster can paste text replies from the
   group chat and apply matched buy-in status, handicap records, or TBD schedule
   details in one pass.
-- **One-paste Ops intake** — Ops can paste a mixed group-chat reply pile and
+- **One-paste Admin intake** — Admin can paste a mixed group-chat reply pile and
   split it into buy-in status, handicap records, and schedule confirmations before one
   apply action.
 - **Score summary intake** — score sheets can paste chat-style gross/net lines
@@ -100,7 +100,7 @@ manager that follows the rule sheet end-to-end.
   scored member rows without overwriting existing attestations.
 
 See [`SCREENSHOTS.md`](./SCREENSHOTS.md) for core mobile visuals plus current
-Ops export/launch-gate evidence screenshots.
+Admin export/launch-gate evidence screenshots.
 
 ## Run
 
@@ -246,7 +246,7 @@ export, and launch-packet export. It does
 not create tee times, scores, payments, roster rows, or
 verification-run rows.
 
-Ops also exposes a Launch Gates panel backed by `/api/launch-checks`. These
+Admin also exposes a Launch Gates panel backed by `/api/launch-checks`. These
 records let the commissioner mark Docker, tailnet URL, public URL, and physical
 iPhone Safari verification as proven without relying only on environment
 variables. The same evidence is exportable as JSON and CSV for launch handoffs.
@@ -261,7 +261,7 @@ npm run verify:remote-mobile-ux
 ```
 
 The command drives a 390×844 Chromium viewport through the real HTTPS client,
-access unlock, bottom navigation, Season, Money, Roster, Ops, launch-risk copy,
+access unlock, bottom navigation, Season, Money, Roster, Admin, launch-risk copy,
 export links, and the Admin backup-restore proof action. It does not create tee
 times, payments, roster edits, scores, or verification-run rows, but it does
 write one `backup_restore_verify` audit event when the backup proof button
@@ -283,7 +283,7 @@ npm run verify:mobile-ux
 The command starts the built client against a temporary SQLite database with an
 access code, seeds a Stop 1 score scenario, and drives a 390×844 mobile
 Chromium viewport through access unlock, bottom navigation, Season standings,
-Money, Roster, and Ops. It verifies course-handicap net values, commissioner
+Money, Roster, and Admin. It verifies course-handicap net values, commissioner
 risk copy, score-summary fill, bulk attester fill, closeout packet/ledger
 visibility, buy-in/roster/score/risk/audit/archive export visibility, bulk
 payment/GHIN/schedule intake, records a verification run, and proves browser
@@ -359,7 +359,7 @@ Phase-by-phase backlog and shipped work live in the Linear project
 - [`docs/2026-05-19-launch-status.md`](./docs/2026-05-19-launch-status.md) —
   current verified launch status, open blockers, runtime URLs, source-search
   ledger, and proof ledger.
-- [`SCREENSHOTS.md`](./SCREENSHOTS.md) — core mobile panels plus Ops export
+- [`SCREENSHOTS.md`](./SCREENSHOTS.md) — core mobile panels plus Admin export
   and launch-gate proof images.
 - [`TAILSCALE.md`](./TAILSCALE.md) — solo testing on your tailnet.
 - [`DEPLOY.md`](./DEPLOY.md) — Fly.io production deploy.

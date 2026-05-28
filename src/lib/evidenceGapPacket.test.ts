@@ -99,14 +99,14 @@ describe("evidence gap packet", () => {
     ]);
     expect(packet.items[0]).toMatchObject({
       blockerId: "money-collected",
-      intakePath: "Ops > One-Paste Intake",
+      intakePath: "Admin > One-Paste Intake",
       sourceStatus: "blocked",
       pasteBackTemplate: expect.stringContaining("Beck paid $325"),
     });
     expect(
       packet.items.find((item) => item.id === "launch-production-url")
         ?.intakePath
-    ).toBe("Ops > Launch Gates");
+    ).toBe("Admin > Launch Gates");
 
     const text = buildEvidenceGapPacketText(packet);
     expect(text).toContain("DJDI Evidence Gap Packet");
