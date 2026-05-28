@@ -5592,6 +5592,7 @@ const togglePollResponseTx = db.transaction(
           buyins: buyins.length,
           tournaments: tournaments.length,
           teeTimes: teeTimes.length,
+          scoreReviewItems: issues.length,
           ruleBlockers: issues.length,
           launchRisks: launchRisks.length,
           commissionerTasks: commissionerTasks.length,
@@ -5600,6 +5601,7 @@ const togglePollResponseTx = db.transaction(
           verificationRuns: verificationRuns.length,
         },
         status: {
+          scoreReviewItemCount: issues.length,
           blockerCount: issues.length,
           riskCount: launchRisks.filter((risk) => risk.severity === "risk")
             .length,
@@ -5636,6 +5638,7 @@ const togglePollResponseTx = db.transaction(
         rules: {
           version: ACTIVE_RULES_VERSION,
           active: ACTIVE_LEAGUE_RULES,
+          scoreReviewItems: issues,
           blockers: issues,
         },
         activeStop: activeTournament

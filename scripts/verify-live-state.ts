@@ -391,6 +391,12 @@ try {
           buyins: buyins.length,
           tournaments: tournaments.length,
           teeTimes: teeTimes.length,
+          scoreReviewItems: issues.length,
+          scoreReviewItemDetails: issues.map((issue) => ({
+            date: issue.date,
+            player: issue.player,
+            message: issue.message,
+          })),
           ruleBlockers: issues.length,
           ruleBlockerDetails: issues.map((issue) => ({
             date: issue.date,

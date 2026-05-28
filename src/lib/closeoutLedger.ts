@@ -149,6 +149,7 @@ export function buildCloseoutLedger({
       status: readiness.status,
       detail: readiness.detail,
       issueCount: readiness.issues.length,
+      scoreReviewItemCount: readiness.issues.length,
       readyToClose: readiness.status === "ready",
     },
     payout: {
@@ -175,6 +176,7 @@ export function buildCloseoutLedger({
       closedSnapshotRows: closedSnapshot,
       snapshotMatchesCurrent,
       scoreEvidenceRows: scoreEvidence.length,
+      scoreReviewItems: readiness.issues.length,
       ruleBlockers: readiness.issues.length,
       payoutEvidenceMissing: payoutEvidence.missing,
     },
@@ -190,6 +192,7 @@ export function buildCloseoutLedger({
       scoresPosted: teeTime.scores.length,
     })),
     scoreEvidence,
+    scoreReviewItems: readiness.issues,
     ruleBlockers: readiness.issues,
   };
 }

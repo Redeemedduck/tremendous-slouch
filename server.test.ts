@@ -1617,8 +1617,15 @@ describe.sequential("server app factory", () => {
             members: 12,
             buyins: 12,
             tournaments: 9,
+            scoreReviewItems: 0,
             ruleBlockers: 0,
             commissionerTasks: 7,
+          },
+          status: {
+            scoreReviewItemCount: 0,
+          },
+          rules: {
+            scoreReviewItems: [],
           },
           money: {
             expected: 3900,
@@ -3848,12 +3855,14 @@ describe.sequential("server app factory", () => {
           readiness: {
             status: "closed",
             issueCount: 0,
+            scoreReviewItemCount: 0,
           },
           integrity: {
             rulesVersion: ACTIVE_RULES_VERSION,
             closed: true,
             snapshotMatchesCurrent: true,
             scoreEvidenceRows: 2,
+            scoreReviewItems: 0,
             ruleBlockers: 0,
           },
           payout: {

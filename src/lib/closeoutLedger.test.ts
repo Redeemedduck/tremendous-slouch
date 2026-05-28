@@ -95,6 +95,7 @@ describe("buildCloseoutLedger", () => {
         status: "ready",
         readyToClose: true,
         issueCount: 0,
+        scoreReviewItemCount: 0,
       },
       payout: {
         first: 334,
@@ -110,6 +111,7 @@ describe("buildCloseoutLedger", () => {
         closed: false,
         snapshotMatchesCurrent: null,
         scoreEvidenceRows: 2,
+        scoreReviewItems: 0,
         ruleBlockers: 0,
         payoutEvidenceMissing: false,
       },
@@ -214,7 +216,14 @@ describe("buildCloseoutLedger", () => {
       status: "blocked",
       readyToClose: false,
       issueCount: 2,
+      scoreReviewItemCount: 2,
     });
+    expect(ledger.scoreReviewItems.map((issue) => issue.message)).toEqual(
+      expect.arrayContaining([
+        "Scored player is not marked as a member",
+        "Missing score",
+      ])
+    );
     expect(ledger.ruleBlockers.map((issue) => issue.message)).toEqual(
       expect.arrayContaining([
         "Scored player is not marked as a member",
