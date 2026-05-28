@@ -120,7 +120,7 @@ export function buildIphoneSafariChecklist(
     "4. Board: open an active or past tee time and confirm score controls are usable without overlap.",
     "5. Season: confirm standings and net/gross values are readable.",
     "6. Money and Roster: confirm copy/action buttons are reachable.",
-    "7. Admin: confirm League Checklist, Commissioner Tasks, Closeout packet/ledger, and Archive export links are visible.",
+    "7. Admin: confirm League Checklist, Open Admin Work, Closeout packet/ledger, Request List, and Archive export links are visible.",
     "8. If all pass, mark iPhone Safari verified in Admin > Launch Gates.",
   ].join("\n");
 }

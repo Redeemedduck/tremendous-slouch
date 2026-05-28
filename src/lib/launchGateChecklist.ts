@@ -164,7 +164,7 @@ const checklistSteps: Record<
         id: "iphone-score-ops",
         label: "Check score controls and Admin export links.",
         requiredEvidence:
-          "Score controls, League Checklist, Commissioner Tasks, Closeout exports, Archive, handoff, and launch gate controls are usable.",
+          "Score controls, League Checklist, Open Admin Work, Closeout exports, Archive, request list, and launch gate controls are usable.",
       },
       {
         id: "iphone-note",

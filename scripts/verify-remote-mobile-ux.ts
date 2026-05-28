@@ -486,7 +486,7 @@ try {
 
     await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Do Next" }).waitFor();
+    await page.getByRole("heading", { name: "Next Actions" }).waitFor();
     const readinessPanel = page.locator(
       'section[aria-label="Operational readiness and data gaps"]'
     );
@@ -528,7 +528,7 @@ try {
     await page.getByText("Backup verified").waitFor();
     await page.getByRole("button", { name: /Exports/ }).waitFor();
     await page.getByRole("button", { name: /Audit log/ }).waitFor();
-    await page.getByRole("button", { name: /Advanced Admin/ }).waitFor();
+    await page.getByRole("button", { name: /Full Operations/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).click();
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
@@ -580,7 +580,7 @@ try {
     await page.getByRole("link", { name: "Tasks CSV", exact: true }).waitFor();
     await page.getByRole("link", { name: "Checklist JSON", exact: true }).waitFor();
     await page.getByRole("link", { name: "Request Packet", exact: true }).waitFor();
-    await page.getByRole("link", { name: "Handoff", exact: true }).waitFor();
+    await page.getByRole("link", { name: "Request List", exact: true }).waitFor();
     await page.getByRole("link", { name: "Evidence Gap Packet", exact: true }).waitFor();
     await page.getByRole("link", { name: "Source Ledger CSV", exact: true }).waitFor();
     await page.getByRole("link", { name: /Stop 1.*Packet/ }).waitFor();
@@ -592,7 +592,7 @@ try {
     await page
       .getByRole("link", { name: "Database Backup", exact: true })
       .waitFor();
-    await page.getByRole("heading", { name: "Full Admin Workbench" }).waitFor();
+    await page.getByRole("heading", { name: "Operations Workbench" }).waitFor();
     await expectMountedLinkHref(
       page,
       "Download proof map",
@@ -603,9 +603,9 @@ try {
     await page.getByText("Buy-in tracking", { exact: true }).first().waitFor();
     await page.getByText("Handicap records", { exact: true }).waitFor();
     await page.getByText("Schedule confirmation", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Commissioner Tasks" }).waitFor();
+    await page.getByRole("heading", { name: "Open Admin Work" }).waitFor();
     await page.getByRole("button", { name: "Copy tasks" }).waitFor();
-    await page.getByRole("button", { name: "Copy handoff" }).waitFor();
+    await page.getByRole("button", { name: "Copy request list" }).waitFor();
     await page.getByText("Evidence path", { exact: true }).first().waitFor();
     await page.getByText("Admin > One-Paste Intake").first().waitFor();
     await page.getByRole("heading", { name: "Launch Gates" }).waitFor();
@@ -659,10 +659,10 @@ try {
     await page.getByRole("link", { name: "Download checklist CSV" }).first().waitFor();
     await page.getByRole("link", { name: "Download request packet" }).waitFor();
     await page
-      .getByRole("link", { name: "Download handoff JSON" })
+      .getByRole("link", { name: "Download request list JSON" })
       .waitFor();
     await page
-      .getByRole("link", { name: "Download handoff", exact: true })
+      .getByRole("link", { name: "Download request list", exact: true })
       .waitFor();
     await page.getByRole("link", { name: "Download source search JSON" }).waitFor();
     await page.getByRole("link", { name: "Download source search CSV" }).waitFor();
@@ -752,8 +752,8 @@ try {
           formulaSafe: false,
         },
         {
-          path: "/export/blocker-handoff.txt",
-          mustContain: "DJDI Commissioner Handoff",
+          path: "/export/commissioner-requests.txt",
+          mustContain: "DJDI Commissioner Request List",
           formulaSafe: false,
         },
         {

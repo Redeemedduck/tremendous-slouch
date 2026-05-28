@@ -77,7 +77,7 @@ describe("blocker handoff", () => {
       SOURCE_SEARCH_LEDGER
     );
 
-    expect(text).toContain("DJDI Commissioner Handoff");
+    expect(text).toContain("DJDI Commissioner Request List");
     expect(text).toContain("[1. Confirm schedule]");
     expect(text).toContain("Evidence: blocked_source");
     expect(text).toContain("Manual evidence path:");

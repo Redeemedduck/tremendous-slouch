@@ -94,15 +94,15 @@ export function buildBlockerHandoffText(
   const handoff = buildBlockerHandoff(tasks, sourceEntries);
   if (handoff.rows.length === 0) {
     return [
-      "DJDI Commissioner Handoff",
+      "DJDI Commissioner Request List",
       `Source-search entries: ${handoff.summary.sourceSearch.count}`,
       "",
-      "No open handoff items.",
+      "No open request items.",
     ].join("\n");
   }
 
   return [
-    "DJDI Commissioner Handoff",
+    "DJDI Commissioner Request List",
     `Open tasks: ${handoff.summary.taskCount}`,
     `Manual action required: ${handoff.summary.manualActionRequired}`,
     `Source-search entries: ${handoff.summary.sourceSearch.count}`,

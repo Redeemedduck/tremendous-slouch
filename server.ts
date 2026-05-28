@@ -1982,8 +1982,8 @@ function buildCompletionAudit({
         "/api/export/tasks.json",
         "/api/export/tasks.csv",
         "/api/export/request-packet.txt",
-        "/api/export/blocker-handoff.json",
-        "/api/export/blocker-handoff.txt",
+        "/api/export/commissioner-requests.json",
+        "/api/export/commissioner-requests.txt",
         "/api/export/evidence-gap-packet.json",
         "/api/export/evidence-gap-packet.csv",
         "/api/export/evidence-gap-packet.txt",
@@ -5929,81 +5929,100 @@ const togglePollResponseTx = db.transaction(
     }
   });
 
-  app.get("/api/export/blocker-handoff.json", requireCommissioner, (_req, res) => {
-    try {
-      const teeTimes = getAllTeeTimes();
-      const players = getAllPlayers();
-      const buyins = getAllBuyins();
-      const tournaments = getAllTournaments();
-      const today = localTodayISO();
-      const ruleIssues = auditLeagueRules(teeTimes, tournaments, players, today);
-      const launchChecks = launchCheckState();
-      const commissionerTasks = buildCommissionerTasks({
-        players,
-        buyins,
-        tournaments,
-        ruleIssues,
-        accessCodeRequired: !!getRequiredAccessCode(),
-        launchChecks,
-      });
-      const handoff = buildBlockerHandoff(
-        commissionerTasks,
-        SOURCE_SEARCH_LEDGER
-      );
+  const commissionerRequestExport = () => {
+    const teeTimes = getAllTeeTimes();
+    const players = getAllPlayers();
+    const buyins = getAllBuyins();
+    const tournaments = getAllTournaments();
+    const today = localTodayISO();
+    const ruleIssues = auditLeagueRules(teeTimes, tournaments, players, today);
+    const launchChecks = launchCheckState();
+    const commissionerTasks = buildCommissionerTasks({
+      players,
+      buyins,
+      tournaments,
+      ruleIssues,
+      accessCodeRequired: !!getRequiredAccessCode(),
+      launchChecks,
+    });
+    return {
+      today,
+      commissionerTasks,
+      handoff: buildBlockerHandoff(commissionerTasks, SOURCE_SEARCH_LEDGER),
+    };
+  };
 
-      res.setHeader("content-type", "application/json; charset=utf-8");
-      res.setHeader(
-        "content-disposition",
-        `attachment; filename="djdi-blocker-handoff-${new Date()
-          .toISOString()
-          .slice(0, 10)}.json"`
-      );
-      res.json({
-        exportedAt: new Date().toISOString(),
-        version: 1,
-        app: "DJDI Golf Board",
-        today,
-        ...handoff,
-      });
-    } catch (err) {
-      console.error("GET /api/export/blocker-handoff.json failed:", err);
-      res.status(500).json({ error: "Failed to export blocker handoff" });
-    }
-  });
+  const sendCommissionerRequestJson =
+    (filenamePrefix: string): express.RequestHandler =>
+    (_req, res) => {
+      try {
+        const { today, handoff } = commissionerRequestExport();
 
-  app.get("/api/export/blocker-handoff.txt", requireCommissioner, (_req, res) => {
-    try {
-      const teeTimes = getAllTeeTimes();
-      const players = getAllPlayers();
-      const buyins = getAllBuyins();
-      const tournaments = getAllTournaments();
-      const today = localTodayISO();
-      const ruleIssues = auditLeagueRules(teeTimes, tournaments, players, today);
-      const launchChecks = launchCheckState();
-      const commissionerTasks = buildCommissionerTasks({
-        players,
-        buyins,
-        tournaments,
-        ruleIssues,
-        accessCodeRequired: !!getRequiredAccessCode(),
-        launchChecks,
-      });
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.setHeader(
+          "content-disposition",
+          `attachment; filename="${filenamePrefix}-${new Date()
+            .toISOString()
+            .slice(0, 10)}.json"`
+        );
+        res.json({
+          exportedAt: new Date().toISOString(),
+          version: 1,
+          app: "DJDI Golf Board",
+          today,
+          ...handoff,
+        });
+      } catch (err) {
+        console.error(`GET /api/export/${filenamePrefix}.json failed:`, err);
+        res.status(500).json({ error: "Failed to export commissioner requests" });
+      }
+    };
 
-      res.setHeader("content-type", "text/plain; charset=utf-8");
-      res.setHeader(
-        "content-disposition",
-        `attachment; filename="djdi-blocker-handoff-${new Date()
-          .toISOString()
-          .slice(0, 10)}.txt"`
-      );
-      res.send(
-        `${buildBlockerHandoffText(commissionerTasks, SOURCE_SEARCH_LEDGER)}\n`
-      );
-    } catch (err) {
-      console.error("GET /api/export/blocker-handoff.txt failed:", err);
-      res.status(500).json({ error: "Failed to export blocker handoff text" });
-    }
-  });
+  const sendCommissionerRequestText =
+    (filenamePrefix: string): express.RequestHandler =>
+    (_req, res) => {
+      try {
+        const { commissionerTasks } = commissionerRequestExport();
+
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.setHeader(
+          "content-disposition",
+          `attachment; filename="${filenamePrefix}-${new Date()
+            .toISOString()
+            .slice(0, 10)}.txt"`
+        );
+        res.send(
+          `${buildBlockerHandoffText(commissionerTasks, SOURCE_SEARCH_LEDGER)}\n`
+        );
+      } catch (err) {
+        console.error(`GET /api/export/${filenamePrefix}.txt failed:`, err);
+        res.status(500).json({ error: "Failed to export commissioner request text" });
+      }
+    };
+
+  app.get(
+    "/api/export/commissioner-requests.json",
+    requireCommissioner,
+    sendCommissionerRequestJson("djdi-commissioner-requests")
+  );
+
+  app.get(
+    "/api/export/commissioner-requests.txt",
+    requireCommissioner,
+    sendCommissionerRequestText("djdi-commissioner-requests")
+  );
+
+  app.get(
+    "/api/export/blocker-handoff.json",
+    requireCommissioner,
+    sendCommissionerRequestJson("djdi-blocker-handoff")
+  );
+
+  app.get(
+    "/api/export/blocker-handoff.txt",
+    requireCommissioner,
+    sendCommissionerRequestText("djdi-blocker-handoff")
+  );
 
   app.get("/api/export/evidence-gap-packet.json", requireCommissioner, (_req, res) => {
     try {
@@ -6598,18 +6617,18 @@ const togglePollResponseTx = db.transaction(
           proves: "One copy-ready packet for money, GHIN, schedule, access, and launch asks",
         },
         {
-          id: "blocker-handoff-json",
-          label: "Commissioner handoff",
-          url: "/api/export/blocker-handoff.json",
+          id: "commissioner-requests-json",
+          label: "Commissioner request list",
+          url: "/api/export/commissioner-requests.json",
           format: "json",
           proves: "Open commissioner tasks joined to source-search decisions and required manual actions",
         },
         {
-          id: "blocker-handoff-text",
-          label: "Commissioner handoff text",
-          url: "/api/export/blocker-handoff.txt",
+          id: "commissioner-requests-text",
+          label: "Commissioner request list text",
+          url: "/api/export/commissioner-requests.txt",
           format: "txt",
-          proves: "Human-readable handoff for unresolved data, launch, and physical-device gates",
+          proves: "Human-readable request list for unresolved data, launch, and physical-device gates",
         },
         {
           id: "evidence-gap-packet-json",
@@ -6756,7 +6775,7 @@ const togglePollResponseTx = db.transaction(
           label: "Season summary",
           url: "/api/export/summary.txt",
           format: "txt",
-          proves: "Human-readable commissioner handoff",
+          proves: "Human-readable commissioner request list",
         },
         {
           id: "launch-packet",
@@ -7093,7 +7112,7 @@ const togglePollResponseTx = db.transaction(
                 `${risk.severity.toUpperCase()} - ${risk.label}: ${risk.detail} | Action: ${risk.nextAction}`
             )),
         "",
-        "Commissioner Tasks",
+        "Open Admin Work",
         ...(commissionerTasks.length === 0
           ? ["None"]
           : commissionerTasks.map(
@@ -7316,7 +7335,7 @@ const togglePollResponseTx = db.transaction(
                 `${risk.severity.toUpperCase()} - ${risk.label}: ${risk.detail} | Action: ${risk.nextAction}`
             )),
         "",
-        "Commissioner Tasks",
+        "Open Admin Work",
         ...(commissionerTasks.length === 0
           ? ["None"]
           : commissionerTasks.map(
@@ -7425,8 +7444,8 @@ const togglePollResponseTx = db.transaction(
         "/api/export/risks.json",
         "/api/export/risks.csv",
         "/api/export/request-packet.txt",
-        "/api/export/blocker-handoff.json",
-        "/api/export/blocker-handoff.txt",
+        "/api/export/commissioner-requests.json",
+        "/api/export/commissioner-requests.txt",
         "/api/export/evidence-gap-packet.json",
         "/api/export/evidence-gap-packet.csv",
         "/api/export/evidence-gap-packet.txt",

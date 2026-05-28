@@ -493,7 +493,7 @@ async function verifyMobileBrowser(url: string) {
       .waitFor();
     await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Do Next" }).waitFor();
+    await page.getByRole("heading", { name: "Next Actions" }).waitFor();
     await page.getByRole("button", { name: "Money", exact: true }).nth(1).waitFor();
     await nav.getByRole("button", { name: "Money", exact: true }).click();
     await page.getByRole("button", { name: /Pool/ }).click();
@@ -657,7 +657,7 @@ async function verifyMobileBrowser(url: string) {
 
     await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Do Next" }).waitFor();
+    await page.getByRole("heading", { name: "Next Actions" }).waitFor();
     const readinessPanel = page.locator(
       'section[aria-label="Operational readiness and data gaps"]'
     );
@@ -679,7 +679,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Verify backup" }).click();
     await page.getByText("Backup verified").waitFor();
     logPhase("browser:admin-backup");
-    await page.getByRole("button", { name: "Workbench", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Full Ops", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Roles" }).waitFor();
     const rolesSection = page
       .getByRole("heading", { name: "Roles" })
@@ -701,7 +701,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: /Backup proof/ }).waitFor();
     await page.getByRole("button", { name: /Exports/ }).waitFor();
     await page.getByRole("button", { name: /Audit log/ }).waitFor();
-    await page.getByRole("button", { name: /Advanced Admin/ }).waitFor();
+    await page.getByRole("button", { name: /Full Operations/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).click();
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
@@ -715,9 +715,9 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: /Audit log/ }).click();
     await expectSectionAnchored(page, "admin-audit-log");
     await page
-      .getByRole("heading", { name: "Full Admin Workbench" })
+      .getByRole("heading", { name: "Operations Workbench" })
       .waitFor();
-    await page.getByRole("button", { name: "Open full workbench" }).waitFor();
+    await page.getByRole("button", { name: "Open full operations" }).waitFor();
     await page.getByRole("heading", { name: "Tee-Time Oversight" }).waitFor();
     await page.getByText("Future", { exact: true }).waitFor();
     await page.getByText("Past", { exact: true }).waitFor();
@@ -780,7 +780,7 @@ async function verifyMobileBrowser(url: string) {
       .getByRole("link", { name: "Request Packet", exact: true })
       .waitFor();
     await page
-      .getByRole("link", { name: "Handoff", exact: true })
+      .getByRole("link", { name: "Request List", exact: true })
       .waitFor();
     await page
       .getByRole("link", { name: "Evidence Gap Packet", exact: true })
@@ -813,7 +813,7 @@ async function verifyMobileBrowser(url: string) {
     await page
       .getByRole("link", { name: "Database Backup", exact: true })
       .waitFor();
-    await page.getByRole("heading", { name: "Advanced Admin" }).waitFor();
+    await page.getByRole("heading", { name: "Full Operations" }).waitFor();
     await expectMountedLinkHref(
       page,
       url,
@@ -828,11 +828,11 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Schedule", exact: true }).waitFor();
     await page.getByRole("button", { name: "Launch", exact: true }).waitFor();
     await page.getByRole("heading", { name: "League Checklist" }).waitFor();
-    await page.getByRole("heading", { name: "Commissioner Tasks" }).waitFor();
+    await page.getByRole("heading", { name: "Open Admin Work" }).waitFor();
     await page.getByText("Track buy-in status", { exact: true }).waitFor();
     await page.getByText("Record handicap indexes", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Copy tasks" }).waitFor();
-    await page.getByRole("button", { name: "Copy handoff" }).waitFor();
+    await page.getByRole("button", { name: "Copy request list" }).waitFor();
     await page.getByRole("button", { name: "Copy Track buy-in status" }).waitFor();
     await page
       .getByRole("button", { name: "Copy Record handicap indexes" })
@@ -952,10 +952,10 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("link", { name: "Download checklist CSV" }).first().waitFor();
     await page.getByRole("link", { name: "Download request packet" }).waitFor();
     await page
-      .getByRole("link", { name: "Download handoff JSON" })
+      .getByRole("link", { name: "Download request list JSON" })
       .waitFor();
     await page
-      .getByRole("link", { name: "Download handoff", exact: true })
+      .getByRole("link", { name: "Download request list", exact: true })
       .waitFor();
     await page
       .getByRole("link", { name: "Download evidence gap JSON" })
@@ -1101,8 +1101,8 @@ async function verifyExportArtifacts(apiUrl: string, cookie: string) {
       formulaSafe: false,
     },
     {
-      path: "/api/export/blocker-handoff.txt",
-      mustContain: "DJDI Commissioner Handoff",
+      path: "/api/export/commissioner-requests.txt",
+      mustContain: "DJDI Commissioner Request List",
       formulaSafe: false,
     },
     {

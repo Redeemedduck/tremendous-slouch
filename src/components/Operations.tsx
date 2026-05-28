@@ -1380,7 +1380,7 @@ export function Operations({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
-              Commissioner Tasks
+              Open Admin Work
             </h2>
             <p className="mt-0.5 text-sm text-stone-500">
               {commissionerTasks.length === 0
@@ -1421,7 +1421,7 @@ export function Operations({
                 ? "Copied"
                 : handoffCopyStatus === "blocked"
                   ? "Select text"
-                  : "Copy handoff"}
+                  : "Copy request list"}
             </button>
             <button
               type="button"
@@ -1457,7 +1457,7 @@ export function Operations({
 
         {handoffCopyStatus === "blocked" && (
           <label className="mt-3 block text-xs font-medium text-stone-600">
-            Copy unavailable. Select handoff text below.
+            Copy unavailable. Select request list below.
             <textarea
               readOnly
               value={handoffFallbackText}
@@ -2326,12 +2326,12 @@ export function Operations({
             label="Download request packet"
           />
           <ExportButton
-            href="/api/export/blocker-handoff.json"
-            label="Download handoff JSON"
+            href="/api/export/commissioner-requests.json"
+            label="Download request list JSON"
           />
           <ExportButton
-            href="/api/export/blocker-handoff.txt"
-            label="Download handoff"
+            href="/api/export/commissioner-requests.txt"
+            label="Download request list"
           />
           <ExportButton
             href="/api/export/evidence-gap-packet.json"

@@ -627,10 +627,10 @@ try {
     !archive.body.artifacts.some((artifact) => artifact.id === "risks-csv") ||
     !archive.body.artifacts.some((artifact) => artifact.id === "request-packet") ||
     !archive.body.artifacts.some(
-      (artifact) => artifact.id === "blocker-handoff-json"
+      (artifact) => artifact.id === "commissioner-requests-json"
     ) ||
     !archive.body.artifacts.some(
-      (artifact) => artifact.id === "blocker-handoff-text"
+      (artifact) => artifact.id === "commissioner-requests-text"
     ) ||
     !archive.body.artifacts.some(
       (artifact) => artifact.id === "evidence-gap-packet-json"
@@ -762,7 +762,7 @@ try {
     app: string;
     summary: { taskCount: number; manualActionRequired: number };
     rows: Array<{ taskId: string; evidenceStatus: string }>;
-  }>("/api/export/blocker-handoff.json", { headers });
+  }>("/api/export/commissioner-requests.json", { headers });
   if (
     blockerHandoff.status !== 200 ||
     blockerHandoff.body.app !== "DJDI Golf Board" ||
@@ -777,12 +777,12 @@ try {
     );
   }
 
-  const blockerHandoffText = await fetchText("/api/export/blocker-handoff.txt", {
+  const blockerHandoffText = await fetchText("/api/export/commissioner-requests.txt", {
     headers,
   });
   if (
     blockerHandoffText.status !== 200 ||
-    !blockerHandoffText.text.includes("DJDI Commissioner Handoff") ||
+    !blockerHandoffText.text.includes("DJDI Commissioner Request List") ||
     !blockerHandoffText.text.includes("Evidence: blocked_source")
   ) {
     throw new Error(
@@ -896,14 +896,14 @@ try {
     launchPacket.status !== 200 ||
     !launchPacket.text.includes("DJDI Launch Packet") ||
     !launchPacket.text.includes("Copy/Paste Asks") ||
-    !launchPacket.text.includes("Commissioner Tasks") ||
+    !launchPacket.text.includes("Open Admin Work") ||
     !launchPacket.text.includes("Outbound Request Packet") ||
     !launchPacket.text.includes("League Checklist") ||
     !launchPacket.text.includes("Source Search Coverage") ||
     !launchPacket.text.includes("/api/export/rules.json") ||
     !launchPacket.text.includes("/api/export/request-packet.txt") ||
-    !launchPacket.text.includes("/api/export/blocker-handoff.json") ||
-    !launchPacket.text.includes("/api/export/blocker-handoff.txt") ||
+    !launchPacket.text.includes("/api/export/commissioner-requests.json") ||
+    !launchPacket.text.includes("/api/export/commissioner-requests.txt") ||
     !launchPacket.text.includes("/api/export/evidence-gap-packet.json") ||
     !launchPacket.text.includes("/api/export/evidence-gap-packet.csv") ||
     !launchPacket.text.includes("/api/export/evidence-gap-packet.txt") ||

@@ -682,7 +682,7 @@ export function AdminConsole({
       </section>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <h2 className="text-base font-semibold text-stone-900">Do Next</h2>
+        <h2 className="text-base font-semibold text-stone-900">Next Actions</h2>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <AdminActionButton
             icon={Trophy}
@@ -715,7 +715,7 @@ export function AdminConsole({
           </button>
           <AdminActionButton
             icon={Settings}
-            label="Workbench"
+            label="Full Ops"
             onClick={() => scrollToAdminSection("admin-full-workbench")}
           />
           <AdminActionButton icon={WalletCards} label="Money" onClick={() => onOpenView("money")} />
@@ -844,8 +844,8 @@ export function AdminConsole({
           />
           <AdminToolButton
             icon={Settings}
-            label="Advanced Admin"
-            detail="full workbench"
+            label="Full Operations"
+            detail="all tools"
             onClick={() => scrollToAdminSection("admin-full-workbench")}
           />
         </div>
@@ -857,10 +857,10 @@ export function AdminConsole({
             <Settings className="mt-0.5 h-5 w-5 shrink-0 text-fairway-100" />
             <div className="min-w-0">
               <h2 className="text-base font-semibold">
-                Full Admin Workbench
+                Operations Workbench
               </h2>
               <p className="mt-0.5 text-sm leading-5 text-fairway-100">
-                Advanced admin tools are still here: settings, commissioner tasks,
+                The complete operations tools are still here: settings, admin tasks,
                 one-paste intake, launch gates, rule audit, exports, closeout,
                 payout ledger, and evidence packets.
               </p>
@@ -871,7 +871,7 @@ export function AdminConsole({
             onClick={() => scrollToAdminSection("admin-full-workbench")}
             className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-sm font-semibold text-fairway-900 hover:bg-fairway-50"
           >
-            Open full workbench
+            Open full operations
           </button>
         </section>
       )}
@@ -1320,8 +1320,14 @@ export function AdminConsole({
           <ExportLink href="/api/export/risks.json" label="Checklist JSON" />
           <ExportLink href="/api/export/risks.csv" label="Checklist CSV" />
           <ExportLink href="/api/export/request-packet.txt" label="Request Packet" />
-          <ExportLink href="/api/export/blocker-handoff.json" label="Handoff JSON" />
-          <ExportLink href="/api/export/blocker-handoff.txt" label="Handoff" />
+          <ExportLink
+            href="/api/export/commissioner-requests.json"
+            label="Request List JSON"
+          />
+          <ExportLink
+            href="/api/export/commissioner-requests.txt"
+            label="Request List"
+          />
           <ExportLink href="/api/export/evidence-gap-packet.json" label="Evidence Gap JSON" />
           <ExportLink href="/api/export/evidence-gap-packet.csv" label="Evidence Gap CSV" />
           <ExportLink href="/api/export/evidence-gap-packet.txt" label="Evidence Gap Packet" />
@@ -1350,10 +1356,10 @@ export function AdminConsole({
         >
           <div className="px-1 pb-3">
             <h2 className="text-base font-semibold text-stone-900">
-              Advanced Admin
+              Full Operations
             </h2>
             <p className="mt-0.5 text-sm text-stone-500">
-              Full admin workbench retained here: settings, task queue,
+              Complete operations workbench retained here: settings, task queue,
               launch gates, schedule confirmation, rule audit, exports,
               closeout, payout ledger, and source evidence.
             </p>

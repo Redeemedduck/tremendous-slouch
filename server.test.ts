@@ -291,6 +291,8 @@ const sensitiveCommissionerRequests: Array<{
   { method: "get", path: "/api/export/request-packet.txt" },
   { method: "get", path: "/api/export/blocker-handoff.json" },
   { method: "get", path: "/api/export/blocker-handoff.txt" },
+  { method: "get", path: "/api/export/commissioner-requests.json" },
+  { method: "get", path: "/api/export/commissioner-requests.txt" },
   { method: "get", path: "/api/export/evidence-gap-packet.json" },
   { method: "get", path: "/api/export/evidence-gap-packet.csv" },
   { method: "get", path: "/api/export/evidence-gap-packet.txt" },
@@ -1562,7 +1564,7 @@ describe.sequential("server app factory", () => {
         expect(res.text).toContain("[Schedule Details]");
         expect(res.text).toContain("DJDI schedule details still needed:");
         expect(res.text).toContain("League Checklist");
-        expect(res.text).toContain("Commissioner Tasks");
+        expect(res.text).toContain("Open Admin Work");
         expect(res.text).toContain(
           "RISK - Track buy-in status: $3,900 outstanding across 12 players."
         );
@@ -2644,9 +2646,31 @@ describe.sequential("server app factory", () => {
       .expect(200)
       .expect("content-type", /text\/plain/)
       .expect((res) => {
-        expect(res.text).toContain("DJDI Commissioner Handoff");
+        expect(res.text).toContain("DJDI Commissioner Request List");
         expect(res.text).toContain("[1. Track buy-in status]");
         expect(res.text).toContain("Evidence: blocked_source");
+      });
+
+    await admin
+      .get("/api/export/commissioner-requests.json")
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toMatchObject({
+          app: "DJDI Golf Board",
+          version: 1,
+          summary: {
+            taskCount: expect.any(Number),
+          },
+        });
+      });
+
+    await admin
+      .get("/api/export/commissioner-requests.txt")
+      .expect(200)
+      .expect("content-type", /text\/plain/)
+      .expect((res) => {
+        expect(res.text).toContain("DJDI Commissioner Request List");
+        expect(res.text).toContain("[1. Track buy-in status]");
       });
 
     await admin
@@ -2737,12 +2761,12 @@ describe.sequential("server app factory", () => {
               url: "/api/export/request-packet.txt",
             }),
             expect.objectContaining({
-              id: "blocker-handoff-json",
-              url: "/api/export/blocker-handoff.json",
+              id: "commissioner-requests-json",
+              url: "/api/export/commissioner-requests.json",
             }),
             expect.objectContaining({
-              id: "blocker-handoff-text",
-              url: "/api/export/blocker-handoff.txt",
+              id: "commissioner-requests-text",
+              url: "/api/export/commissioner-requests.txt",
             }),
             expect.objectContaining({
               id: "evidence-gap-packet-json",
@@ -4321,12 +4345,12 @@ describe.sequential("server app factory", () => {
               url: "/api/export/request-packet.txt",
             }),
             expect.objectContaining({
-              id: "blocker-handoff-json",
-              url: "/api/export/blocker-handoff.json",
+              id: "commissioner-requests-json",
+              url: "/api/export/commissioner-requests.json",
             }),
             expect.objectContaining({
-              id: "blocker-handoff-text",
-              url: "/api/export/blocker-handoff.txt",
+              id: "commissioner-requests-text",
+              url: "/api/export/commissioner-requests.txt",
             }),
             expect.objectContaining({
               id: "evidence-gap-packet-json",
