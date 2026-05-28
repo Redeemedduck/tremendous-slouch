@@ -1271,11 +1271,13 @@ const setCommissionerCookie = (
   );
 };
 
+const ephemeralProfileSigningSecret = randomUUID();
+
 const profileSigningSecret = () =>
   process.env.PROFILE_SIGNING_SECRET?.trim() ||
   process.env.COMMISSIONER_CODE?.trim() ||
   process.env.ACCESS_CODE?.trim() ||
-  "djdi-local-profile-session";
+  ephemeralProfileSigningSecret;
 
 const signProfilePayload = (payload: string) =>
   createHmac("sha256", profileSigningSecret()).update(payload).digest("base64url");

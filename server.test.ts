@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHmac } from "node:crypto";
 import request from "supertest";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, createDb } from "./server";
@@ -18,6 +19,10 @@ const isolatedEnvKeys = [
   "LIVE_STATE_TODAY",
   "STATIC_DIR",
   "COOKIE_SECURE",
+  "PROFILE_SIGNING_SECRET",
+  "APP_BASE_PATH",
+  "VITE_BASE_PATH",
+  "NODE_ENV",
 ] as const;
 const originalRuntimeEnv = new Map(
   isolatedEnvKeys.map((key) => [key, process.env[key]])
@@ -167,6 +172,21 @@ async function freshProfileCookie(app: ReturnType<typeof createApp>, name: strin
     .expect(200);
   const cookie = res.headers["set-cookie"];
   return Array.isArray(cookie) ? cookie[0] : cookie;
+}
+
+function legacyStaticProfileCookie(name: string) {
+  const payload = Buffer.from(
+    JSON.stringify({
+      name,
+      subjectId: "forged-static-subject",
+      issuedAt: "2026-01-01T00:00:00.000Z",
+    }),
+    "utf8"
+  ).toString("base64url");
+  const signature = createHmac("sha256", "djdi-local-profile-session")
+    .update(payload)
+    .digest("base64url");
+  return `golf_profile=${payload}.${signature}`;
 }
 
 function parseCsv(text: string) {
@@ -429,6 +449,12 @@ describe.sequential("server app factory", () => {
       await request(app)
         .post(`/api/teetimes/${teeTimeId}/claims`)
         .set("Cookie", "golf_profile=forged-local-storage-name")
+        .send({ name: "Alex" })
+        .expect(403);
+
+      await request(app)
+        .post(`/api/teetimes/${teeTimeId}/claims`)
+        .set("Cookie", legacyStaticProfileCookie("Alex"))
         .send({ name: "Alex" })
         .expect(403);
 
