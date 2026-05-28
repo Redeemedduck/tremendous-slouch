@@ -7,7 +7,7 @@ const accessCode =
 const commissionerCode =
   process.env.DOCKER_VERIFY_COMMISSIONER_CODE ??
   `docker-smoke-admin-${process.pid}-${Date.now()}`;
-const dbPath = process.env.DOCKER_VERIFY_DB_PATH ?? "/tmp/djdi-docker-smoke.db";
+const dbPath = process.env.DOCKER_VERIFY_DB_PATH ?? "/data/djdi-docker-smoke.db";
 
 function run(
   command: string,

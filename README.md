@@ -334,6 +334,7 @@ codes or launch-gate flags.
 | `HOST` | `127.0.0.1` | Bind address. Fly/container runtime sets `0.0.0.0`; local loopback stays private. |
 | `PORT` | `3000` | TCP port. |
 | `DB_PATH` | `./golf_coordinator.db` | SQLite file location. Set to `/data/golf_coordinator.db` on Fly (auto-set by `fly.toml`). |
+| `DJDI_WORK_DIR` | `./.build-work` | Local scratch directory for verifier databases and backup/export proof files. |
 | `ACCESS_CODE` | unset | When set, all `/api/*` routes require the matching `golf_access` HttpOnly cookie. Unset = open. |
 | `NODE_ENV` | `development` | `production` switches to serving `dist/` directly instead of Vite middleware. |
 | `DJDI_DOCKER_BUILD_VERIFIED` | unset | Set to `1` after the Docker image build gate passes. |

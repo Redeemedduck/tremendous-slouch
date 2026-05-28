@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import request from "supertest";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -27,6 +26,13 @@ const profileCookies = new WeakMap<
   ReturnType<typeof createApp>,
   Map<string, string | string[]>
 >();
+const testWorkDir = path.resolve(".build-work", "test");
+
+function ensureTestWorkDir(...parts: string[]) {
+  const dir = path.join(testWorkDir, ...parts);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
 function clearRuntimeEnv() {
   for (const key of isolatedEnvKeys) delete process.env[key];
@@ -40,7 +46,7 @@ beforeEach(() => {
 
 function tempDbPath() {
   const file = path.join(
-    os.tmpdir(),
+    ensureTestWorkDir("db"),
     `djdi-test-${process.pid}-${Date.now()}-${Math.random()}.sqlite`
   );
   dbFiles.push(file);
@@ -1036,7 +1042,9 @@ describe.sequential("server app factory", () => {
     const originalStaticDir = process.env.STATIC_DIR;
     const tempDirs: string[] = [];
     try {
-      const missingDir = fs.mkdtempSync(path.join(os.tmpdir(), "djdi-missing-assets-"));
+      const missingDir = fs.mkdtempSync(
+        path.join(ensureTestWorkDir("assets"), "djdi-missing-assets-")
+      );
       tempDirs.push(missingDir);
       process.env.STATIC_DIR = missingDir;
       expect(() => createApp(createTestDb(), { serveAssets: true })).toThrow(
@@ -1044,7 +1052,7 @@ describe.sequential("server app factory", () => {
       );
 
       const incompleteDir = fs.mkdtempSync(
-        path.join(os.tmpdir(), "djdi-incomplete-assets-")
+        path.join(ensureTestWorkDir("assets"), "djdi-incomplete-assets-")
       );
       tempDirs.push(incompleteDir);
       fs.writeFileSync(

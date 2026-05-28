@@ -3,7 +3,6 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -2301,6 +2300,15 @@ function auditActor(value: unknown, fallback = "Commissioner") {
   return text ? text.slice(0, NAME_MAX) : fallback;
 }
 
+function runtimeWorkDir(...parts: string[]) {
+  const base = process.env.DJDI_WORK_DIR
+    ? path.resolve(process.env.DJDI_WORK_DIR)
+    : path.resolve(process.cwd(), ".build-work");
+  const dir = path.join(base, ...parts);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 function recordAuditEvent({
   action,
   actor = "Commissioner",
@@ -2350,7 +2358,7 @@ function sqliteQuickCheck(database: Database.Database, label: string) {
 
 async function verifySqliteBackup(database: Database.Database) {
   const backupPath = path.join(
-    os.tmpdir(),
+    runtimeWorkDir("backups"),
     `djdi-backup-proof-${Date.now()}-${randomUUID()}.db`
   );
   let backup: Database.Database | null = null;
@@ -7424,7 +7432,7 @@ const togglePollResponseTx = db.transaction(
 
   app.get("/api/export/database", requireCommissioner, async (_req, res) => {
     const file = path.join(
-      os.tmpdir(),
+      runtimeWorkDir("exports"),
       `djdi-golf-board-${Date.now()}-${randomUUID()}.db`
     );
     try {

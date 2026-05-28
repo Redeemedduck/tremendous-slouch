@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { createApp, createDb } from "../server";
 
@@ -12,7 +11,10 @@ type RunningApp = {
 
 const dbPath =
   process.env.PERSISTENCE_VERIFY_DB_PATH ??
-  path.join(os.tmpdir(), `djdi-persistence-${process.pid}-${Date.now()}.db`);
+  path.join(
+    path.resolve(process.env.DJDI_WORK_DIR ?? ".build-work", "verify"),
+    `djdi-persistence-${process.pid}-${Date.now()}.db`
+  );
 const keepDb = process.env.KEEP_PERSISTENCE_VERIFY_DB === "1";
 const sentinel = `persistence-${process.pid}-${Date.now()}`;
 const accessCode = process.env.ACCESS_CODE?.trim();
@@ -45,6 +47,7 @@ function listen(server: http.Server): Promise<string> {
 }
 
 async function start(): Promise<RunningApp> {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = createDb(dbPath);
   const app = createApp(db, { serveAssets: false });
   const server = http.createServer(app);

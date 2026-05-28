@@ -1,13 +1,13 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 const sourcePath = path.resolve(process.env.DB_PATH ?? "golf_coordinator.db");
 const keepBackup = process.env.KEEP_BACKUP_VERIFY === "1";
+const workDir = path.resolve(process.env.DJDI_WORK_DIR ?? ".build-work", "verify");
 const backupPath =
   process.env.BACKUP_VERIFY_PATH ??
-  path.join(os.tmpdir(), `djdi-backup-verify-${process.pid}-${Date.now()}.db`);
+  path.join(workDir, `djdi-backup-verify-${process.pid}-${Date.now()}.db`);
 
 const requiredTables = [
   "players",

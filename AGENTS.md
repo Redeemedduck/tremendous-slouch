@@ -53,6 +53,7 @@ ignored by git. Use [`.env.example`](./.env.example) as the template.
 | `HOST` | `127.0.0.1` | Bind address. Fly/container runtime sets `0.0.0.0`; local loopback stays private. |
 | `PORT` | `3000` | TCP port. |
 | `DB_PATH` | `./golf_coordinator.db` | SQLite file location. Fly uses `/data/golf_coordinator.db`. |
+| `DJDI_WORK_DIR` | `./.build-work` | Local scratch directory for verifier databases and backup/export proof files. |
 | `ACCESS_CODE` | unset | Optional cookie gate for `/api/*` routes via `golf_access`. Unset means open. |
 | `NODE_ENV` | `development` | `production` serves `dist/` directly instead of Vite middleware. |
 | `DJDI_DOCKER_BUILD_VERIFIED` | unset | `1` clears the Docker build external launch risk. |

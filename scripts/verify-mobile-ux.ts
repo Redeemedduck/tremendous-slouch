@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { chromium, type Page } from "playwright";
 import { createApp, createDb } from "../server";
@@ -9,11 +8,15 @@ type RunningApp = {
   db: ReturnType<typeof createDb>;
   server: http.Server;
   url: string;
+  apiUrl: string;
 };
 
 const dbPath =
   process.env.MOBILE_UX_DB_PATH ??
-  path.join(os.tmpdir(), `djdi-mobile-ux-${process.pid}-${Date.now()}.db`);
+  path.join(
+    path.resolve(process.env.DJDI_WORK_DIR ?? ".build-work", "verify"),
+    `djdi-mobile-ux-${process.pid}-${Date.now()}.db`
+  );
 const accessCode =
   process.env.MOBILE_UX_ACCESS_CODE ??
   `mobile-ux-${process.pid}-${Date.now()}`;
@@ -25,6 +28,7 @@ const originalAccessCode = process.env.ACCESS_CODE;
 const originalCommissionerCode = process.env.COMMISSIONER_CODE;
 const originalHost = process.env.HOST;
 const originalNodeEnv = process.env.NODE_ENV;
+const originalAppBasePath = process.env.APP_BASE_PATH;
 const logPhase = (label: string) => {
   console.error(`[mobile-ux] ${label}`);
 };
@@ -86,6 +90,17 @@ function assertFreshClientBuild() {
   }
 }
 
+function builtClientBasePath() {
+  const distIndex = path.resolve("dist/index.html");
+  const html = fs.readFileSync(distIndex, "utf8");
+  const assetMatch = html.match(/\s(?:src|href)="([^"]*\/assets\/[^"]+)"/);
+  if (!assetMatch) return "";
+  const assetPath = assetMatch[1];
+  if (!assetPath.startsWith("/")) return "";
+  const assetPrefix = assetPath.slice(0, assetPath.indexOf("/assets/"));
+  return assetPrefix === "/" ? "" : assetPrefix.replace(/\/+$/, "");
+}
+
 function cleanup() {
   if (keepDb || process.env.MOBILE_UX_DB_PATH) return;
   for (const candidate of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
@@ -108,11 +123,17 @@ function listen(server: http.Server): Promise<string> {
 }
 
 async function start(): Promise<RunningApp> {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const appBasePath = builtClientBasePath();
+  if (appBasePath) process.env.APP_BASE_PATH = appBasePath;
+  else delete process.env.APP_BASE_PATH;
   const db = createDb(dbPath);
   const app = createApp(db, { serveAssets: true });
   const server = http.createServer(app);
-  const url = await listen(server);
-  return { db, server, url };
+  const origin = await listen(server);
+  const url = `${origin}${appBasePath}`;
+  const apiUrl = `${origin}${appBasePath ? `${appBasePath}-api` : "/api"}`;
+  return { db, server, url, apiUrl };
 }
 
 async function stop(app: RunningApp) {
@@ -131,10 +152,22 @@ async function fetchJson<T>(
   return { status: response.status, body, headers: response.headers };
 }
 
-async function seedStopOneScenario(url: string, cookie: string) {
+function apiPath(apiUrl: string, path: string) {
+  const suffix = path.startsWith("/api/") ? path.slice(4) : path;
+  return `${apiUrl}${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
+}
+
+function mountedApiHref(appUrl: string, path: string) {
+  const basePath = new URL(appUrl).pathname.replace(/\/+$/, "");
+  const apiBasePath = basePath && basePath !== "/" ? `${basePath}-api` : "/api";
+  const suffix = path.startsWith("/api/") ? path.slice(4) : path;
+  return `${apiBasePath}${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
+}
+
+async function seedStopOneScenario(apiUrl: string, cookie: string) {
   const headers = { "Content-Type": "application/json", Cookie: cookie };
   const created = await fetchJson<{ teeTime: { id: string } }>(
-    `${url}/api/teetimes`,
+    apiPath(apiUrl, "/api/teetimes"),
     {
       method: "POST",
       headers,
@@ -161,7 +194,7 @@ async function seedStopOneScenario(url: string, cookie: string) {
     "Will",
   ]) {
     const claim = await fetchJson<{ teeTime: unknown }>(
-      `${url}/api/teetimes/${teeTimeId}/claims`,
+      apiPath(apiUrl, `/api/teetimes/${teeTimeId}/claims`),
       {
         method: "POST",
         headers,
@@ -188,7 +221,7 @@ async function seedStopOneScenario(url: string, cookie: string) {
   ];
   for (const score of scores) {
     const scored = await fetchJson<{ teeTime: unknown }>(
-      `${url}/api/teetimes/${teeTimeId}/scores`,
+      apiPath(apiUrl, `/api/teetimes/${teeTimeId}/scores`),
       {
         method: "POST",
         headers,
@@ -208,9 +241,9 @@ async function seedStopOneScenario(url: string, cookie: string) {
       );
     }
     const attested = await fetchJson<{ teeTime: unknown }>(
-      `${url}/api/teetimes/${teeTimeId}/scores/${encodeURIComponent(
+      apiPath(apiUrl, `/api/teetimes/${teeTimeId}/scores/${encodeURIComponent(
         score.name
-      )}/attest`,
+      )}/attest`),
       {
         method: "POST",
         headers,
@@ -746,7 +779,7 @@ async function verifyMobileBrowser(url: string) {
       .getByRole("link", { name: /Stop 7.*Ledger/ })
       .waitFor();
     await page
-      .locator('a[href="/api/export/completion-audit.json"]')
+      .locator(`a[href="${mountedApiHref(url, "/api/export/completion-audit.json")}"]`)
       .nth(1)
       .waitFor();
     await page
@@ -949,7 +982,7 @@ function csvCells(text: string) {
   return cells;
 }
 
-async function verifyExportArtifacts(url: string, cookie: string) {
+async function verifyExportArtifacts(apiUrl: string, cookie: string) {
   const exportsToCheck = [
     {
       path: "/api/export/rules.json",
@@ -1034,7 +1067,7 @@ async function verifyExportArtifacts(url: string, cookie: string) {
   ];
 
   for (const item of exportsToCheck) {
-    const response = await fetch(`${url}${item.path}`, {
+    const response = await fetch(apiPath(apiUrl, item.path), {
       headers: { Cookie: cookie },
       signal: AbortSignal.timeout(10_000),
     });
@@ -1050,7 +1083,7 @@ async function verifyExportArtifacts(url: string, cookie: string) {
     }
   }
 
-  const dbResponse = await fetch(`${url}/api/export/database`, {
+  const dbResponse = await fetch(apiPath(apiUrl, "/api/export/database"), {
     headers: { Cookie: cookie },
     signal: AbortSignal.timeout(10_000),
   });
@@ -1082,7 +1115,7 @@ try {
   app = await start();
   logPhase("startup:server");
 
-  const unlock = await fetchJson<{ ok: boolean }>(`${app.url}/api/access`, {
+  const unlock = await fetchJson<{ ok: boolean }>(`${app.apiUrl}/access`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code: accessCode }),
@@ -1094,7 +1127,7 @@ try {
   logPhase("startup:access");
   const cookie = setCookie.split(";")[0];
   const commissionerUnlock = await fetchJson<{ ok: boolean }>(
-    `${app.url}/api/commissioner`,
+    `${app.apiUrl}/commissioner`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -1113,15 +1146,15 @@ try {
   }
   logPhase("startup:commissioner");
   const authCookie = `${cookie}; ${commissionerSetCookie.split(";")[0]}`;
-  const teeTimeId = await seedStopOneScenario(app.url, authCookie);
+  const teeTimeId = await seedStopOneScenario(app.apiUrl, authCookie);
   logPhase("seed:stop-one");
   await verifyMobileBrowser(app.url);
   logPhase("browser:done");
-  await verifyExportArtifacts(app.url, authCookie);
+  await verifyExportArtifacts(app.apiUrl, authCookie);
   logPhase("exports:done");
   const recordedVerification = await fetchJson<{
     verificationRun: { id: string; status: string };
-  }>(`${app.url}/api/verification-runs`, {
+  }>(`${app.apiUrl}/verification-runs`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: authCookie },
     body: JSON.stringify({
@@ -1154,7 +1187,7 @@ try {
   const verificationExport = await fetchJson<{
     count: number;
     verificationRuns: Array<{ id: string; command: string }>;
-  }>(`${app.url}/api/export/verification-runs.json`, {
+  }>(`${app.apiUrl}/export/verification-runs.json`, {
     headers: { Cookie: authCookie },
   });
   if (
@@ -1209,5 +1242,7 @@ try {
   else process.env.HOST = originalHost;
   if (originalNodeEnv == null) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = originalNodeEnv;
+  if (originalAppBasePath == null) delete process.env.APP_BASE_PATH;
+  else process.env.APP_BASE_PATH = originalAppBasePath;
   cleanup();
 }

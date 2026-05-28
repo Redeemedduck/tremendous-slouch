@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { createApp, createDb } from "../server";
 
@@ -12,7 +11,10 @@ type RunningApp = {
 
 const dbPath =
   process.env.PROD_SMOKE_DB_PATH ??
-  path.join(os.tmpdir(), `djdi-prod-smoke-${process.pid}-${Date.now()}.db`);
+  path.join(
+    path.resolve(process.env.DJDI_WORK_DIR ?? ".build-work", "verify"),
+    `djdi-prod-smoke-${process.pid}-${Date.now()}.db`
+  );
 const accessCode =
   process.env.PROD_SMOKE_ACCESS_CODE ??
   `prod-smoke-${process.pid}-${Date.now()}`;
@@ -83,6 +85,7 @@ function listen(server: http.Server): Promise<string> {
 }
 
 async function start(): Promise<RunningApp> {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = createDb(dbPath);
   const app = createApp(db, { serveAssets: true });
   const server = http.createServer(app);
