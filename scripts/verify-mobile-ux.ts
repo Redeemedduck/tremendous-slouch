@@ -436,6 +436,8 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Roster", exact: true }).click();
     await page.getByRole("heading", { name: "League Roster" }).waitFor();
     await page.getByText("Handicap Index:", { exact: false }).first().waitFor();
+    const beckRosterRow = page.locator("li").filter({ hasText: "Beck" }).first();
+    await beckRosterRow.getByText(/^verified$/).waitFor();
     if ((await page.getByText("Paste handicap evidence").count()) > 0) {
       throw new Error("public roster exposed commissioner handicap-evidence controls");
     }
@@ -644,7 +646,7 @@ async function verifyMobileBrowser(url: string) {
     logPhase("browser:money-flow");
 
     await nav.getByRole("button", { name: "Roster", exact: true }).click();
-    await page.getByRole("button", { name: /Roster 12 members.*12 hcp missing/ }).click();
+    await page.getByRole("button", { name: /Roster 12 members.*11 hcp missing/ }).click();
     await page.getByRole("button", { name: "Copy records" }).waitFor();
     await page.getByLabel("Paste handicap evidence").fill("Beck 8.2");
     await page.getByText("1 matched: Beck").waitFor();
@@ -1190,6 +1192,28 @@ try {
   }
   logPhase("startup:commissioner");
   const authCookie = `${cookie}; ${commissionerSetCookie.split(";")[0]}`;
+  const verifiedHandicap = await fetchJson<{ player: { name: string } }>(
+    `${app.apiUrl}/players/Beck`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: authCookie },
+      body: JSON.stringify({
+        handicap: 8.2,
+        ghinNumber: "1234567",
+        handicapSourceType: "ghin",
+        handicapSource: "Mobile UX verifier GHIN evidence",
+        handicapVerifiedAt: "2026-05-19T12:00:00.000Z",
+        handicapVerifiedBy: "Mobile UX",
+        member: true,
+      }),
+    }
+  );
+  if (verifiedHandicap.status !== 200) {
+    throw new Error(
+      `mobile UX verified handicap seed failed with HTTP ${verifiedHandicap.status}`
+    );
+  }
+  logPhase("seed:verified-handicap");
   const teeTimeId = await seedStopOneScenario(app.apiUrl, authCookie);
   logPhase("seed:stop-one");
   await verifyMobileBrowser(app.url);

@@ -97,6 +97,7 @@ export type Player = {
   handicapSourceType?: string | null;
   handicapVerifiedAt?: string | null;
   handicapVerifiedBy?: string | null;
+  handicapVerified?: boolean;
   /** True for full league members (paid the season buy-in, eligible for
    *  season points + post-season, can attest other members' scores).
    *  False = drop-in (one-tournament guest of a member). */

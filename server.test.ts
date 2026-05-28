@@ -1028,12 +1028,13 @@ describe.sequential("server app factory", () => {
           name: "Beck",
           handicap: 8.2,
           handicapSourceType: "ghin",
-          handicapVerifiedAt: "2026-05-19T12:00:00.000Z",
+          handicapVerified: true,
           member: true,
         });
         expect(beck).not.toHaveProperty("ghinNumber");
         expect(beck).not.toHaveProperty("handicapSource");
         expect(beck).not.toHaveProperty("handicapNote");
+        expect(beck).not.toHaveProperty("handicapVerifiedAt");
         expect(beck).not.toHaveProperty("handicapVerifiedBy");
       });
 

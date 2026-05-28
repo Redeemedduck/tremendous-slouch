@@ -142,7 +142,27 @@ try {
     await page.goto(baseUrl, { waitUntil: "load" });
     if (accessBefore.body.required) {
       await page.getByPlaceholder("Access code").fill(accessCode ?? "");
+      const unlockResponse = page.waitForResponse(
+        (response) =>
+          response.url().includes(`${apiBasePath}/access`) &&
+          response.request().method() === "POST",
+        { timeout: 15_000 }
+      );
       await page.getByRole("button", { name: "Unlock" }).click();
+      const response = await unlockResponse;
+      if (!response.ok()) {
+        throw new Error(`remote access unlock failed with HTTP ${response.status()}`);
+      }
+      await page.waitForFunction(
+        async (apiPrefix) => {
+          const access = await fetch(`${apiPrefix}/access`);
+          if (!access.ok) return false;
+          const body = (await access.json()) as { ok?: boolean };
+          return body.ok === true;
+        },
+        apiBasePath,
+        { timeout: 15_000 }
+      );
     }
     await page.getByRole("heading", { name: "DJDI Golf Board" }).waitFor();
     await page.evaluate(async (apiPrefix) => {
@@ -177,6 +197,30 @@ try {
     if ((await nav.getByRole("button", { name: "Admin", exact: true }).count()) > 0) {
       throw new Error("remote locked player nav exposed Admin");
     }
+    await page.evaluate(async (apiPrefix) => {
+      const response = await fetch(`${apiPrefix}/players`);
+      const body = (await response.json().catch(() => ({}))) as {
+        players?: Array<Record<string, unknown>>;
+      };
+      if (!response.ok || !Array.isArray(body.players)) {
+        throw new Error(`public players endpoint failed: HTTP ${response.status}`);
+      }
+      const beck = body.players.find((player) => player.name === "Beck");
+      if (!beck || typeof beck.handicapVerified !== "boolean") {
+        throw new Error("public players endpoint did not expose handicapVerified boolean");
+      }
+      for (const field of [
+        "ghinNumber",
+        "handicapSource",
+        "handicapNote",
+        "handicapVerifiedAt",
+        "handicapVerifiedBy",
+      ]) {
+        if (field in beck) {
+          throw new Error(`public players endpoint leaked ${field}`);
+        }
+      }
+    }, apiBasePath);
 
     const playerFlow = await page.evaluate(async (apiPrefix) => {
       const stamp = Date.now();

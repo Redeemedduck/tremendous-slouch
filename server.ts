@@ -746,11 +746,17 @@ const rowToPlayer = (row: PlayerRow) => ({
   updatedAt: row.updated_at,
 });
 
+const rowHasSourceBackedHandicap = (row: PlayerRow) =>
+  row.handicap != null &&
+  !!row.handicap_verified_at &&
+  !!row.handicap_verified_by &&
+  Boolean(row.ghin_number || row.handicap_source || row.handicap_note);
+
 const rowToPublicPlayer = (row: PlayerRow) => ({
   name: row.name,
   handicap: row.handicap,
   handicapSourceType: row.handicap_source_type ?? null,
-  handicapVerifiedAt: row.handicap_verified_at ?? null,
+  handicapVerified: rowHasSourceBackedHandicap(row),
   member: !!row.member,
   updatedAt: row.updated_at,
 });
@@ -4647,10 +4653,12 @@ const togglePollResponseTx = db.transaction(
   app.get("/api/players", (req, res) => {
     try {
       const rows = stmtSelectAllPlayers.all() as PlayerRow[];
+      if (hasCommissionerAccess(req)) {
+        res.json({ players: rows.map(rowToPlayer) });
+        return;
+      }
       res.json({
-        players: rows.map(
-          hasCommissionerAccess(req) ? rowToPlayer : rowToPublicPlayer
-        ),
+        players: rows.map(rowToPublicPlayer),
       });
     } catch (err) {
       console.error("GET /api/players failed:", err);
