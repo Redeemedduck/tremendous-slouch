@@ -3696,7 +3696,7 @@ describe.sequential("server app factory", () => {
       });
   });
 
-  it("rejects closeout while rule blockers exist and locks edits after closeout", async () => {
+  it("rejects closeout while score review items exist and locks edits after closeout", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
     const admin = await commissionerAgent(app);

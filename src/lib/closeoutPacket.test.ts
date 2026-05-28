@@ -130,7 +130,7 @@ describe("buildCloseoutPacket", () => {
     expect(packet).toContain("Alex: Score attestation is still pending");
   });
 
-  it("prints rule blockers for incomplete scored groups", () => {
+  it("prints score review items for incomplete scored groups", () => {
     const packet = buildCloseoutPacket({
       tournament,
       tournaments: [tournament],
@@ -157,9 +157,9 @@ describe("buildCloseoutPacket", () => {
       exportedAt: "2026-05-25T12:00:00.000Z",
     });
 
-    expect(packet).toContain("Status: blocked - 1 rule blocker");
+    expect(packet).toContain("Status: blocked - 1 score review item");
     expect(packet).toContain("Blake: Missing score");
-    expect(packet).toContain("Closeout action: Blocked.");
+    expect(packet).toContain("Closeout action: Blocked. Finish score review before closeout.");
   });
 
   it("prints payout settlement evidence state", () => {

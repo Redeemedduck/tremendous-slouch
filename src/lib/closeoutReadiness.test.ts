@@ -104,7 +104,7 @@ describe("buildCloseoutReadiness", () => {
     expect(readiness.board[0]?.name).toBe("Blake");
   });
 
-  it("surfaces rule blockers after the window ends", () => {
+  it("surfaces score review items after the window ends", () => {
     const t = tournament();
     const readiness = buildCloseoutReadiness({
       tournament: t,
@@ -122,7 +122,7 @@ describe("buildCloseoutReadiness", () => {
     });
 
     expect(readiness.status).toBe("blocked");
-    expect(readiness.detail).toBe("1 rule blocker");
+    expect(readiness.detail).toBe("1 score review item");
     expect(readiness.issues.map((issue) => issue.message)).toContain("Missing score");
   });
 

@@ -34,7 +34,7 @@ function closeoutAction(status: string) {
     case "closed":
       return "Closed. Reopen before changing tee times, scores, or payout state.";
     case "blocked":
-      return "Blocked. Resolve every rule blocker before closeout.";
+      return "Blocked. Finish score review before closeout.";
     case "upcoming":
       return "Upcoming. Closeout is available after the tournament window opens and scores exist.";
     case "active":

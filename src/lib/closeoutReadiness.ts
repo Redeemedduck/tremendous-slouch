@@ -87,7 +87,7 @@ export function buildCloseoutReadiness({
     return {
       status: "blocked",
       buttonLabel: "Blocked",
-      detail: `${issues.length} rule blocker${issues.length === 1 ? "" : "s"}`,
+      detail: `${issues.length} score review item${issues.length === 1 ? "" : "s"}`,
       board,
       issues,
       payoutEvidence,

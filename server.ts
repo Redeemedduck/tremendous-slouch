@@ -1894,10 +1894,10 @@ function buildCompletionAudit({
     {
       id: "score-rules",
       area: "Scoring",
-      requirement: "League scores have no current rule blockers.",
+      requirement: "League scores have no open score-review items.",
       status: ruleIssues.length === 0 ? "passed" : "blocked",
       proofStrength: "derived",
-      evidence: [`${ruleIssues.length} score rule blocker(s)`],
+      evidence: [`${ruleIssues.length} open score-review item(s)`],
       artifactUrls: ["/api/export/readiness.json", "/api/export/scores.csv"],
       nextAction:
         ruleIssues.length === 0
@@ -4458,7 +4458,7 @@ const togglePollResponseTx = db.transaction(
       const { teeTimes, players, issues } = auditTournamentForCloseout(row);
       if (issues.length > 0) {
         return res.status(409).json({
-          error: "Tournament has rule blockers",
+          error: "Tournament needs score review before closeout",
           issues,
         });
       }
