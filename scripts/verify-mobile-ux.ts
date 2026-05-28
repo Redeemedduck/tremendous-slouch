@@ -709,8 +709,9 @@ async function verifyMobileBrowser(url: string) {
     await page.getByText("Official", { exact: true }).waitFor();
     await page.getByText("Needs confirm", { exact: true }).waitFor();
     await page.getByText("Draft", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Override attestation" }).click();
-    await page.getByRole("button", { name: "Confirm override" }).click();
+    await page.getByRole("button", { name: "Override all pending" }).click();
+    await page.getByRole("button", { name: "Confirm all overrides" }).click();
+    await page.getByText(/Overrode \d+ pending attestation/).waitFor();
     await page.getByText("No pending attestations.").waitFor();
     logPhase("browser:attestation-override");
     await page.getByRole("button", { name: "Open score cards" }).waitFor();

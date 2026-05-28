@@ -146,6 +146,10 @@ export function AdminConsole({
   const [confirmingAttestationKey, setConfirmingAttestationKey] = useState<string | null>(
     null
   );
+  const [confirmingBulkAttestations, setConfirmingBulkAttestations] =
+    useState(false);
+  const [bulkAttestationSaving, setBulkAttestationSaving] = useState(false);
+  const [bulkAttestationStatus, setBulkAttestationStatus] = useState("");
   const [completionAudit, setCompletionAudit] =
     useState<CompletionAudit | null>(null);
   const [completionAuditError, setCompletionAuditError] = useState(false);
@@ -492,10 +496,38 @@ export function AdminConsole({
     const key = `${teeTimeId}:${playerName}`;
     if (confirmingAttestationKey !== key) {
       setConfirmingAttestationKey(key);
+      setConfirmingBulkAttestations(false);
       return;
     }
     await onAttestScore(teeTimeId, playerName);
     setConfirmingAttestationKey(null);
+  };
+
+  const overrideAllPendingAttestations = async () => {
+    if (scoreReview.pendingRows.length === 0 || bulkAttestationSaving) return;
+    if (!confirmingBulkAttestations) {
+      setConfirmingBulkAttestations(true);
+      setConfirmingAttestationKey(null);
+      setBulkAttestationStatus("");
+      return;
+    }
+    const targets = scoreReview.pendingRows.map(({ teeTime, score }) => ({
+      teeTimeId: teeTime.id,
+      playerName: score.name,
+    }));
+    setBulkAttestationSaving(true);
+    setBulkAttestationStatus("");
+    try {
+      for (const target of targets) {
+        await onAttestScore(target.teeTimeId, target.playerName);
+      }
+      setBulkAttestationStatus(
+        `Overrode ${targets.length} pending attestation${targets.length === 1 ? "" : "s"}.`
+      );
+      setConfirmingBulkAttestations(false);
+    } finally {
+      setBulkAttestationSaving(false);
+    }
   };
 
   return (
@@ -948,6 +980,35 @@ export function AdminConsole({
           >
             Review first score: {ruleIssues[0].player} - {ruleIssues[0].message}
           </button>
+        )}
+        {scoreReview.pendingRows.length > 0 && (
+          <div className="mt-3 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+              Commissioner override
+            </p>
+            <p className="mt-1 text-sm leading-5 text-amber-950">
+              Use this only after the listed score evidence has been reviewed.
+              Each score is still recorded as a commissioner override, not a player
+              attestation.
+            </p>
+            <button
+              type="button"
+              onClick={overrideAllPendingAttestations}
+              disabled={bulkAttestationSaving}
+              className="mt-2 w-full rounded-xl bg-amber-900 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-950 disabled:bg-stone-200 disabled:text-stone-500"
+            >
+              {bulkAttestationSaving
+                ? "Overriding..."
+                : confirmingBulkAttestations
+                  ? "Confirm all overrides"
+                  : "Override all pending"}
+            </button>
+          </div>
+        )}
+        {bulkAttestationStatus && (
+          <p className="mt-3 rounded-xl bg-fairway-50 px-3 py-2 text-sm font-semibold text-fairway-800">
+            {bulkAttestationStatus}
+          </p>
         )}
         {scoreReview.pendingRows.length > 0 ? (
           <div className="mt-3 space-y-2">

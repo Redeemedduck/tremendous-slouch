@@ -466,6 +466,10 @@ try {
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
     await expectSectionAnchored(page, "admin-score-attestation-review");
+    await page
+      .getByRole("button", { name: /Override all pending|Open score cards/ })
+      .first()
+      .waitFor();
     await page.getByRole("button", { name: /Attestation review/ }).click();
     await expectSectionAnchored(page, "admin-score-attestation-review");
     await page.getByRole("button", { name: /Launch checks/ }).click();
