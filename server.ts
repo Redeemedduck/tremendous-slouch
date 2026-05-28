@@ -7500,6 +7500,10 @@ const togglePollResponseTx = db.transaction(
       } else if ("paid" in (req.body ?? {})) {
         paymentStatus = req.body.paid ? "paid" : "unpaid";
       }
+      const previousPaymentStatus = normalizePaymentStatus(existing);
+      const wasPaid = paidFromStatus(previousPaymentStatus);
+      const settledStatus = paymentStatus === "paid" || paymentStatus === "comped";
+      const sameOpenStatus = paymentStatus === previousPaymentStatus && !wasPaid;
       let paymentMethod: string | null = existing.payment_method ?? null;
       if ("paymentMethod" in (req.body ?? {})) {
         paymentMethod = validateOptionalShortText(
@@ -7507,9 +7511,13 @@ const togglePollResponseTx = db.transaction(
           40,
           "Payment method"
         );
-      } else if (paymentStatus === "paid" || paymentStatus === "comped") {
+      } else if (settledStatus) {
         paymentMethod = paymentMethod ?? inferPaymentMethod(notes);
-      } else if (paymentStatus === "unpaid") {
+      } else if (sameOpenStatus) {
+        paymentMethod = paymentMethod ?? inferPaymentMethod(notes);
+      } else if (paymentStatus === "promised") {
+        paymentMethod = inferPaymentMethod(notes);
+      } else {
         paymentMethod = null;
       }
       let paymentActor: string | null = existing.payment_actor ?? null;
@@ -7519,13 +7527,14 @@ const togglePollResponseTx = db.transaction(
           NAME_MAX,
           "Payment actor"
         );
-      } else if (paymentStatus === "paid" || paymentStatus === "comped") {
+      } else if (settledStatus) {
         paymentActor = paymentActor ?? "Commissioner";
-      } else if (paymentStatus === "unpaid") {
+      } else if (sameOpenStatus) {
+        paymentActor = paymentActor ?? null;
+      } else {
         paymentActor = null;
       }
       const paid = paidFromStatus(paymentStatus) ? 1 : 0;
-      const wasPaid = paidFromStatus(normalizePaymentStatus(existing));
       const paidAt = paid
         ? "paidAt" in (req.body ?? {})
           ? validateDate(req.body.paidAt, "Payment date")

@@ -1304,6 +1304,71 @@ describe.sequential("server app factory", () => {
       });
   });
 
+  it("clears settled payment evidence when a buy-in is moved back to promised or unpaid", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+    const admin = await commissionerAgent(app);
+
+    await admin
+      .patch("/api/buyins/Beck")
+      .send({
+        amount: 400,
+        paymentStatus: "paid",
+        paymentMethod: "venmo",
+        paymentActor: "Jayson Post",
+        paidAt: "2026-05-19",
+        notes: "Venmo receipt confirmed by Jayson",
+      })
+      .expect(200);
+
+    await admin
+      .patch("/api/buyins/Beck")
+      .send({
+        paymentStatus: "promised",
+        notes: "Beck will Venmo Friday",
+      })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.buyin).toMatchObject({
+          playerName: "Beck",
+          amount: 400,
+          paid: false,
+          paymentStatus: "promised",
+          paymentMethod: "venmo",
+          paymentActor: null,
+          paidAt: null,
+          notes: "Beck will Venmo Friday",
+        });
+      });
+
+    await admin
+      .patch("/api/buyins/Beck")
+      .send({
+        paymentStatus: "unpaid",
+        notes: "Status reset",
+      })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.buyin).toMatchObject({
+          playerName: "Beck",
+          paid: false,
+          paymentStatus: "unpaid",
+          paymentMethod: null,
+          paymentActor: null,
+          paidAt: null,
+          notes: "Status reset",
+        });
+      });
+
+    await admin
+      .get("/api/export/buyins.csv")
+      .expect(200)
+      .expect((res) => {
+        expect(res.text).toContain("Beck,400,unpaid,no,,,");
+        expect(res.text).toContain(",400,Status reset,");
+      });
+  });
+
   it("neutralizes spreadsheet formulas in CSV exports", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
