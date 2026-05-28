@@ -3023,6 +3023,53 @@ describe.sequential("server app factory", () => {
     await attestScore(app, teeTime.id, "Alex", "Greg");
   });
 
+  it("rejects a claimed member who is not the selected score attester", async () => {
+    const db = createTestDb();
+    const app = createApp(db, { serveAssets: false });
+
+    await createMember(app, "Alex");
+    await createMember(app, "Greg");
+    await createMember(app, "Morgan");
+    const teeTime = await createRegularTeeTime(app);
+    await claimSpot(app, teeTime.id, "Alex");
+    await claimSpot(app, teeTime.id, "Morgan");
+
+    await scoreAsHost(app, teeTime.id, "Greg", {
+      name: "Alex",
+      gross: 80,
+      courseHcp: 10,
+      attestedBy: "Greg",
+    });
+
+    const morganCookie = await profileCookie(app, "Morgan");
+    await request(app)
+      .post(`/api/teetimes/${teeTime.id}/scores/Alex/attest`)
+      .set("Cookie", morganCookie)
+      .send({ name: "Morgan" })
+      .expect(403)
+      .expect((res) => {
+        expect(res.body.error).toBe("Only the selected attester can confirm this score");
+      });
+
+    await request(app)
+      .get("/api/teetimes")
+      .expect(200)
+      .expect((res) => {
+        const updated = res.body.teeTimes.find(
+          (candidate: any) => candidate.id === teeTime.id
+        );
+        expect(updated.scores[0]).toMatchObject({
+          name: "Alex",
+          attestedBy: "Greg",
+          attestationStatus: "pending",
+          attestedAt: null,
+          attestationActor: null,
+        });
+      });
+
+    await attestScore(app, teeTime.id, "Alex", "Greg");
+  });
+
   it("records commissioner score attestation overrides as official overrides", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
