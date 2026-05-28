@@ -850,9 +850,10 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Copy launch checklist" }).waitFor();
     await page.getByText("Evidence checklist").first().waitFor();
     await page
-      .getByText("tailscale funnel --bg --yes --https=443 3131", {
-        exact: true,
-      })
+      .getByText(
+        "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131 && tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api",
+        { exact: true }
+      )
       .waitFor();
     await page
       .getByText(

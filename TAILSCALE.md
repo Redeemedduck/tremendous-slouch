@@ -42,8 +42,8 @@ intentionally overrides that to `0.0.0.0:3131`.
 
 For this Mac's Tailscale setup, keep one production copy running:
 
-- `npm run start:phone` serves DJDI at `/` on port `3131`. This is the phone,
-  bare-hostname, and compatibility path target.
+- `npm run start:phone` serves DJDI on port `3131` with `APP_BASE_PATH=/golf`
+  and `VITE_BASE_PATH=/golf/`.
 - `npm run start:tailnet` aliases to `start:phone`; it no longer starts a
   second server on port `3000`.
 
@@ -56,16 +56,19 @@ npm run start:phone
 In another terminal on the same host:
 
 ```sh
-tailscale funnel --bg --yes --https=443 3131
+tailscale funnel --bg --yes --https=443 --set-path=/golf 3131
+tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api
 ```
 
-This makes the app available at `https://<hostname>.<tailnet>.ts.net/`. The
-certificate is provisioned automatically by Tailscale.
+This makes the app available at `https://<hostname>.<tailnet>.ts.net/golf`.
+The API is available at `/golf-api`, and the hostname root is intentionally
+left unclaimed so another app can use it. The certificate is provisioned
+automatically by Tailscale.
 
 Current target URL:
 
 ```text
-https://duckbookpro.clouded-tailor.ts.net
+https://duckbookpro.clouded-tailor.ts.net/golf
 ```
 
 To check or stop Funnel:
@@ -83,8 +86,9 @@ npm run verify:phone-access
 ```
 
 `verify:tailnet` now expects Funnel, not Serve: `tailscale funnel status` must
-show the DJDI hostname as `(Funnel on)` and route `/` to
-`http://127.0.0.1:3131`. `verify:phone-access` still checks the direct
+show the DJDI hostname as `(Funnel on)` and route `/golf` to
+`http://127.0.0.1:3131` plus `/golf-api` to `http://127.0.0.1:3131/api`.
+`verify:phone-access` still checks the direct
 Tailscale-IP and LAN fallbacks for troubleshooting.
 
 `verify:phone-access` confirms MagicDNS resolution, pings the iPhone over
@@ -93,7 +97,7 @@ commissioner access through the API, and checks the DNS-bypass fallback.
 
 ## DNS-bypass fallback
 
-If the phone cannot resolve the MagicDNS name, use the phone-root copy:
+If the phone cannot resolve the MagicDNS name, use the direct Tailscale-IP copy:
 
 ```sh
 npm run start:phone
@@ -102,18 +106,18 @@ npm run start:phone
 Then open this URL on the phone:
 
 ```text
-http://100.102.92.28:3131
+http://100.102.92.28:3131/golf
 ```
 
 That URL bypasses MagicDNS and the Funnel hostname. It goes
-straight to this Mac's Tailscale IP and serves DJDI at `/`, so there is no
-`/golf` or `/djdi` path to collide with another app.
+straight to this Mac's Tailscale IP while keeping the app on `/golf`, so the
+root URL remains available for another app.
 
 If the phone is on the same Wi-Fi as the Mac, this LAN-only URL also works
 without Tailscale:
 
 ```text
-http://192.168.8.210:3131
+http://192.168.8.210:3131/golf
 ```
 
 The Tailscale-IP URLs still require the phone to be connected to Tailscale. The
@@ -125,13 +129,13 @@ network.
 Open the Funnel URL:
 
 ```text
-https://duckbookpro.clouded-tailor.ts.net
+https://duckbookpro.clouded-tailor.ts.net/golf
 ```
 
 If DNS on the phone is the problem, open the direct Tailscale-IP URL:
 
 ```text
-http://100.102.92.28:3131
+http://100.102.92.28:3131/golf
 ```
 
 That bypasses MagicDNS and the Funnel hostname.
@@ -139,7 +143,7 @@ That bypasses MagicDNS and the Funnel hostname.
 If Tailscale itself is the problem but the phone is on the same Wi-Fi, open:
 
 ```text
-http://192.168.8.210:3131
+http://192.168.8.210:3131/golf
 ```
 
 Bookmark whichever one works on the phone.
@@ -172,7 +176,8 @@ Three options when you're ready:
 1. **Stay on Tailscale**: invite the group to your tailnet. They install
    Tailscale on their phones, sign in to your tailnet, hit the same URL.
    Free up to 100 devices.
-2. **Tailscale Funnel**: use `tailscale funnel --bg --yes --https=443 3131`.
+2. **Tailscale Funnel**: use `tailscale funnel --bg --yes --https=443 --set-path=/golf 3131`
+   and `tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api`.
    `ACCESS_CODE` should be set, and the host machine still has to stay awake.
    If the CLI says Funnel is not enabled, approve it in the Tailscale admin
    console before rerunning the command.

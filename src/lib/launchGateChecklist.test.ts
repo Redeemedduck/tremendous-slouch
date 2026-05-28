@@ -81,7 +81,8 @@ describe("launch gate checklist", () => {
             }),
             expect.objectContaining({
               id: "funnel-fallback",
-              command: "tailscale funnel --bg --yes --https=443 3131",
+              command:
+                "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131 && tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api",
             }),
             expect.objectContaining({
               id: "remote-smoke",

@@ -1146,7 +1146,7 @@ const networkAccessStatus = () => {
     "http://100.102.92.28:3131/golf";
   const lanUrl =
     process.env.DJDI_LAN_URL?.trim() ||
-    "http://192.168.8.210:3131";
+    "http://192.168.8.210:3131/golf";
   return {
     magicDnsUrl,
     appUrl,
@@ -1164,7 +1164,7 @@ const networkAccessStatus = () => {
     directExplainer:
       "Primary phone route. Bypasses DNS and goes directly to this Mac's Tailscale IP.",
     phoneRootExplainer:
-      "Primary phone route. Runs the app at the site root on a separate port, so it does not share the MagicDNS hostname path with another app.",
+      "Direct Tailscale-IP app route. Uses the same /golf path as MagicDNS while bypassing public DNS.",
     lanExplainer:
       "Bypasses Tailscale entirely. Use only when the phone and this Mac are on the same Wi-Fi network.",
   };
