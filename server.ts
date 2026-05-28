@@ -2606,10 +2606,22 @@ const calculateCourseHandicap = (
   teePar: number
 ) => roundToTenth(handicapIndex * (teeSlope / 113) + (teeRating - teePar));
 
+const scoreUsesRosterHandicap = (
+  playerRow: PlayerRow | undefined,
+  handicapIndexUsed: number | null
+) =>
+  !!playerRow &&
+  handicapIndexUsed != null &&
+  playerRow.handicap != null &&
+  rowHasSourceBackedHandicap(playerRow) &&
+  roundToTenth(playerRow.handicap) === roundToTenth(handicapIndexUsed);
+
 const validateScoreHandicapEvidence = (
   body: any,
   row: TeeTimeRow,
-  courseHcp: number | null
+  courseHcp: number | null,
+  playerRow: PlayerRow | undefined,
+  commissionerOverride: boolean
 ): Pick<
   Score,
   | "courseHcpSource"
@@ -2660,14 +2672,27 @@ const validateScoreHandicapEvidence = (
   const courseHcpOverride =
     courseHcp != null && courseHcpRounded != null && courseHcp !== courseHcpRounded;
   const requestedSource = requestedCourseHcpSource(body?.courseHcpSource);
+  const usesRosterHandicap = scoreUsesRosterHandicap(
+    playerRow,
+    handicapIndexUsed
+  );
   let courseHcpSource: string | null = null;
   if (courseHcp != null) {
-    if (courseHcpOverride) courseHcpSource = "commissioner_override";
-    else if (requestedSource === "ghin" && hasFullCalculation) courseHcpSource = "ghin";
+    if (courseHcpOverride) {
+      courseHcpSource = commissionerOverride
+        ? "commissioner_override"
+        : "manual_unverified";
+    } else if (
+      requestedSource === "ghin" &&
+      hasFullCalculation &&
+      usesRosterHandicap &&
+      playerRow?.handicap_source_type === "ghin"
+    ) courseHcpSource = "ghin";
+    else if (hasFullCalculation && usesRosterHandicap) courseHcpSource = "calculated";
     else if (requestedSource === "calculated_unverified" && hasFullCalculation) {
       courseHcpSource = "calculated_unverified";
     }
-    else if (hasFullCalculation) courseHcpSource = "calculated";
+    else if (hasFullCalculation) courseHcpSource = "calculated_unverified";
     else courseHcpSource = "manual_unverified";
   }
   return {
@@ -4103,10 +4128,14 @@ const togglePollResponseTx = db.transaction(
       }
       const enteredBy =
         signedProfileName(req) ?? (hasCommissionerAccess(req) ? "Commissioner" : name);
+      const commissionerOverride = hasCommissionerAccess(req);
+      const playerRow = stmtSelectPlayerByName.get(name) as PlayerRow | undefined;
       const handicapEvidence = validateScoreHandicapEvidence(
         req.body,
         beforeRow,
-        courseHcp
+        courseHcp,
+        playerRow,
+        commissionerOverride
       );
       const beforeScore = beforeRow
         ? (JSON.parse(beforeRow.scores) as Score[]).find((score) =>

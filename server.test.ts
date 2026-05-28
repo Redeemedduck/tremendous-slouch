@@ -3210,10 +3210,10 @@ describe.sequential("server app factory", () => {
       calculatedCourseHcp: 9.8,
       courseHcpRounded: 10,
       net: 70,
-      courseHcpSource: "calculated",
+      courseHcpSource: "calculated_unverified",
       courseHcpOverride: false,
       });
-    expect(calculatedScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeTruthy();
+    expect(calculatedScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeNull();
 
     const overrideScore = await scoreAsHost(app, teeTime.id, "Greg", {
       name: "Alex",
@@ -3230,6 +3230,26 @@ describe.sequential("server app factory", () => {
       calculatedCourseHcp: 9.8,
       courseHcpRounded: 10,
       net: 68,
+      courseHcpSource: "manual_unverified",
+      courseHcpOverride: true,
+    });
+
+    const admin = await commissionerAgent(app);
+    const commissionerOverrideScore = await admin
+      .post(`/api/teetimes/${teeTime.id}/scores`)
+      .send({
+        name: "Alex",
+        gross: 80,
+        courseHcp: 12,
+        attestedBy: "Greg",
+        teeName: "Blue",
+        teeRating: 70.1,
+        teeSlope: 125,
+        teePar: 72,
+        handicapIndexUsed: 10.6,
+      })
+      .expect(200);
+    expect(commissionerOverrideScore.body.teeTime.scores[0]).toMatchObject({
       courseHcpSource: "commissioner_override",
       courseHcpOverride: true,
     });
@@ -3260,7 +3280,7 @@ describe.sequential("server app factory", () => {
       courseHcpRounded: null,
     });
 
-    const verifiedScore = await scoreAsHost(app, teeTime.id, "Greg", {
+    const untrustedGhinScore = await scoreAsHost(app, teeTime.id, "Greg", {
       name: "Alex",
       gross: 80,
       courseHcp: 10,
@@ -3272,13 +3292,63 @@ describe.sequential("server app factory", () => {
       teePar: 72,
       handicapIndexUsed: 10.6,
     });
-    expect(verifiedScore.body.teeTime.scores[0]).toMatchObject({
+    expect(untrustedGhinScore.body.teeTime.scores[0]).toMatchObject({
+      courseHcpSource: "calculated_unverified",
+      calculatedCourseHcp: 9.8,
+      courseHcpRounded: 10,
+      courseHcpOverride: false,
+    });
+    expect(untrustedGhinScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeNull();
+
+    const admin = await commissionerAgent(app);
+    await admin
+      .put("/api/players/Alex")
+      .send({
+        handicap: 10.6,
+        ghinNumber: "1234567",
+        handicapSourceType: "ghin",
+        handicapSource: "GHIN lookup 2026-05-19: Alex 10.6",
+        handicapVerifiedAt: "2026-05-19T12:00:00.000Z",
+        handicapVerifiedBy: "Test",
+        member: true,
+      })
+      .expect(200);
+    const verifiedGhinScore = await scoreAsHost(app, teeTime.id, "Greg", {
+      name: "Alex",
+      gross: 80,
+      courseHcp: 10,
+      attestedBy: "Greg",
+      courseHcpSource: "ghin",
+      teeName: "Blue",
+      teeRating: 70.1,
+      teeSlope: 125,
+      teePar: 72,
+      handicapIndexUsed: 10.6,
+    });
+    expect(verifiedGhinScore.body.teeTime.scores[0]).toMatchObject({
       courseHcpSource: "ghin",
       calculatedCourseHcp: 9.8,
       courseHcpRounded: 10,
       courseHcpOverride: false,
     });
-    expect(verifiedScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeTruthy();
+    expect(verifiedGhinScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeTruthy();
+
+    const mismatchedRosterScore = await scoreAsHost(app, teeTime.id, "Greg", {
+      name: "Alex",
+      gross: 80,
+      courseHcp: 10,
+      attestedBy: "Greg",
+      courseHcpSource: "ghin",
+      teeName: "Blue",
+      teeRating: 70.1,
+      teeSlope: 125,
+      teePar: 72,
+      handicapIndexUsed: 12.6,
+    });
+    expect(mismatchedRosterScore.body.teeTime.scores[0]).toMatchObject({
+      courseHcpSource: "manual_unverified",
+      courseHcpVerifiedAt: null,
+    });
 
     const unverifiedCalculatedScore = await scoreAsHost(app, teeTime.id, "Greg", {
       name: "Alex",
@@ -3293,12 +3363,12 @@ describe.sequential("server app factory", () => {
       handicapIndexUsed: 10.6,
     });
     expect(unverifiedCalculatedScore.body.teeTime.scores[0]).toMatchObject({
-      courseHcpSource: "calculated_unverified",
+      courseHcpSource: "calculated",
       calculatedCourseHcp: 9.8,
       courseHcpRounded: 10,
       courseHcpOverride: false,
-      courseHcpVerifiedAt: null,
     });
+    expect(unverifiedCalculatedScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeTruthy();
   });
 
   it("prevents scored players and attesters from being removed from the tee time", async () => {
@@ -4048,7 +4118,7 @@ describe.sequential("server app factory", () => {
           `${ACTIVE_RULES_VERSION},Stop 1 — Common Ground,${teeTime.body.teeTime.id},2026-05-18,10:00,Common Ground,Jayson Post,Jayson Post,82,Common Ground,2026-05-18,Blue,70.1,125,72,10.6,9.8,10,12,10.6,70,course_hcp,Kyle Dantzler,attested,`
         );
         expect(res.text).toContain(
-          ",Kyle Dantzler,Jayson Post,commissioner_override,"
+          ",Kyle Dantzler,Jayson Post,manual_unverified,"
         );
         expect(res.text).toContain(
           ",yes,"
