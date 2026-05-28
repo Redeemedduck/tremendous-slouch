@@ -439,8 +439,8 @@ async function verifyMobileBrowser(url: string) {
       .waitFor();
     await nav.getByRole("button", { name: "Ops", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Buy-in tracking" }).waitFor();
-    await page.getByText("$3,900 outstanding. Open").waitFor();
+    await page.getByRole("heading", { name: "Do Next" }).waitFor();
+    await page.getByRole("button", { name: "Money", exact: true }).nth(1).waitFor();
     await nav.getByRole("button", { name: "Money", exact: true }).click();
     await page.getByRole("button", { name: /Pool/ }).click();
     await page.getByText(/Open buy-in status:/).waitFor();
@@ -835,7 +835,7 @@ async function verifyMobileBrowser(url: string) {
     await page
       .getByRole("button", { name: "Mark Docker image build verified" })
       .waitFor();
-    await page.getByText("No pending score review.").waitFor();
+    await page.getByRole("heading", { name: "Score Rule Audit" }).waitFor();
     await page.getByRole("heading", { name: "Tournament Closeout" }).waitFor();
     await page.getByText(/leads at net|No scored rounds yet/).first().waitFor();
     await page
