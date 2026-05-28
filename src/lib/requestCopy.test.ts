@@ -180,17 +180,22 @@ describe("request copy builders", () => {
     expect(text).toContain(
       "https://login.tailscale.com/f/funnel?node=nnRP2Xzazg11CNTRL"
     );
-    expect(text).toContain("tailscale funnel --bg --yes --https=443 3131");
     expect(text).toContain(
-      "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_SMOKE_ACCESS_CODE='<shared-code>' REMOTE_SMOKE_COMMISSIONER_CODE='<admin-code>' npm run verify:remote-smoke"
+      "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131"
+    );
+    expect(text).toContain(
+      "tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api"
+    );
+    expect(text).toContain(
+      "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_SMOKE_ACCESS_CODE='<shared-code>' REMOTE_SMOKE_COMMISSIONER_CODE='<admin-code>' npm run verify:remote-smoke"
     );
     expect(text).toContain("Do not mark Production URL smoke verified");
   });
 
   it("builds a physical iPhone Safari verification checklist", () => {
     const text = buildIphoneSafariChecklist();
-    expect(text).toContain("http://100.102.92.28:3131");
-    expect(text).toContain("https://duckbookpro.clouded-tailor.ts.net");
+    expect(text).toContain("http://100.102.92.28:3131/golf");
+    expect(text).toContain("https://duckbookpro.clouded-tailor.ts.net/golf");
     expect(text).toContain("Board, Season, Money, Roster, and Ops");
     expect(text).toContain("Archive export links");
     expect(text).toContain("mark iPhone Safari verified");

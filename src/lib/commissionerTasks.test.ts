@@ -173,7 +173,7 @@ describe("buildCommissionerTasks", () => {
     expect(tasks.find((task) => task.id === "verify-tailnet-url")).toMatchObject({
       area: "launch",
       copyText: expect.stringContaining(
-        "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net"
+        "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf"
       ),
     });
     expect(tasks.find((task) => task.id === "verify-tailnet-url")).toMatchObject({
@@ -224,10 +224,10 @@ describe("buildCommissionerTasks", () => {
 
     const requestPacket = buildCommissionerRequestPacket(tasks);
     expect(requestPacket).toContain(
-      "Primary phone URL for people with Tailscale access: http://100.102.92.28:3131"
+      "Primary phone URL for people with Tailscale access: http://100.102.92.28:3131/golf"
     );
     expect(requestPacket).toContain(
-      "Clean MagicDNS URL, if iPhone DNS is working: https://duckbookpro.clouded-tailor.ts.net"
+      "Clean MagicDNS URL, if iPhone DNS is working: https://duckbookpro.clouded-tailor.ts.net/golf"
     );
     expect(requestPacket).toContain(
       "Private Tailscale hosting is the working access path"
@@ -267,13 +267,13 @@ describe("buildCommissionerTasks", () => {
       copyText: expect.stringContaining("DJDI public production URL unblocker"),
       items: expect.arrayContaining([
         "fly auth login",
-        "tailscale funnel --bg --yes --https=443 3131",
+        "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131",
       ]),
     });
     const requestPacket = buildCommissionerRequestPacket(tasks);
     expect(requestPacket).toContain("DJDI public production URL unblocker");
     expect(requestPacket).toContain(
-      "tailscale funnel --bg --yes --https=443 3131"
+      "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131"
     );
   });
 

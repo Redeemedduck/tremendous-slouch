@@ -1131,20 +1131,20 @@ const getRequiredCommissionerCode = (): string | undefined => {
 const networkAccessStatus = () => {
   const magicDnsUrl =
     process.env.DJDI_MAGICDNS_URL?.trim() ||
-    "https://duckbookpro.clouded-tailor.ts.net";
+    "https://duckbookpro.clouded-tailor.ts.net/golf";
   const appUrl =
     process.env.DJDI_TAILNET_URL?.trim() ||
-    "https://duckbookpro.clouded-tailor.ts.net";
+    "https://duckbookpro.clouded-tailor.ts.net/golf";
   const apiUrl =
     process.env.DJDI_TAILNET_API_URL?.trim() ||
-    "https://duckbookpro.clouded-tailor.ts.net/api";
+    "https://duckbookpro.clouded-tailor.ts.net/golf-api";
   const directUrl =
     process.env.DJDI_DIRECT_TAILSCALE_URL?.trim() ||
-    "http://100.102.92.28:3131";
+    "http://100.102.92.28:3131/golf";
   const phoneRootUrl =
     process.env.DJDI_PHONE_ROOT_URL?.trim() ||
     process.env.DJDI_DIRECT_TAILSCALE_ROOT_URL?.trim() ||
-    "http://100.102.92.28:3131";
+    "http://100.102.92.28:3131/golf";
   const lanUrl =
     process.env.DJDI_LAN_URL?.trim() ||
     "http://192.168.8.210:3131";

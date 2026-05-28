@@ -1,13 +1,13 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = process.env.VITE_OUT_DIR || "dist";
 const buildRoot = path.join(
-  os.tmpdir(),
+  root,
+  ".build-work",
   `djdi-golf-board-client-build-${outDir.replace(/[^a-z0-9_-]/gi, "_")}`
 );
 

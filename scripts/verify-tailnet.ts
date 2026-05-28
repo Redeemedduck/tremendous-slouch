@@ -6,23 +6,21 @@ loadEnv({ path: [".env.local", ".env"], quiet: true });
 const rawUrl =
   process.env.TAILNET_URL ??
   process.env.DJDI_TAILNET_URL ??
-  "https://duckbookpro.clouded-tailor.ts.net";
+  "https://duckbookpro.clouded-tailor.ts.net/golf";
 const baseUrl = rawUrl.replace(/\/+$/, "");
 const parsedBaseUrl = new URL(baseUrl);
 const originUrl = parsedBaseUrl.origin;
 const appMountPath = parsedBaseUrl.pathname.replace(/\/+$/, "");
 const apiBaseUrl = (
   process.env.DJDI_TAILNET_API_URL ??
-  (appMountPath === "/djdi"
-    ? `${originUrl}/djdi-api`
-    : `${baseUrl}/api`)
+  (appMountPath ? `${originUrl}${appMountPath}-api` : `${baseUrl}/api`)
 ).replace(/\/+$/, "");
 const expectedTarget =
   process.env.DJDI_TAILNET_EXPECTED_TARGET ??
   "http://127.0.0.1:3131";
 const expectedApiTarget =
   process.env.DJDI_TAILNET_EXPECTED_API_TARGET ??
-  (appMountPath === "/djdi" ? "http://127.0.0.1:3131/api" : expectedTarget);
+  (appMountPath ? "http://127.0.0.1:3131/api" : expectedTarget);
 const localUrl = (
   process.env.DJDI_LOCAL_URL ??
   "http://127.0.0.1:3131"

@@ -282,9 +282,9 @@ export function buildCommissionerTasks({
       detail: "Tailscale Funnel URL is not recorded as verified.",
       nextAction:
         "Run Tailscale Funnel status, remote smoke, and mobile smoke, then mark Tailscale Funnel smoke verified in Ops.",
-      items: ["https://duckbookpro.clouded-tailor.ts.net"],
+      items: ["https://duckbookpro.clouded-tailor.ts.net/golf"],
       copyText:
-        "tailscale funnel status\nREMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke\nREMOTE_MOBILE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_MOBILE_ACCESS_CODE=<code> REMOTE_MOBILE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-mobile-ux",
+        "tailscale funnel status\nREMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke\nREMOTE_MOBILE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_MOBILE_ACCESS_CODE=<code> REMOTE_MOBILE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-mobile-ux",
       done: false,
     });
   }
@@ -301,7 +301,7 @@ export function buildCommissionerTasks({
         "Run remote smoke against the final URL, then mark Production URL smoke verified in Ops.",
       items: [
         "fly auth login",
-        "tailscale funnel --bg --yes --https=443 3131",
+        "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131",
         "REMOTE_SMOKE_URL=https://... REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke",
       ],
       copyText: buildProductionUrlChecklist(),
@@ -348,8 +348,8 @@ export function buildCommissionerRequestPacket(tasks: CommissionerTask[]) {
   const tailnetVerified = !tasks.some((task) => task.id === "verify-tailnet-url");
   const accessLines = tailnetVerified
       ? [
-        "Primary phone URL for people with Tailscale access: http://100.102.92.28:3131",
-        "Clean MagicDNS URL, if iPhone DNS is working: https://duckbookpro.clouded-tailor.ts.net",
+        "Primary phone URL for people with Tailscale access: http://100.102.92.28:3131/golf",
+        "Clean MagicDNS URL, if iPhone DNS is working: https://duckbookpro.clouded-tailor.ts.net/golf",
         "Private Tailscale hosting is the working access path; no public production URL is required unless DJDI_REQUIRE_PRODUCTION_URL=1.",
       ]
     : [];

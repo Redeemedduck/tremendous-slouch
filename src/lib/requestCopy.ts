@@ -99,21 +99,22 @@ export function buildProductionUrlChecklist(appName = "djdi-golf-board") {
     "1. Enable Funnel in the Tailscale admin console if the CLI asks for it:",
     "https://login.tailscale.com/f/funnel?node=nnRP2Xzazg11CNTRL",
     "2. Publish only DJDI on a dedicated public port:",
-    "tailscale funnel --bg --yes --https=443 3131",
+    "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131",
+    "tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api",
     "3. Verify the public Funnel URL:",
-    "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_SMOKE_ACCESS_CODE='<shared-code>' REMOTE_SMOKE_COMMISSIONER_CODE='<admin-code>' npm run verify:remote-smoke",
+    "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_SMOKE_ACCESS_CODE='<shared-code>' REMOTE_SMOKE_COMMISSIONER_CODE='<admin-code>' npm run verify:remote-smoke",
     "",
     "Do not mark Production URL smoke verified until one of those remote-smoke commands exits 0 against the final URL.",
   ].join("\n");
 }
 
 export function buildIphoneSafariChecklist(
-  appUrl = "http://100.102.92.28:3131"
+  appUrl = "http://100.102.92.28:3131/golf"
 ) {
   return [
     "DJDI physical iPhone Safari verification:",
     `1. On physical iPhone Safari, open ${appUrl}.`,
-    "   Use https://duckbookpro.clouded-tailor.ts.net only after the direct Tailscale-IP link works.",
+    "   Use https://duckbookpro.clouded-tailor.ts.net/golf only after the direct Tailscale-IP link works.",
     "2. Enter the shared access code and confirm the board unlocks.",
     "3. Confirm bottom navigation opens Board, Season, Money, Roster, and Ops.",
     "4. Board: open an active or past tee time and confirm score controls are usable without overlap.",

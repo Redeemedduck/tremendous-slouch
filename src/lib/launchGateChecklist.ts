@@ -67,7 +67,7 @@ const checklistSteps: Record<
         id: "tailscale-funnel-status",
         label: "Confirm Tailscale Funnel route.",
         requiredEvidence:
-          "tailscale funnel status shows the DJDI hostname proxying / to local port 3131.",
+          "tailscale funnel status shows the DJDI hostname proxying /golf to local port 3131 and /golf-api to /api.",
         command: "tailscale funnel status",
       },
       {
@@ -76,21 +76,21 @@ const checklistSteps: Record<
         requiredEvidence:
           "The Funnel API health endpoint returns ok: true and database: ok.",
         command:
-          "curl -fsS https://duckbookpro.clouded-tailor.ts.net/api/health",
+          "curl -fsS https://duckbookpro.clouded-tailor.ts.net/golf-api/health",
       },
       {
         id: "funnel-smoke",
         label: "Run Funnel remote smoke.",
         requiredEvidence: "The verifier exits 0 and prints ok: true.",
         command:
-          "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke",
+          "REMOTE_SMOKE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke",
       },
       {
         id: "funnel-mobile",
         label: "Run Funnel mobile viewport smoke.",
         requiredEvidence: "The verifier exits 0 and prints ok: true.",
         command:
-          "REMOTE_MOBILE_URL=https://duckbookpro.clouded-tailor.ts.net REMOTE_MOBILE_ACCESS_CODE=<code> REMOTE_MOBILE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-mobile-ux",
+          "REMOTE_MOBILE_URL=https://duckbookpro.clouded-tailor.ts.net/golf REMOTE_MOBILE_ACCESS_CODE=<code> REMOTE_MOBILE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-mobile-ux",
       },
       {
         id: "funnel-note",
@@ -147,7 +147,7 @@ const checklistSteps: Record<
         id: "iphone-open",
         label: "Open the direct Tailscale-IP phone URL on physical iPhone Safari.",
         requiredEvidence:
-          "http://100.102.92.28:3131 loads in Safari, not desktop Chrome emulation.",
+          "http://100.102.92.28:3131/golf loads in Safari, not desktop Chrome emulation.",
       },
       {
         id: "iphone-unlock",

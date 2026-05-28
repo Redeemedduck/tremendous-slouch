@@ -4,9 +4,9 @@ const rootUrl =
   process.env.LIVE_ROUTING_URL ||
   process.env.REMOTE_SMOKE_URL ||
   process.env.REMOTE_MOBILE_URL ||
-  "https://duckbookpro.clouded-tailor.ts.net";
+  "https://duckbookpro.clouded-tailor.ts.net/golf";
 const directUrl =
-  process.env.LIVE_ROUTING_DIRECT_URL || "http://100.102.92.28:3131";
+  process.env.LIVE_ROUTING_DIRECT_URL || "http://100.102.92.28:3131/golf";
 const expectedTitle = "DJDI Golf Board";
 
 function withoutTrailingSlash(value) {
@@ -51,38 +51,30 @@ function assertDjdiHtml(label, result) {
 
 try {
   const root = withoutTrailingSlash(rootUrl);
-  const compatibility = `${root}/djdi`;
   const direct = withoutTrailingSlash(directUrl);
 
-  const [rootHtml, compatibilityHtml, directHtml] = await Promise.all([
+  const [rootHtml, directHtml] = await Promise.all([
     getText(root),
-    getText(compatibility),
     getText(direct),
   ]);
-  assertDjdiHtml("root URL", rootHtml);
-  assertDjdiHtml("/djdi URL", compatibilityHtml);
+  assertDjdiHtml("/golf URL", rootHtml);
   assertDjdiHtml("direct Tailscale-IP URL", directHtml);
 
   const [
     rootHealth,
-    compatibilityHealth,
     directHealth,
     rootAccess,
-    compatibilityAccess,
     directAccess,
   ] =
     await Promise.all([
       getJson(apiUrl(root, "/health")),
-      getJson(apiUrl(compatibility, "/health")),
       getJson(apiUrl(direct, "/health")),
       getJson(apiUrl(root, "/access")),
-      getJson(apiUrl(compatibility, "/access")),
       getJson(apiUrl(direct, "/access")),
     ]);
 
   for (const [label, result] of [
-    ["root health", rootHealth],
-    ["/djdi health", compatibilityHealth],
+    ["/golf health", rootHealth],
     ["direct health", directHealth],
   ]) {
     if (result.status !== 200 || !result.body.ok || result.body.database !== "ok") {
@@ -91,8 +83,7 @@ try {
   }
 
   for (const [label, result] of [
-    ["root access", rootAccess],
-    ["/djdi access", compatibilityAccess],
+    ["/golf access", rootAccess],
     ["direct Tailscale-IP access", directAccess],
   ]) {
     if (result.status !== 200 || !result.body.required || result.body.ok) {
@@ -108,14 +99,14 @@ try {
       `Tailscale Funnel is not public on duckbookpro.clouded-tailor.ts.net: ${funnelStatus.trim()}`
     );
   }
-  if (!funnelStatus.includes("|-- /         proxy http://127.0.0.1:3131")) {
-    throw new Error(`root Funnel proxy is missing: ${funnelStatus.trim()}`);
+  if (funnelStatus.includes("|-- /         proxy http://127.0.0.1:3131")) {
+    throw new Error(`root Funnel proxy should not be claimed by DJDI: ${funnelStatus.trim()}`);
   }
-  if (!funnelStatus.includes("|-- /djdi     proxy http://127.0.0.1:3131")) {
-    throw new Error(`/djdi Funnel proxy is missing: ${funnelStatus.trim()}`);
+  if (!funnelStatus.includes("|-- /golf     proxy http://127.0.0.1:3131")) {
+    throw new Error(`/golf Funnel proxy is missing: ${funnelStatus.trim()}`);
   }
-  if (!funnelStatus.includes("|-- /djdi-api proxy http://127.0.0.1:3131/api")) {
-    throw new Error(`/djdi-api Funnel proxy is missing: ${funnelStatus.trim()}`);
+  if (!funnelStatus.includes("|-- /golf-api proxy http://127.0.0.1:3131/api")) {
+    throw new Error(`/golf-api Funnel proxy is missing: ${funnelStatus.trim()}`);
   }
 
   console.log(
@@ -123,15 +114,13 @@ try {
       {
         ok: true,
         root,
-        compatibility,
         direct,
         title: expectedTitle,
         accessGate: "verified",
         health: "verified",
         funnelRoutes: {
-          "/": "http://127.0.0.1:3131",
-          "/djdi": "http://127.0.0.1:3131",
-          "/djdi-api": "http://127.0.0.1:3131/api",
+          "/golf": "http://127.0.0.1:3131",
+          "/golf-api": "http://127.0.0.1:3131/api",
         },
       },
       null,

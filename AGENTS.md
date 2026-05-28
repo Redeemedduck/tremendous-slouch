@@ -67,8 +67,8 @@ No Gemini API key is required for this app.
 These are the current local/private DJDI codes for this repo runtime. They are
 not third-party service credentials.
 
-- Tailscale URL: `https://duckbookpro.clouded-tailor.ts.net`
-- Direct phone fallback: `http://100.102.92.28:3131`
+- Tailscale URL: `https://duckbookpro.clouded-tailor.ts.net/golf`
+- Direct phone fallback: `http://100.102.92.28:3131/golf`
 - Access code: `p0sJGOlbAPuoxGHHYtA1cMRySw5t4Ad3`
 - Commissioner code: `test-admin`
 

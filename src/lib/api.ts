@@ -1,19 +1,19 @@
 const API_PREFIX = "/api";
-const MOUNTED_API_PREFIX = "/djdi-api";
+const MOUNTED_APP_PATHS = new Set(["/djdi", "/golf"]);
 
 const viteEnv = (import.meta as ImportMeta & { env?: { BASE_URL?: string } }).env;
 const normalizedBase = (viteEnv?.BASE_URL ?? "/").replace(/\/+$/, "");
 
 function runtimeAppBasePath() {
   if (typeof window === "undefined") return null;
-  return window.location.pathname === "/djdi" ||
-    window.location.pathname.startsWith("/djdi/")
-    ? "/djdi"
-    : null;
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const firstSegment = `/${path.split("/").filter(Boolean)[0] ?? ""}`;
+  return MOUNTED_APP_PATHS.has(firstSegment) ? firstSegment : null;
 }
 
 export const appBasePath = runtimeAppBasePath() ?? normalizedBase ?? "";
-export const apiBasePath = appBasePath === "/djdi" ? MOUNTED_API_PREFIX : API_PREFIX;
+export const apiBasePath =
+  appBasePath && appBasePath !== "/" ? `${appBasePath}-api` : API_PREFIX;
 
 export function apiPath(path: string) {
   if (apiBasePath === API_PREFIX) return path;

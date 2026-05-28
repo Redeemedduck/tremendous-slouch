@@ -19,23 +19,25 @@ const commissionerCode = (
   process.env.DJDI_REMOTE_SMOKE_COMMISSIONER_CODE
 )?.trim();
 const magicDnsUrl = (
-  process.env.DJDI_MAGICDNS_URL ?? "https://duckbookpro.clouded-tailor.ts.net"
+  process.env.DJDI_MAGICDNS_URL ?? "https://duckbookpro.clouded-tailor.ts.net/golf"
 ).replace(/\/+$/, "");
 const appUrl = (
-  process.env.DJDI_TAILNET_URL ?? "https://duckbookpro.clouded-tailor.ts.net"
+  process.env.DJDI_TAILNET_URL ?? "https://duckbookpro.clouded-tailor.ts.net/golf"
 ).replace(/\/+$/, "");
 const apiUrl = (
-  process.env.DJDI_TAILNET_API_URL ?? "https://duckbookpro.clouded-tailor.ts.net/api"
+  process.env.DJDI_TAILNET_API_URL ?? "https://duckbookpro.clouded-tailor.ts.net/golf-api"
 ).replace(/\/+$/, "");
 const directUrl = (
   process.env.DJDI_DIRECT_TAILSCALE_URL ??
   process.env.DJDI_PHONE_ROOT_URL ??
-  "http://100.102.92.28:3131"
+  "http://100.102.92.28:3131/golf"
 ).replace(/\/+$/, "");
 const directUrlPath = new URL(directUrl).pathname.replace(/\/+$/, "");
 const directApiUrl = (
   process.env.DJDI_DIRECT_TAILSCALE_API_URL ??
-  `${new URL(directUrl).origin}${directUrlPath === "/djdi" ? "/djdi-api" : "/api"}`
+  `${new URL(directUrl).origin}${
+    directUrlPath && directUrlPath !== "/" ? `${directUrlPath}-api` : "/api"
+  }`
 ).replace(/\/+$/, "");
 const expectedDnsName =
   process.env.DJDI_TAILNET_DNS_NAME ?? "duckbookpro.clouded-tailor.ts.net";
