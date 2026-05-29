@@ -819,10 +819,10 @@ async function verifyMobileBrowser(url: string) {
       "/api/export/completion-audit.json"
     );
     await page.getByRole("heading", { name: "Commissioner Readiness" }).waitFor();
-    await page.getByText("Commissioner Settings").click();
-    await page.getByText("Buy-in, payout, points, and coordination routes.").waitFor();
-    await page.getByLabel("Season buy-in for unpaid rows").waitFor();
-    await page.getByText("Points and Payouts").waitFor();
+    await page.getByRole("button", { name: /Settings/ }).click();
+    await page.getByText("League values and admin shortcuts.").waitFor();
+    await page.getByLabel("Season buy-in").waitFor();
+    await page.getByText("Tournament values").waitFor();
     await page.getByRole("button", { name: "Schedule", exact: true }).waitFor();
     await page.getByRole("button", { name: "Launch", exact: true }).waitFor();
     await page.getByRole("heading", { name: "League Checklist" }).waitFor();

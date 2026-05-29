@@ -1038,10 +1038,10 @@ export function Operations({
             <SlidersHorizontal className="h-4 w-4 shrink-0 text-fairway-700" />
             <span className="min-w-0">
               <span className="block text-base font-semibold text-stone-900">
-                Commissioner Settings
+                Settings
               </span>
               <span className="block text-sm text-stone-500">
-                Buy-in, payout, points, and coordination routes.
+                League values and admin shortcuts.
               </span>
             </span>
           </span>
@@ -1050,48 +1050,48 @@ export function Operations({
           </span>
         </button>
         {settingsOpen && (
-          <div className="space-y-4 border-t border-stone-100 p-4">
-            <div className="rounded-xl bg-stone-50 p-3">
-              <p className="text-sm font-semibold text-stone-900">
-                Coordination Routes
+          <div className="space-y-3 border-t border-stone-100 p-4">
+            {settingsStatus && (
+              <p className="rounded-lg bg-fairway-50 px-3 py-2 text-xs font-semibold text-fairway-800">
+                {settingsStatus}
               </p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenView?.("money")}
-                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  Money
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenView?.("roster")}
-                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  Roster
-                </button>
-                <button
-                  type="button"
+            )}
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                Shortcuts
+              </p>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                <SettingShortcutButton label="Money" onClick={() => onOpenView?.("money")} />
+                <SettingShortcutButton label="Roster" onClick={() => onOpenView?.("roster")} />
+                <SettingShortcutButton
+                  label="Schedule"
                   onClick={() => openOpsSection("ops-schedule-confirmation")}
-                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  Schedule
-                </button>
-                <button
-                  type="button"
+                />
+                <SettingShortcutButton
+                  label="Launch"
                   onClick={() => openOpsSection("ops-launch-gates")}
-                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  Launch
-                </button>
+                />
               </div>
             </div>
 
-            <div className="rounded-xl bg-stone-50 p-3">
-              <div className="flex items-end gap-2">
-                <label className="min-w-0 flex-1 text-xs font-medium text-stone-600">
-                  Season buy-in for unpaid rows
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-stone-900">
+                    Season buy-in
+                  </p>
+                  <p className="text-xs text-stone-500">
+                    {unpaidBuyins.length} unpaid row
+                    {unpaidBuyins.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <label className="sr-only" htmlFor="settings-buyin-amount">
+                    Season buy-in
+                  </label>
                   <input
+                    id="settings-buyin-amount"
                     type="number"
                     min={0}
                     step={1}
@@ -1100,113 +1100,53 @@ export function Operations({
                       setBuyinSettingDraft(event.target.value);
                       setSettingsStatus("");
                     }}
-                    className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                    className="h-10 w-24 rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-900 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
                   />
-                </label>
-                <button
-                  type="button"
-                  disabled={
-                    !settingBuyinValid ||
-                    unpaidBuyins.length === 0 ||
-                    savingSettings
-                  }
-                  onClick={applyBuyinAmountToUnpaid}
-                  className="rounded-xl bg-fairway-700 px-3 py-2 text-sm font-semibold text-white hover:bg-fairway-800 disabled:bg-stone-100 disabled:text-stone-400"
-                >
-                  {savingSettings ? "Saving" : "Apply"}
-                </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !settingBuyinValid ||
+                      unpaidBuyins.length === 0 ||
+                      savingSettings
+                    }
+                    onClick={applyBuyinAmountToUnpaid}
+                    className="h-10 rounded-lg bg-fairway-700 px-3 text-sm font-semibold text-white hover:bg-fairway-800 disabled:bg-stone-100 disabled:text-stone-400"
+                  >
+                    {savingSettings ? "Saving" : "Apply"}
+                  </button>
+                </div>
               </div>
-              <p className="mt-2 text-xs text-stone-500">
-                Paid rows keep their receipt evidence; this changes only the
-                {` ${unpaidBuyins.length} `}currently unpaid buy-in
-                {unpaidBuyins.length === 1 ? "" : "s"}.
-              </p>
             </div>
 
-            <div className="rounded-xl bg-stone-50 p-3">
-              <p className="text-sm font-semibold text-stone-900">
-                Points and Payouts
-              </p>
-              <ul className="mt-2 space-y-2">
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Tournament values
+                </p>
+                <span className="text-xs text-stone-400">Pts · 1st · 2nd · 3rd</span>
+              </div>
+              <ul className="mt-2 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
                 {tournaments.map((tournament) => {
                   const draft = payoutSettingsDraftFor(tournament);
                   const valid = payoutSettingsValid(tournament);
                   const saving = savingPayoutSettings === tournament.id;
                   return (
-                    <li
+                    <TournamentSettingsRow
                       key={tournament.id}
-                      className="rounded-xl bg-white p-3 ring-1 ring-stone-200"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="min-w-0 truncate text-sm font-semibold text-stone-900">
-                          {tournament.name}
-                        </p>
-                        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-                          {tournament.type}
-                        </span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-4 gap-2">
-                        <SettingNumberInput
-                          label="Pts"
-                          value={draft.pointsToFirst}
-                          onChange={(value) =>
-                            updatePayoutSettingsDraft(tournament, {
-                              pointsToFirst: value,
-                            })
-                          }
-                        />
-                        <SettingNumberInput
-                          label="1st"
-                          value={draft.payoutFirst}
-                          onChange={(value) =>
-                            updatePayoutSettingsDraft(tournament, {
-                              payoutFirst: value,
-                            })
-                          }
-                        />
-                        <SettingNumberInput
-                          label="2nd"
-                          value={draft.payoutSecond}
-                          onChange={(value) =>
-                            updatePayoutSettingsDraft(tournament, {
-                              payoutSecond: value,
-                            })
-                          }
-                        />
-                        <SettingNumberInput
-                          label="3rd"
-                          value={draft.payoutThird}
-                          onChange={(value) =>
-                            updatePayoutSettingsDraft(tournament, {
-                              payoutThird: value,
-                            })
-                          }
-                        />
-                      </div>
-                      {!valid && (
-                        <p className="mt-2 text-xs font-semibold text-amber-700">
-                          Use whole numbers only.
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        disabled={!valid || saving}
-                        onClick={() => savePayoutSettings(tournament)}
-                        className="mt-2 w-full rounded-xl bg-fairway-700 px-3 py-2 text-sm font-semibold text-white hover:bg-fairway-800 disabled:bg-stone-100 disabled:text-stone-400"
-                      >
-                        {saving ? "Saving" : "Save scoring settings"}
-                      </button>
-                    </li>
+                      tournament={tournament}
+                      draft={draft}
+                      valid={valid}
+                      saving={saving}
+                      onChange={(patch) =>
+                        updatePayoutSettingsDraft(tournament, patch)
+                      }
+                      onSave={() => savePayoutSettings(tournament)}
+                    />
                   );
                 })}
               </ul>
             </div>
 
-            {settingsStatus && (
-              <p className="rounded-xl bg-fairway-50 px-3 py-2 text-xs font-semibold text-fairway-800">
-                {settingsStatus}
-              </p>
-            )}
           </div>
         )}
       </section>
@@ -2631,6 +2571,102 @@ function ExportButton({ href, label }: { href: string; label: string }) {
   );
 }
 
+function SettingShortcutButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-h-10 rounded-lg bg-stone-50 px-2 text-sm font-semibold text-stone-800 ring-1 ring-stone-200 hover:bg-stone-100"
+    >
+      {label}
+    </button>
+  );
+}
+
+function TournamentSettingsRow({
+  tournament,
+  draft,
+  valid,
+  saving,
+  onChange,
+  onSave,
+}: {
+  tournament: Tournament;
+  draft: {
+    pointsToFirst: string;
+    payoutFirst: string;
+    payoutSecond: string;
+    payoutThird: string;
+  };
+  valid: boolean;
+  saving: boolean;
+  onChange: (
+    patch: Partial<{
+      pointsToFirst: string;
+      payoutFirst: string;
+      payoutSecond: string;
+      payoutThird: string;
+    }>
+  ) => void;
+  onSave: () => void;
+}) {
+  return (
+    <li className="p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-stone-900">
+            {tournament.name}
+          </p>
+          <p className="mt-0.5 text-xs uppercase tracking-wide text-stone-400">
+            {tournament.type}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!valid || saving}
+          onClick={onSave}
+          className="h-8 shrink-0 rounded-lg bg-fairway-700 px-3 text-xs font-semibold text-white hover:bg-fairway-800 disabled:bg-stone-100 disabled:text-stone-400"
+        >
+          {saving ? "Saving" : "Save"}
+        </button>
+      </div>
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        <SettingNumberInput
+          label="Pts"
+          value={draft.pointsToFirst}
+          onChange={(value) => onChange({ pointsToFirst: value })}
+        />
+        <SettingNumberInput
+          label="1st"
+          value={draft.payoutFirst}
+          onChange={(value) => onChange({ payoutFirst: value })}
+        />
+        <SettingNumberInput
+          label="2nd"
+          value={draft.payoutSecond}
+          onChange={(value) => onChange({ payoutSecond: value })}
+        />
+        <SettingNumberInput
+          label="3rd"
+          value={draft.payoutThird}
+          onChange={(value) => onChange({ payoutThird: value })}
+        />
+      </div>
+      {!valid && (
+        <p className="mt-2 text-xs font-semibold text-amber-700">
+          Use whole numbers only.
+        </p>
+      )}
+    </li>
+  );
+}
+
 function defaultLaunchCheckNote(key: string, label: string) {
   const date = todayISO();
   if (key === "productionUrlVerified") {
@@ -2672,7 +2708,7 @@ function SettingNumberInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="min-w-0 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+    <label className="min-w-0 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
       {label}
       <input
         type="number"
@@ -2680,7 +2716,7 @@ function SettingNumberInput({
         step={1}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-2 py-2 text-sm font-semibold normal-case tracking-normal text-stone-900 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+        className="mt-1 h-9 w-full rounded-lg border border-stone-200 bg-stone-50 px-2 text-sm font-semibold normal-case tracking-normal text-stone-900 focus:border-fairway-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-fairway-100"
       />
     </label>
   );
