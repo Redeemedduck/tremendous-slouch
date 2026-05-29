@@ -9,7 +9,7 @@
     "build:server": "esbuild server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist-server/server.mjs",
     "build:prod": "npm run build && npm run build:server",
     "preview": "vite preview",
-    "clean": "rm -rf dist dist-djdi dist-server",
+    "clean": "rm -rf dist dist-phone dist-djdi dist-server",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "verify:backup": "node scripts/verify-backup.mjs",
@@ -31,7 +31,7 @@
     "start:prod": "npm run start",
     "start:tailnet": "npm run start:phone",
     "start:tailnet-direct": "npm run start:phone",
-    "start:phone": "APP_BASE_PATH=${APP_BASE_PATH:-/golf} VITE_BASE_PATH=${VITE_BASE_PATH:-/golf/} COOKIE_SECURE=0 HOST=${HOST:-0.0.0.0} PORT=${PORT:-3131} DJDI_MAGICDNS_URL=${DJDI_MAGICDNS_URL:-https://duckbookpro.clouded-tailor.ts.net/golf} DJDI_TAILNET_URL=${DJDI_TAILNET_URL:-https://duckbookpro.clouded-tailor.ts.net/golf} DJDI_TAILNET_API_URL=${DJDI_TAILNET_API_URL:-https://duckbookpro.clouded-tailor.ts.net/golf-api} DJDI_DIRECT_TAILSCALE_URL=${DJDI_DIRECT_TAILSCALE_URL:-http://100.102.92.28:3131/golf} DJDI_DIRECT_TAILSCALE_API_URL=${DJDI_DIRECT_TAILSCALE_API_URL:-http://100.102.92.28:3131/golf-api} DJDI_PHONE_ROOT_URL=${DJDI_PHONE_ROOT_URL:-http://100.102.92.28:3131/golf} DJDI_LAN_URL=${DJDI_LAN_URL:-http://192.168.8.210:3131/golf} npm run start"
+    "start:phone": "APP_BASE_PATH=${APP_BASE_PATH:-/golf} VITE_BASE_PATH=${VITE_BASE_PATH:-/golf/} VITE_OUT_DIR=${VITE_OUT_DIR:-dist-phone} STATIC_DIR=${STATIC_DIR:-dist-phone} COOKIE_SECURE=0 HOST=${HOST:-0.0.0.0} PORT=${PORT:-3131} DJDI_MAGICDNS_URL=${DJDI_MAGICDNS_URL:-https://duckbookpro.clouded-tailor.ts.net/golf} DJDI_TAILNET_URL=${DJDI_TAILNET_URL:-https://duckbookpro.clouded-tailor.ts.net/golf} DJDI_TAILNET_API_URL=${DJDI_TAILNET_API_URL:-https://duckbookpro.clouded-tailor.ts.net/golf-api} DJDI_DIRECT_TAILSCALE_URL=${DJDI_DIRECT_TAILSCALE_URL:-http://100.102.92.28:3131/golf} DJDI_DIRECT_TAILSCALE_API_URL=${DJDI_DIRECT_TAILSCALE_API_URL:-http://100.102.92.28:3131/golf-api} DJDI_PHONE_ROOT_URL=${DJDI_PHONE_ROOT_URL:-http://100.102.92.28:3131/golf} DJDI_LAN_URL=${DJDI_LAN_URL:-http://192.168.8.210:3131/golf} npm run start"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",

@@ -1092,6 +1092,25 @@ describe.sequential("server app factory", () => {
       expect(() => createApp(createTestDb(), { serveAssets: true })).toThrow(
         /referenced by .* is missing/
       );
+
+      const wrongBaseDir = fs.mkdtempSync(
+        path.join(ensureTestWorkDir("assets"), "djdi-wrong-base-assets-")
+      );
+      tempDirs.push(wrongBaseDir);
+      fs.mkdirSync(path.join(wrongBaseDir, "assets"), { recursive: true });
+      fs.writeFileSync(
+        path.join(wrongBaseDir, "assets", "index.js"),
+        "console.log('ok');"
+      );
+      fs.writeFileSync(
+        path.join(wrongBaseDir, "index.html"),
+        '<!doctype html><div id="root"></div><script type="module" src="/assets/index.js"></script>'
+      );
+      process.env.STATIC_DIR = wrongBaseDir;
+      process.env.APP_BASE_PATH = "/golf";
+      expect(() => createApp(createTestDb(), { serveAssets: true })).toThrow(
+        /expected VITE_BASE_PATH=\/golf\//
+      );
     } finally {
       if (originalStaticDir == null) delete process.env.STATIC_DIR;
       else process.env.STATIC_DIR = originalStaticDir;
@@ -3402,7 +3421,7 @@ describe.sequential("server app factory", () => {
     expect(unverifiedCalculatedScore.body.teeTime.scores[0].courseHcpVerifiedAt).toBeTruthy();
   });
 
-  it("prevents scored players and attesters from being removed from the tee time", async () => {
+  it("lets commissioner remove scored players while keeping host score locks", async () => {
     const db = createTestDb();
     const app = createApp(db, { serveAssets: false });
 
@@ -3432,6 +3451,17 @@ describe.sequential("server app factory", () => {
       .set("Cookie", alexCookie)
       .send({ name: "Alex" })
       .expect(409);
+
+    const admin = await commissionerAgent(app);
+    const removed = await admin
+      .delete(`/api/teetimes/${teeTime.id}/claims/Alex`)
+      .expect(200);
+    expect(
+      removed.body.teeTime.claims.some((claim: any) => claim.name === "Alex")
+    ).toBe(false);
+    expect(
+      removed.body.teeTime.scores.some((score: any) => score.name === "Alex")
+    ).toBe(true);
   });
 
   it("renames a player across profile, buy-ins, claims, scores, and attesters", async () => {

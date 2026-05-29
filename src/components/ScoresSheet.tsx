@@ -38,12 +38,9 @@ export function ScoresSheet({
   ) => Promise<void>;
   onRemoveScore?: (name: string) => Promise<void> | void;
   canDeleteScores?: boolean;
-  /** True when this tee time falls inside a tournament window — course
-   *  handicap and attestation are required so net math is correct and the
-   *  league rule is honored. */
+  /** True when this tee time falls inside a tournament window. */
   isLeagueRound: boolean;
-  /** Whether a given name is a registered league member. Used to scope the
-   *  attester dropdown to other-members-only on the same tee time. */
+  /** Whether a given name is a registered league member. */
   isMember: (name: string) => boolean;
   getHandicap: (name: string) => number | null;
   getPlayer: (name: string) => Player | null;
@@ -628,12 +625,12 @@ export function ScoresSheet({
                         {isLeagueRound && scorerIsMember && (
                           <p className="mt-1 text-[11px] text-stone-500">
                             {handicapIndex == null
-                              ? "No Handicap Index on roster"
+                              ? "No roster H.I."
                               : hasManualOverride
-                                ? `Manual Course HCP ${hcp} - unverified override; calculated ${calculatedCourseHcp} from Handicap Index ${handicapIndex}`
+                                ? `Manual CH ${hcp}; calc ${calculatedCourseHcp} from H.I. ${handicapIndex}`
                                 : calculatedCourseHcp == null
-                                ? `Handicap Index ${handicapIndex} (${handicapSource})`
-                                : `Handicap Index ${handicapIndex} (${handicapSource}) -> Course HCP ${calculatedCourseHcp}`}
+                                ? `H.I. ${handicapIndex} (${handicapSource})`
+                                : `H.I. ${handicapIndex} -> CH ${calculatedCourseHcp}`}
                           </p>
                         )}
                       </div>

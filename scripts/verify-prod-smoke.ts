@@ -1077,7 +1077,7 @@ try {
     )
   ) {
     throw new Error(
-      `blocker handoff export smoke failed with HTTP ${blockerHandoff.status}`
+      `commissioner request export smoke failed with HTTP ${blockerHandoff.status}`
     );
   }
 
@@ -1094,7 +1094,7 @@ try {
     !blockerHandoffTextBody.includes("Evidence: blocked_source")
   ) {
     throw new Error(
-      `blocker handoff text export smoke failed with HTTP ${blockerHandoffText.status}`
+      `commissioner request text export smoke failed with HTTP ${blockerHandoffText.status}`
     );
   }
 

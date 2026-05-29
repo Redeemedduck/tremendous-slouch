@@ -773,7 +773,7 @@ try {
     )
   ) {
     throw new Error(
-      `blocker handoff export check failed with HTTP ${blockerHandoff.status}`
+      `commissioner request export check failed with HTTP ${blockerHandoff.status}`
     );
   }
 
@@ -786,7 +786,7 @@ try {
     !blockerHandoffText.text.includes("Evidence: blocked_source")
   ) {
     throw new Error(
-      `blocker handoff text export check failed with HTTP ${blockerHandoffText.status}`
+      `commissioner request text export check failed with HTTP ${blockerHandoffText.status}`
     );
   }
 

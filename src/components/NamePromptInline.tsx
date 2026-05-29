@@ -48,7 +48,7 @@ export function NamePromptInline({
           </datalist>
         )}
         <p className="text-xs text-stone-400">
-          GHIN and course handicaps are handled in the roster with a source.
+          Handicap info lives in the roster and can be updated later.
         </p>
       </form>
     </div>

@@ -22,7 +22,7 @@ npm run verify:docker # Build and smoke the production Docker image
 npm run verify:all     # Full local proof suite
 npm run start      # Start the production server; requires dist/ to already exist
 npm run start:prod # Build dist/ and then start the production server
-npm run clean      # Remove dist/
+npm run clean      # Remove dist/ and production build outputs
 ```
 
 ## Environment
@@ -51,9 +51,13 @@ No Gemini API key is required for this app.
 
 - Main UI lives under `src/`, with reusable rule logic in `src/lib/`.
 - The app coordinates tee times, group polls, roster identity, league score entry, tournament leaderboards, season standings, championship/post-season ranking, and buy-in pool tracking.
-- Ops coordinates rule audits, closeout packets/ledgers, payout settlement-note evidence, launch gates, inline/copyable launch-gate checklist, request packets, copyable blocker handoff, bulk reply intake, payment-note/evidence review, task exports, completion audit, source-search ledger, archive manifest, and the verification ledger.
+- Ops coordinates rule audits, closeout packets/ledgers, payout settlement-note evidence, launch gates, inline/copyable launch-gate checklist, request packets, commissioner request lists, bulk reply intake, payment-note/evidence review, task exports, completion audit, source-search ledger, archive manifest, and the verification ledger.
 - Player GHIN index updates can include a `handicapSource` note so roster CSV
   exports preserve direct evidence instead of relying on chat memory.
+- Keep app copy short and operational. Do not over-gate score entry or tee-time
+  cleanup; commissioner corrections are part of the product.
+- Save editable provisional Handicap Index values as unverified/unknown source
+  when needed, but never invent GHIN numbers or verified GHIN status.
 - Vite is mounted through Express in development so API routes and the client share one local origin.
 
 ### Server
@@ -75,5 +79,7 @@ No Gemini API key is required for this app.
 - Preserve concurrent edits from other workers.
 - Recheck the current worktree, live DB, and runtime before making present-tense claims.
 - Do not invent missing GHIN indexes, payments, launch status, deployment status, or physical-device verification.
+- Do not block prototype usability while waiting on evidence; mark provisional
+  data honestly and keep it editable.
 - When changing league rules, update the matching pure rule test or API integrity test in the same slice.
 - When changing Ops/export behavior, update the relevant smoke verifier so the proof suite exercises the new surface.

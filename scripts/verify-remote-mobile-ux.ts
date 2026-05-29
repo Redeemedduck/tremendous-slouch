@@ -141,28 +141,31 @@ try {
 
     await page.goto(baseUrl, { waitUntil: "load" });
     if (accessBefore.body.required) {
-      await page.getByPlaceholder("Access code").fill(accessCode ?? "");
-      const unlockResponse = page.waitForResponse(
-        (response) =>
-          response.url().includes(`${apiBasePath}/access`) &&
-          response.request().method() === "POST",
-        { timeout: 15_000 }
-      );
-      await page.getByRole("button", { name: "Unlock" }).click();
-      const response = await unlockResponse;
-      if (!response.ok()) {
-        throw new Error(`remote access unlock failed with HTTP ${response.status()}`);
+      const accessInput = page.getByPlaceholder("Access code");
+      if (await accessInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await accessInput.fill(accessCode ?? "");
+        const unlockResponse = page.waitForResponse(
+          (response) =>
+            response.url().includes(`${apiBasePath}/access`) &&
+            response.request().method() === "POST",
+          { timeout: 15_000 }
+        );
+        await page.getByRole("button", { name: "Unlock" }).click();
+        const response = await unlockResponse;
+        if (!response.ok()) {
+          throw new Error(`remote access unlock failed with HTTP ${response.status()}`);
+        }
+        await page.waitForFunction(
+          async (apiPrefix) => {
+            const access = await fetch(`${apiPrefix}/access`);
+            if (!access.ok) return false;
+            const body = (await access.json()) as { ok?: boolean };
+            return body.ok === true;
+          },
+          apiBasePath,
+          { timeout: 15_000 }
+        );
       }
-      await page.waitForFunction(
-        async (apiPrefix) => {
-          const access = await fetch(`${apiPrefix}/access`);
-          if (!access.ok) return false;
-          const body = (await access.json()) as { ok?: boolean };
-          return body.ok === true;
-        },
-        apiBasePath,
-        { timeout: 15_000 }
-      );
     }
     await page.getByRole("heading", { name: "DJDI Golf Board" }).waitFor();
     await page.evaluate(async (apiPrefix) => {
@@ -551,7 +554,7 @@ try {
     await page.getByText("Scores", { exact: true }).waitFor();
     await page.getByText("Attest", { exact: true }).waitFor();
     await page
-      .getByRole("heading", { name: "Score & Attestation Review" })
+      .getByRole("heading", { name: "Score Review" })
       .waitFor();
     await page.getByText("Official", { exact: true }).waitFor();
     await page.getByText("Needs confirm", { exact: true }).waitFor();

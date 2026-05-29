@@ -2,6 +2,7 @@ node_modules/
 build/
 .build-work/
 dist/
+dist-phone/
 dist-djdi/
 dist-server/
 output/

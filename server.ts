@@ -625,7 +625,7 @@ export type CreateAppOptions = {
   serveAssets?: boolean;
 };
 
-function assertProductionAssets(staticDir: string) {
+function assertProductionAssets(staticDir: string, appBasePath = "") {
   const absoluteStaticDir = path.resolve(staticDir);
   const indexPath = path.join(absoluteStaticDir, "index.html");
   if (!fs.existsSync(indexPath)) {
@@ -641,6 +641,19 @@ function assertProductionAssets(staticDir: string) {
     throw new Error(
       `Production asset manifest in ${indexPath} does not reference built /assets files`
     );
+  }
+  const normalizedAppBasePath = appBasePath.replace(/\/+$/, "");
+  if (normalizedAppBasePath) {
+    const wrongBaseRef = assetRefs.find(
+      (ref) =>
+        ref.startsWith("/") &&
+        !ref.startsWith(`${normalizedAppBasePath}/assets/`)
+    );
+    if (wrongBaseRef) {
+      throw new Error(
+        `Production assets in ${indexPath} were built for ${wrongBaseRef}; expected VITE_BASE_PATH=${normalizedAppBasePath}/ for APP_BASE_PATH=${normalizedAppBasePath}`
+      );
+    }
   }
   for (const ref of assetRefs) {
     const relative = ref.replace(/^\/+/, "");
@@ -664,7 +677,8 @@ export function createApp(
   const serveAssets =
     options.serveAssets ?? process.env.NODE_ENV === "production";
   const staticDir = process.env.STATIC_DIR || "dist";
-  if (serveAssets) assertProductionAssets(staticDir);
+  const appBasePath = (process.env.APP_BASE_PATH ?? "").replace(/\/+$/, "");
+  if (serveAssets) assertProductionAssets(staticDir, appBasePath);
 
 const stmtSelectAll = db.prepare(
   `SELECT * FROM tee_times ORDER BY date ASC, time ASC`
@@ -3100,7 +3114,11 @@ const claimTx = db.transaction(
 );
 
 const dropTx = db.transaction(
-  (teeId: string, claimerName: string): TeeTimeRow => {
+  (
+    teeId: string,
+    claimerName: string,
+    allowScoreLockedRemoval = false
+  ): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
     assertTournamentOpenForTeeTime(row);
@@ -3108,7 +3126,7 @@ const dropTx = db.transaction(
     const lower = claimerName.toLowerCase();
     const idx = claims.findIndex((c) => c.name.toLowerCase() === lower);
     if (idx === -1) throw new NotFoundError("No claim by that name");
-    assertClaimIsNotScoreLocked(row, claimerName);
+    if (!allowScoreLockedRemoval) assertClaimIsNotScoreLocked(row, claimerName);
     claims.splice(idx, 1);
     return stmtUpdateClaims.get(JSON.stringify(claims), teeId) as TeeTimeRow;
   }
@@ -3119,7 +3137,8 @@ const interestTx = db.transaction(
     teeId: string,
     claimerName: string,
     interestedAt: string,
-    profileSubjectId: string | null
+    profileSubjectId: string | null,
+    allowScoreLockedRemoval = false
   ): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
@@ -3131,7 +3150,7 @@ const interestTx = db.transaction(
       throw new ConflictError("That name is already marked maybe");
     }
     if (claims.some((c) => c.name.toLowerCase() === lower)) {
-      assertClaimIsNotScoreLocked(row, claimerName);
+      if (!allowScoreLockedRemoval) assertClaimIsNotScoreLocked(row, claimerName);
     }
     // If the person was claimed, move them to interested.
     const remainingClaims = claims.filter(
@@ -3611,7 +3630,6 @@ const togglePollResponseTx = db.transaction(
 
   app.use(express.json());
 
-  const appBasePath = (process.env.APP_BASE_PATH ?? "").replace(/\/+$/, "");
   if (appBasePath) {
     const mountedApiPath = `${appBasePath}-api`;
     app.use((req, _res, next) => {
@@ -4065,7 +4083,8 @@ const togglePollResponseTx = db.transaction(
         id,
         name,
         interestedAt,
-        profileSubjectIdForName(req, name)
+        profileSubjectIdForName(req, name),
+        hasCommissionerAccess(req)
       );
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
@@ -4333,7 +4352,7 @@ const togglePollResponseTx = db.transaction(
           assertProfileOwnsClaim(req, row, name, "drop this spot");
         }
       }
-      const updated = dropTx.immediate(id, name);
+      const updated = dropTx.immediate(id, name, hasCommissionerAccess(req));
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });

@@ -1006,7 +1006,7 @@ try {
     )
   ) {
     throw new Error(
-      `container blocker handoff export failed with HTTP ${blockerHandoff.status}`
+      `container commissioner request export failed with HTTP ${blockerHandoff.status}`
     );
   }
 
@@ -1023,7 +1023,7 @@ try {
     !blockerHandoffTextBody.includes("Evidence: blocked_source")
   ) {
     throw new Error(
-      `container blocker handoff text export failed with HTTP ${blockerHandoffText.status}`
+      `container commissioner request text export failed with HTTP ${blockerHandoffText.status}`
     );
   }
 

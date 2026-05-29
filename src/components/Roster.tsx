@@ -117,21 +117,26 @@ export function Roster({
     const ghinNumber = ghinDraftFor(name, player).trim();
     const sourceDraft = sourceDraftFor(name, player).trim();
     const noteDraft = noteDraftFor(name, player).trim();
-    if (handicap != null && !sourceDraft) return;
+    const inferredSource = sourceDraft || "Commissioner provisional estimate";
     setSavingName(name);
     try {
       await onUpdate(name, {
         handicap,
         ghinNumber: ghinNumber || null,
-        handicapSource: handicap == null ? null : sourceDraft,
-        handicapNote: handicap == null ? null : noteDraft || null,
+        handicapSource: handicap == null ? null : inferredSource,
+        handicapNote:
+          handicap == null
+            ? null
+            : noteDraft || (sourceDraft ? null : "Replace with GHIN/player reply."),
         handicapSourceType:
           handicap == null
             ? null
             : /\b(ghin|cga|usga)\b/i.test(sourceDraft)
               ? "ghin"
-              : "player_reply",
-        handicapVerifiedBy: handicap == null ? null : "Commissioner",
+              : sourceDraft
+                ? "player_reply"
+                : "unknown",
+        handicapVerifiedBy: handicap == null || !sourceDraft ? null : "Commissioner",
       });
       setHandicapDrafts((prev) => {
         const next = { ...prev };
@@ -329,8 +334,7 @@ export function Roster({
               const trimmedNoteDraft = noteDraft.trim();
               const validHandicapDraft =
                 trimmedDraft === "" || Number.isFinite(Number(trimmedDraft));
-              const needsSource = trimmedDraft !== "";
-              const hasSource = !needsSource || trimmedSourceDraft.length > 0;
+              const hasSource = true;
               const savedSource = p?.handicapSource ?? "";
               const savedNote = p?.handicapNote ?? "";
               const dirty =
@@ -439,9 +443,6 @@ export function Roster({
                           if (!validHandicapDraft) {
                             return;
                           }
-                          if (!hasSource) {
-                            return;
-                          }
                           saveHandicap(name, p);
                         }}
                         aria-invalid={!validHandicapDraft}
@@ -461,7 +462,7 @@ export function Roster({
                       Source
                       <input
                         value={sourceDraft}
-                        placeholder="Text reply, GHIN/CGA, commissioner note"
+                        placeholder="Optional"
                         onChange={(event) =>
                           setSourceDrafts((prev) => ({
                             ...prev,
@@ -472,18 +473,8 @@ export function Roster({
                           if (!dirty || !validHandicapDraft || !hasSource) return;
                           saveHandicap(name, p);
                         }}
-                        aria-invalid={!hasSource}
-                        className={`mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-300 focus:outline-none focus:ring-2 ${
-                          hasSource
-                            ? "border-stone-200 focus:border-fairway-600 focus:ring-fairway-100"
-                            : "border-amber-300 focus:border-amber-500 focus:ring-amber-100"
-                        }`}
+                        className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-300 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
                       />
-                      {!hasSource && (
-                        <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                          source required
-                        </span>
-                      )}
                     </label>
                     <label className="col-span-2 min-w-0 text-[11px] font-medium text-stone-500">
                       Note
@@ -508,7 +499,6 @@ export function Roster({
                       disabled={
                         !dirty ||
                         !validHandicapDraft ||
-                        !hasSource ||
                         savingName === name
                       }
                       onMouseDown={(event) => event.preventDefault()}

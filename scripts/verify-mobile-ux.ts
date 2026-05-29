@@ -557,9 +557,7 @@ async function verifyMobileBrowser(url: string) {
       );
     }
     await page
-      .getByText(
-        "Manual Course HCP 4 - unverified override; calculated 2 from Handicap Index 3.6"
-      )
+      .getByText("Manual CH 4; calc 2 from H.I. 3.6")
       .waitFor();
     await page.getByLabel("Paste score summary").fill("Jayson: 82 (70)");
     await page.getByText("1 matched: Jayson Post").waitFor();
@@ -725,7 +723,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByText("Attest", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Open tee-time board" }).waitFor();
     await page
-      .getByRole("heading", { name: "Score & Attestation Review" })
+      .getByRole("heading", { name: "Score Review" })
       .waitFor();
     await page.getByText("Official", { exact: true }).waitFor();
     await page.getByText("Needs confirm", { exact: true }).waitFor();

@@ -15,8 +15,8 @@ manager that follows the rule sheet end-to-end.
   from past entries, optional access-code gate.
 - **Group polls** — "Ask the group" ("anyone want to play MC on May 15th or
   22nd?"); multi-select voting per option; host-only delete.
-- **Identity** — self-reported GHIN handicap per player, **Member** vs
-  **Guest** (drop-in) flag, roster management.
+- **Identity** — GHIN number when known, editable provisional Handicap Index
+  when needed, **Member** vs **Guest** flag, roster management.
 - **Scoring** — record gross score after a round, with **course
   handicap** input (required for league rounds) and **attestation** by
   another member who played in your group.
@@ -34,10 +34,10 @@ manager that follows the rule sheet end-to-end.
   status controls, running total of settled vs expected, receipt/source-note guard
   before marking paid, legacy evidence-note warning for paid rows, and CSV
   ledger export.
-- **Roster truth export** — member/guest state, GHIN index, GHIN source note,
+- **Roster truth export** — member/guest state, Handicap Index, GHIN/source note,
   buy-in status, and update timestamps can be downloaded as CSV for spreadsheet
-  reconciliation. Direct GHIN edits in Roster require a source note; pasted
-  replies preserve the pasted line as the source.
+  reconciliation. Roster edits can be saved as provisional when the source is
+  not known yet; pasted replies preserve the pasted line as the source.
 - **Commissioner launch packet** — one text export with readiness, risks,
   copy/paste asks, live stop snapshot, seed preview, and verification commands.
 - **Closeout packets + ledgers** — every tournament has text and JSON exports
@@ -66,7 +66,7 @@ manager that follows the rule sheet end-to-end.
   routes plus adjustable unpaid buy-in amounts, tournament points, and payout
   values. Bulk buy-in changes deliberately skip paid rows so receipt-backed
   evidence is not overwritten.
-- **Commissioner tasks** — the risk inventory is converted into copyable,
+- **Open admin work** — the risk inventory is converted into copyable,
   mobile-safe task rows and `/api/export/tasks.json` plus
   `/api/export/tasks.csv` for buy-ins, handicap records, schedule details, access,
   and launch verification, including pasteable
@@ -75,10 +75,10 @@ manager that follows the rule sheet end-to-end.
   expose the remaining blocker/risk/external inventory directly for handoff.
 - **Request packet** — `/api/export/request-packet.txt` combines every open
   outbound ask into one copy-ready packet for the group chat.
-- **Blocker handoff** — `/api/export/blocker-handoff.json` and
-  `/api/export/blocker-handoff.txt` join open tasks to source-search decisions
-  and the Admin commissioner task panel can copy the same evidence-grade handoff
-  directly for chat.
+- **Commissioner request list** — `/api/export/commissioner-requests.json` and
+  `/api/export/commissioner-requests.txt` join open admin work to source-search
+  decisions and required manual evidence. Legacy
+  `/api/export/blocker-handoff.*` routes remain protected for compatibility.
 - **Evidence gap packet** — `/api/export/evidence-gap-packet.json`,
   `/api/export/evidence-gap-packet.csv`, and
   `/api/export/evidence-gap-packet.txt` split every unresolved payment, GHIN,
@@ -132,6 +132,8 @@ Commissioner tools stay locked when `COMMISSIONER_CODE` is missing.
 Want to use it without standing up another hosting service?
 See [`TAILSCALE.md`](./TAILSCALE.md) — `tailscale funnel` publishes the local
 production server over HTTPS. No Fly/Vercel/Railway account is required.
+`npm run start:phone` builds the phone/Tailscale client into `dist-phone/`, so
+normal local proof builds in `dist/` cannot overwrite the live `/golf` assets.
 Run `npm run verify:tailnet` after `tailscale funnel` shows `(Funnel on)` to
 prove the Funnel route, health, remote smoke, and mobile viewport checks
 against the current machine.
@@ -207,7 +209,7 @@ enables an access code, verifies the public client loads, confirms protected API
 routes reject unauthenticated requests, unlocks through `/api/access`, creates a
 tee time, records a verification run, and checks the text summary, closeout
 packet/ledger, audit, task queue JSON/CSV, completion-audit JSON/CSV,
-risk register JSON/CSV, request packet, blocker handoff, evidence-gap packet
+risk register JSON/CSV, request packet, commissioner request list, evidence-gap packet
 JSON/CSV/text, source-search JSON/CSV, launch-check JSON/CSV, launch-gate checklist,
 verification-ledger, archive, and launch-packet exports. Money review treats
 payment-like notes on unpaid rows as a separate confirmation risk instead of
@@ -240,7 +242,7 @@ season export, buy-in, roster, and score CSV exports, the machine-readable
 readiness export, closeout packet/ledger exports, audit JSON/CSV exports, the
 completion-audit JSON/CSV exports, launch-check JSON/CSV exports,
 verification JSON/CSV exports, archive manifest, task queue JSON/CSV exports,
-risk register JSON/CSV, request packet, blocker handoff, evidence-gap packet
+risk register JSON/CSV, request packet, commissioner request list, evidence-gap packet
 JSON/CSV/text, source-search JSON/CSV, launch-gate checklist, text summary
 export, and launch-packet export. It does
 not create tee times, scores, payments, roster rows, or
@@ -300,7 +302,7 @@ The command builds `djdi-golf-board:codex-smoke`, starts the image with
 the access-gated API rejects unauthenticated requests, unlocks through
 `/api/access`, loads tournaments, and checks the readiness JSON, task queue,
 task CSV, closeout packet/ledger, audit JSON/CSV, completion-audit JSON/CSV,
-risk register JSON/CSV, request packet, blocker handoff, evidence-gap packet
+risk register JSON/CSV, request packet, commissioner request list, evidence-gap packet
 JSON/CSV/text, source-search JSON/CSV, launch-check JSON/CSV, launch-gate checklist, verification ledger,
 archive manifest, summary, and launch-packet exports.
 

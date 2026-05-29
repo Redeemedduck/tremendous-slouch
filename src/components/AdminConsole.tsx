@@ -947,11 +947,11 @@ export function AdminConsole({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
-              Score & Attestation Review
+              Score Review
             </h2>
             <p className="mt-0.5 text-sm text-stone-500">
-              Official attested and override scores are separated from draft,
-              pending, and legacy-unconfirmed cards before standings closeout.
+              Posted scores stay editable. Commissioner can confirm or correct
+              anything here.
             </p>
           </div>
           <StatusPill
@@ -984,12 +984,10 @@ export function AdminConsole({
         {scoreReview.pendingRows.length > 0 && (
           <div className="mt-3 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-200">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-              Commissioner override
+              Commissioner confirm
             </p>
             <p className="mt-1 text-sm leading-5 text-amber-950">
-              Use this only after the listed score evidence has been reviewed.
-              Each score is still recorded as a commissioner override, not a player
-              attestation.
+              Use this when the score is good enough for league standings.
             </p>
             <button
               type="button"

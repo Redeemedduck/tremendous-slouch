@@ -34,7 +34,7 @@ npm run verify:remote-mobile-ux # Mobile viewport smoke; writes one backup proof
 npm run verify:mobile-ux     # Phone-sized commissioner workflow smoke
 npm run verify:docker        # Build and smoke the production Docker image
 npm run verify:all           # Full local proof suite
-npm run clean                # Remove dist/
+npm run clean                # Remove dist/ and production build outputs
 ```
 
 `npm run verify:all` runs typecheck, Vitest, build, live DB audit, backup,
@@ -89,7 +89,7 @@ is `golf-group-coordinator`.
 - Styling: Tailwind utility classes in React components plus `src/index.css`.
 
 The app coordinates tee times, group polls, comments, roster identity,
-member/guest status, buy-ins, league score entry, score attestation,
+member/guest status, buy-ins, league score entry, score review,
 tournament leaderboards, season standings, championship/post-season logic,
 commissioner Admin workflows, launch gates, and evidence exports.
 
@@ -103,11 +103,19 @@ commissioner Admin workflows, launch gates, and evidence exports.
 - Commissioner evidence includes audit events, verification runs, closeout
   packets/ledgers, payout settlement-note evidence, launch checks,
   inline/copyable launch-gate checklist, completion audit, source-search
-  ledger, archive manifest, payment evidence review, copyable blocker handoff,
+  ledger, archive manifest, payment evidence review, commissioner request list,
   request packet, and task JSON/CSV exports.
 - Roster GHIN index updates can carry an optional `handicapSource` note. Use it
   for direct evidence such as GHIN/CGA emails or copied player replies; do not
   use it to justify inferred indexes.
+- Missing handicap evidence should not block a usable prototype. Save editable
+  provisional Handicap Index values as unverified/unknown source; never invent
+  GHIN numbers or call a provisional value GHIN-verified.
+- Keep app copy short and operational. Scores submitted by the commissioner are
+  usable scores; preserve provenance and editability instead of turning score
+  review into a hard stop.
+- Commissioner controls should allow practical cleanup: edit tee times, add
+  players, remove players, and correct scores in-app.
 - Payment-like notes on unpaid buy-ins are review risks only; never treat a
   note such as "venmo" as paid unless the ledger row is explicitly marked paid.
 

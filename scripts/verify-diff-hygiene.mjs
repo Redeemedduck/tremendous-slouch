@@ -6,6 +6,7 @@ const SKIP_DIRS = new Set([
   ".git",
   ".playwright-mcp",
   "dist",
+  "dist-phone",
   "dist-djdi",
   "dist-server",
   "node_modules",
