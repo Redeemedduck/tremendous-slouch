@@ -309,6 +309,26 @@ stmtSeedTeeTime.run(
   NOW_ISO
 );
 
+// Register the Stop 1 12:40 group (host + the three players on the scorecard)
+// as league members with buy-in records. Without member = 1 rows, the league
+// attestation rule in recordScoreTx would reject any later UI edit of these
+// seeded scores ("… isn't a registered member"). Handicap is left NULL: the
+// card only gives Common-Ground course handicaps (already on each score and
+// driving leaderboard net), not the player's GHIN index. INSERT OR IGNORE so
+// hand-edited rows aren't clobbered on re-seed.
+const stmtSeedPlayer = db.prepare(
+  "INSERT OR IGNORE INTO players (name, handicap, member, updated_at) VALUES (?, NULL, 1, ?)"
+);
+const stmtSeedBuyin = db.prepare(
+  `INSERT OR IGNORE INTO league_buyins
+   (player_name, amount, paid, paid_at, notes, updated_at)
+   VALUES (?, 325, 0, NULL, NULL, ?)`
+);
+for (const name of [SEED_HOST, "John", "Noah", "Andrew"]) {
+  stmtSeedPlayer.run(name, NOW_ISO);
+  stmtSeedBuyin.run(name, NOW_ISO);
+}
+
 type TeeTimeRow = {
   id: string;
   course: string;
