@@ -261,11 +261,28 @@ for (const t of SEASON_TOURNAMENTS) {
 const stmtSeedTeeTime = db.prepare(`
   INSERT OR IGNORE INTO tee_times
   (id, course, date, time, spots, host, notes, claims, interested, scores, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?)
 `);
 const SEED_HOST = "Jason"; // organizer per the SMS thread
 const SEED_HOST_CLAIM = JSON.stringify([
   { name: SEED_HOST, claimedAt: NOW_ISO },
+]);
+
+// Final scores from the Stop 1 12:40 group's paper scorecard (gross / course
+// handicap per the figures written on the card). Course handicap drives net
+// on the tournament leaderboard; each player is attested by another in the
+// group per the league rule. Timestamped to the round date.
+const ROUND1_RECORDED_AT = "2026-05-16T19:00:00.000Z";
+const ROUND1_1240_CLAIMS = JSON.stringify([
+  { name: SEED_HOST, claimedAt: NOW_ISO },
+  { name: "John", claimedAt: NOW_ISO },
+  { name: "Noah", claimedAt: NOW_ISO },
+  { name: "Andrew", claimedAt: NOW_ISO },
+]);
+const ROUND1_1240_SCORES = JSON.stringify([
+  { name: "John", gross: 91, courseHcp: 18, attestedBy: "Noah", recordedAt: ROUND1_RECORDED_AT },
+  { name: "Noah", gross: 83, courseHcp: 13, attestedBy: "Andrew", recordedAt: ROUND1_RECORDED_AT },
+  { name: "Andrew", gross: 85, courseHcp: 16, attestedBy: "John", recordedAt: ROUND1_RECORDED_AT },
 ]);
 stmtSeedTeeTime.run(
   "seed-2026-w1-1240",
@@ -275,7 +292,8 @@ stmtSeedTeeTime.run(
   4,
   SEED_HOST,
   "Stop 1 — first foursome",
-  SEED_HOST_CLAIM,
+  ROUND1_1240_CLAIMS,
+  ROUND1_1240_SCORES,
   NOW_ISO
 );
 stmtSeedTeeTime.run(
@@ -287,6 +305,7 @@ stmtSeedTeeTime.run(
   SEED_HOST,
   "Stop 1 — second foursome (back-to-back with 12:40)",
   SEED_HOST_CLAIM,
+  "[]",
   NOW_ISO
 );
 
