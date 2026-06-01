@@ -3,15 +3,13 @@ import { X } from "lucide-react";
 import type { TeeTime } from "../lib/types";
 import { formatDateLabel, formatTimeLabel } from "../lib/format";
 
-type Draft = { gross: string; courseHcp: string; attestedBy: string };
+type Draft = { gross: string; courseHcp: string };
 
 export function ScoresSheet({
   open,
   onClose,
   teeTime,
   onRecord,
-  isLeagueRound,
-  isMember,
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,16 +17,8 @@ export function ScoresSheet({
   onRecord: (
     name: string,
     gross: number,
-    courseHcp: number | null,
-    attestedBy: string | null
+    courseHcp: number | null
   ) => Promise<void>;
-  /** True when this tee time falls inside a tournament window — course
-   *  handicap and attestation are required so net math is correct and the
-   *  league rule is honored. */
-  isLeagueRound: boolean;
-  /** Whether a given name is a registered league member. Used to scope the
-   *  attester dropdown to other-members-only on the same tee time. */
-  isMember: (name: string) => boolean;
 }) {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +35,6 @@ export function ScoresSheet({
       prefill[c.name] = {
         gross: s ? String(s.gross) : "",
         courseHcp: s?.courseHcp != null ? String(s.courseHcp) : "",
-        attestedBy: s?.attestedBy ?? "",
       };
     }
     setDrafts(prefill);
@@ -70,13 +59,11 @@ export function ScoresSheet({
       name: string;
       gross: number;
       courseHcp: number | null;
-      attestedBy: string | null;
     }[] = [];
     for (const [name, raw] of Object.entries(drafts)) {
       const grossStr = raw.gross.trim();
       const hcpStr = raw.courseHcp.trim();
-      const attestedBy = raw.attestedBy.trim();
-      if (!grossStr && !hcpStr && !attestedBy) continue;
+      if (!grossStr && !hcpStr) continue;
       if (!grossStr) {
         setError(`${name}: score is required`);
         return;
@@ -94,20 +81,8 @@ export function ScoresSheet({
           return;
         }
         courseHcp = h;
-      } else if (isLeagueRound) {
-        setError(`${name}: league rounds need a course handicap (from GHIN)`);
-        return;
       }
-      if (isLeagueRound && !attestedBy) {
-        setError(`${name}: league rounds need an attester (another member)`);
-        return;
-      }
-      tasks.push({
-        name,
-        gross: v,
-        courseHcp,
-        attestedBy: attestedBy || null,
-      });
+      tasks.push({ name, gross: v, courseHcp });
     }
     if (tasks.length === 0) {
       setError("Enter at least one score");
@@ -116,12 +91,7 @@ export function ScoresSheet({
     setSubmitting(true);
     try {
       for (const task of tasks) {
-        await onRecord(
-          task.name,
-          task.gross,
-          task.courseHcp,
-          task.attestedBy
-        );
+        await onRecord(task.name, task.gross, task.courseHcp);
       }
       onClose();
     } catch (err: any) {
@@ -172,12 +142,7 @@ export function ScoresSheet({
                 <span className="text-right">Course HCP</span>
               </div>
               {teeTime.claims.map((c) => {
-                const draft =
-                  drafts[c.name] ?? { gross: "", courseHcp: "", attestedBy: "" };
-                // Attester options: other claimers who are registered members.
-                const attesters = teeTime.claims
-                  .filter((other) => other.name !== c.name && isMember(other.name))
-                  .map((other) => other.name);
+                const draft = drafts[c.name] ?? { gross: "", courseHcp: "" };
                 return (
                   <div key={c.name} className="space-y-2">
                     <div className="grid grid-cols-[1fr,5rem,5rem] items-center gap-2">
@@ -214,53 +179,14 @@ export function ScoresSheet({
                         step={1}
                         min={-10}
                         max={54}
-                        placeholder={isLeagueRound ? "req" : "-"}
+                        placeholder="-"
                         aria-label={`${c.name} course handicap`}
                         className="rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
                       />
                     </div>
-                    {isLeagueRound && (
-                      <div className="ml-0 pl-0">
-                        {attesters.length > 0 ? (
-                          <select
-                            value={draft.attestedBy}
-                            onChange={(e) =>
-                              setDrafts((prev) => ({
-                                ...prev,
-                                [c.name]: {
-                                  ...draft,
-                                  attestedBy: e.target.value,
-                                },
-                              }))
-                            }
-                            aria-label={`${c.name} attested by`}
-                            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                          >
-                            <option value="">Attested by…</option>
-                            {attesters.map((a) => (
-                              <option key={a} value={a}>
-                                {a}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                            No other members on this tee time — score can't be
-                            attested.
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
-              {isLeagueRound && (
-                <p className="text-xs text-stone-500">
-                  League round — each player needs a course handicap (from
-                  GHIN) and an attester (another member who played in your
-                  group).
-                </p>
-              )}
             </>
           )}
 

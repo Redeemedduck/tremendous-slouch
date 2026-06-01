@@ -14,16 +14,8 @@ export type Score = {
   gross: number;
   /** Course handicap as displayed in GHIN for this round's tee/course. Per-
    *  round because slope and rating differ by course. Optional; when null we
-   *  fall back to the player's GHIN index for net display in non-league
-   *  rounds. League scoring (tee times inside a tournament window) requires
-   *  this to be present — server enforces in COL-107. */
+   *  fall back to the player's GHIN index for net display. */
   courseHcp?: number | null;
-  /** Name of the league member who corroborates this score. Required for
-   *  rounds inside a regular-tournament window per the league rule that
-   *  another member must have played in your group. Server validates that
-   *  the attester is (a) on the same tee time's claims, (b) a registered
-   *  member, and (c) not the scorer themselves. */
-  attestedBy?: string | null;
   recordedAt: string;
 };
 export type TeeTime = {
@@ -72,8 +64,8 @@ export type Player = {
   name: string;
   handicap: number | null;
   /** True for full league members (paid the season buy-in, eligible for
-   *  season points + post-season, can attest other members' scores).
-   *  False = drop-in (one-tournament guest of a member). */
+   *  season points + post-season). False = drop-in (one-tournament guest
+   *  of a member). */
   member: boolean;
   updatedAt: string;
 };
