@@ -3,12 +3,6 @@ import { Check, MessageSquare, Pencil, Send, X } from "lucide-react";
 import { eqName } from "../lib/format";
 import type { Comment } from "../lib/types";
 
-const RELATIVE_THRESHOLDS = [
-  { ms: 60_000, label: (m: number) => `${m}m ago` },
-  { ms: 3_600_000, label: (m: number) => `${m}h ago` },
-  { ms: 86_400_000, label: (m: number) => `${m}d ago` },
-] as const;
-
 function relativeTime(iso: string): string {
   const dt = Date.parse(iso);
   if (Number.isNaN(dt)) return "";

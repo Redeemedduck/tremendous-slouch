@@ -451,12 +451,8 @@ function Board({
               <CommandCenter
                 teeTimes={teeTimes}
                 tournaments={tournaments}
-                buyins={buyins}
                 players={players}
-                accessCodeRequired={accessCodeRequired}
-                launchChecks={launchChecks}
                 loaded={loaded}
-                onOpenView={openTaskView}
               />
             )}
 
@@ -596,10 +592,6 @@ function Board({
             state={commissioner}
             codeRequired={commissionerCodeRequired}
             onUnlock={handleCommissionerUnlock}
-            onContinue={() => {
-              setCommissioner("ok");
-              setView("ops");
-            }}
           />
         )}
 
@@ -635,9 +627,6 @@ function Board({
             tournaments={tournaments}
             players={players}
             buyins={buyins}
-            accessCodeRequired={accessCodeRequired}
-            launchChecks={launchChecks}
-            launchCheckEvidence={launchCheckEvidence}
             onOpenView={(target) => {
               if (target === "board" || target === "season") {
                 setView(target);
@@ -670,23 +659,6 @@ function Board({
                 refreshTournaments(),
               ]);
             }}
-            onPatchLaunchCheck={async (key, verified, note) => {
-              const r = await fetch(`/api/launch-checks/${key}`, {
-                method: "PATCH",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                  verified,
-                  verifiedBy: myName || "Commissioner",
-                  note,
-                }),
-              });
-              const data = await r.json().catch(() => ({}));
-              if (!r.ok) {
-                toast.show(data.error || "Couldn't update launch check");
-                throw new Error(data.error || "launch check failed");
-              }
-              await refreshLaunchChecks();
-            }}
             advanced={
               <Operations
                 teeTimes={teeTimes}
@@ -695,7 +667,6 @@ function Board({
                 buyins={buyins}
                 accessCodeRequired={accessCodeRequired}
                 launchChecks={launchChecks}
-                launchCheckEvidence={launchCheckEvidence}
                 getHandicap={getHandicap}
                 onFixIssue={(issue) => {
                   const teeTime = teeTimes.find((t) => t.id === issue.teeTimeId);
@@ -709,43 +680,6 @@ function Board({
                 onPatchPayout={patchPayout}
                 onPatchTournamentDetails={patchTournamentDetails}
                 onPatchBuyin={(name, patch) => patchBuyin(name, patch)}
-                onApplyUnifiedIntake={async (text) => {
-                  const r = await fetch("/api/admin/blocker-intake", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({
-                      text,
-                      actor: myName || "Commissioner",
-                    }),
-                  });
-                  const data = await r.json().catch(() => ({}));
-                  if (!r.ok) {
-                    toast.show(data.error || "Couldn't apply intake");
-                    throw new Error(data.error || "intake failed");
-                  }
-                  await Promise.all([
-                    refreshPlayers(),
-                    refreshBuyins(),
-                    refreshTournaments(),
-                  ]);
-                }}
-                onPatchLaunchCheck={async (key, verified, note) => {
-                  const r = await fetch(`/api/launch-checks/${key}`, {
-                    method: "PATCH",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({
-                      verified,
-                      verifiedBy: myName || "Commissioner",
-                      note,
-                    }),
-                  });
-                  const data = await r.json().catch(() => ({}));
-                  if (!r.ok) {
-                    toast.show(data.error || "Couldn't update launch check");
-                    throw new Error(data.error || "launch check failed");
-                  }
-                  await refreshLaunchChecks();
-                }}
                 onOpenView={openTaskView}
               />
             }
@@ -758,10 +692,6 @@ function Board({
               state={commissioner}
               codeRequired={commissionerCodeRequired}
               onUnlock={handleCommissionerUnlock}
-              onContinue={() => {
-                setCommissioner("ok");
-                setView("ops");
-              }}
             />
           )}
       </div>
@@ -897,12 +827,10 @@ function CommissionerUnlock({
   state,
   codeRequired,
   onUnlock,
-  onContinue,
 }: {
   state: CommissionerState;
   codeRequired: boolean;
   onUnlock: (code: string) => Promise<void>;
-  onContinue: () => void;
 }) {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);

@@ -1,21 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   Clipboard,
   ClipboardCheck,
-  Database,
   Download,
   Merge,
-  ShieldCheck,
   SlidersHorizontal,
   Trophy,
 } from "lucide-react";
 import { auditLeagueRules, type RuleIssue } from "../lib/audit";
-import {
-  buildBlockerHandoff,
-  buildBlockerHandoffText,
-} from "../lib/blockerHandoff";
 import { buildCloseoutReadiness } from "../lib/closeoutReadiness";
 import {
   buildCommissionerRequestPacket,
@@ -24,59 +18,11 @@ import {
 } from "../lib/commissionerTasks";
 import { apiPath } from "../lib/api";
 import { missingSourceBackedHandicapPlayers } from "../lib/handicapEvidence";
-import {
-  buildEvidenceGapPacket,
-  buildEvidenceGapPacketText,
-} from "../lib/evidenceGapPacket";
-import {
-  parseScheduleIntake,
-  parseUnifiedBlockerIntake,
-} from "../lib/bulkIntake";
+import { parseScheduleIntake } from "../lib/bulkIntake";
 import { formatDateLabel, formatTimeLabel, todayISO } from "../lib/format";
-import {
-  buildLaunchGateChecklist,
-  buildLaunchGateChecklistText,
-} from "../lib/launchGateChecklist";
-import { buildLaunchRisks } from "../lib/launchRisks";
 import { buildScheduleAsk } from "../lib/requestCopy";
-import { SOURCE_SEARCH_LEDGER } from "../lib/sourceSearchLedger";
 import { computeTournamentLeaderboard } from "../lib/tournamentLeaderboard";
 import type { Buyin, Player, TeeTime, Tournament } from "../lib/types";
-
-type CompletionAuditExport = {
-  ready: boolean;
-  appReady: boolean;
-  statusCounts: {
-    passed: number;
-    open: number;
-    blocked: number;
-  };
-  appStatusCounts: {
-    passed: number;
-    open: number;
-    blocked: number;
-  };
-  leagueDataOpen: number;
-  externalVerificationOpen: number;
-  items: Array<{
-    id: string;
-    area: string;
-    requirement: string;
-    status: "passed" | "open" | "blocked";
-    readinessScope: "app" | "league_data" | "external_verification";
-    evidence: string[];
-    artifactUrls: string[];
-    nextAction: string | null;
-  }>;
-};
-
-const auditScopeLabel = (
-  scope: "app" | "league_data" | "external_verification"
-) => {
-  if (scope === "league_data") return "league data";
-  if (scope === "external_verification") return "device check";
-  return "app";
-};
 
 export function Operations({
   teeTimes,
@@ -85,7 +31,6 @@ export function Operations({
   buyins,
   accessCodeRequired,
   launchChecks,
-  launchCheckEvidence,
   getHandicap,
   onFixIssue,
   onRenamePlayer,
@@ -94,8 +39,6 @@ export function Operations({
   onPatchPayout,
   onPatchTournamentDetails,
   onPatchBuyin,
-  onApplyUnifiedIntake,
-  onPatchLaunchCheck,
   onOpenView,
 }: {
   teeTimes: TeeTime[];
@@ -110,21 +53,6 @@ export function Operations({
     productionUrlVerified: boolean;
     mobileSafariVerified: boolean;
   };
-  launchCheckEvidence: Array<{
-    key:
-      | "dockerBuildVerified"
-      | "tailnetServeVerified"
-      | "productionUrlVerified"
-      | "mobileSafariVerified";
-    label: string;
-    envVar: string;
-    verified: boolean;
-    source: "env" | "database" | "none";
-    verifiedAt: string | null;
-    verifiedBy: string | null;
-    note: string | null;
-    updatedAt: string | null;
-  }>;
   getHandicap: (name: string) => number | null;
   onFixIssue: (issue: RuleIssue) => void;
   onRenamePlayer: (from: string, to: string) => Promise<void>;
@@ -158,16 +86,6 @@ export function Operations({
       paidAt?: string | null;
       notes?: string | null;
     }
-  ) => Promise<void>;
-  onApplyUnifiedIntake: (text: string) => Promise<void>;
-  onPatchLaunchCheck: (
-    key:
-      | "dockerBuildVerified"
-      | "tailnetServeVerified"
-      | "productionUrlVerified"
-      | "mobileSafariVerified",
-    verified: boolean,
-    note?: string | null
   ) => Promise<void>;
   onOpenView?: (view: "money" | "roster" | "ops") => void;
 }) {
@@ -206,39 +124,16 @@ export function Operations({
   const [scheduleBulkText, setScheduleBulkText] = useState("");
   const [scheduleBulkSaving, setScheduleBulkSaving] = useState(false);
   const [scheduleBulkStatus, setScheduleBulkStatus] = useState("");
-  const [unifiedIntakeText, setUnifiedIntakeText] = useState("");
-  const [unifiedIntakeSaving, setUnifiedIntakeSaving] = useState(false);
-  const [unifiedIntakeStatus, setUnifiedIntakeStatus] = useState("");
-  const [unifiedIntakeConfirmed, setUnifiedIntakeConfirmed] = useState(false);
   const [taskCopyStatus, setTaskCopyStatus] = useState<
     "idle" | "copied" | "blocked"
   >("idle");
   const [taskFallbackText, setTaskFallbackText] = useState("");
-  const [handoffCopyStatus, setHandoffCopyStatus] = useState<
-    "idle" | "copied" | "blocked"
-  >("idle");
-  const [handoffFallbackText, setHandoffFallbackText] = useState("");
-  const [evidenceGapCopyStatus, setEvidenceGapCopyStatus] = useState<
-    "idle" | "copied" | "blocked"
-  >("idle");
-  const [evidenceGapFallbackText, setEvidenceGapFallbackText] = useState("");
-  const [launchChecklistCopyStatus, setLaunchChecklistCopyStatus] = useState<
-    "idle" | "copied" | "blocked"
-  >("idle");
-  const [launchChecklistFallbackText, setLaunchChecklistFallbackText] =
-    useState("");
   const [taskActionCopyStatus, setTaskActionCopyStatus] = useState<
     Record<string, "idle" | "copied" | "blocked">
   >({});
   const [taskActionFallbackText, setTaskActionFallbackText] = useState<
     Record<string, string>
   >({});
-  const [savingLaunchCheck, setSavingLaunchCheck] = useState<string | null>(
-    null
-  );
-  const [launchCheckNotes, setLaunchCheckNotes] = useState<Record<string, string>>(
-    {}
-  );
   const [payoutNoteDrafts, setPayoutNoteDrafts] = useState<Record<string, string>>(
     {}
   );
@@ -246,9 +141,6 @@ export function Operations({
   const [confirmingCloseoutAction, setConfirmingCloseoutAction] = useState<
     string | null
   >(null);
-  const [completionAudit, setCompletionAudit] =
-    useState<CompletionAuditExport | null>(null);
-  const [completionAuditError, setCompletionAuditError] = useState(false);
   const today = useMemo(() => todayISO(), []);
   const issues = useMemo(
     () => auditLeagueRules(teeTimes, tournaments, players, today),
@@ -384,19 +276,6 @@ export function Operations({
     () => parseScheduleIntake(scheduleBulkText, unconfirmedTournaments),
     [scheduleBulkText, unconfirmedTournaments]
   );
-  const unifiedIntakeMatches = useMemo(
-    () =>
-      parseUnifiedBlockerIntake(unifiedIntakeText, {
-        players,
-        buyins,
-        tournaments: unconfirmedTournaments,
-      }),
-    [unifiedIntakeText, players, buyins, unconfirmedTournaments]
-  );
-  const unifiedIntakeCount =
-    unifiedIntakeMatches.payments.length +
-    unifiedIntakeMatches.handicaps.length +
-    unifiedIntakeMatches.schedules.length;
   const readinessItems = useMemo(
     () => [
       {
@@ -474,18 +353,6 @@ export function Operations({
   const readinessWarnings = readinessItems.filter(
     (item) => !item.ok && !item.blocker
   ).length;
-  const launchRisks = useMemo(
-    () =>
-      buildLaunchRisks({
-        players,
-        buyins,
-        tournaments,
-        ruleBlockerCount: issues.length,
-        accessCodeRequired,
-        ...launchChecks,
-      }),
-    [players, buyins, tournaments, issues.length, accessCodeRequired, launchChecks]
-  );
   const commissionerTasks = useMemo(
     () =>
       buildCommissionerTasks({
@@ -502,74 +369,6 @@ export function Operations({
     () => buildCommissionerRequestPacket(commissionerTasks),
     [commissionerTasks]
   );
-  const blockerHandoffText = useMemo(
-    () => buildBlockerHandoffText(commissionerTasks, SOURCE_SEARCH_LEDGER),
-    [commissionerTasks]
-  );
-  const blockerHandoffRows = useMemo(
-    () => buildBlockerHandoff(commissionerTasks, SOURCE_SEARCH_LEDGER).rows,
-    [commissionerTasks]
-  );
-  const blockerHandoffByTaskId = useMemo(
-    () => new Map(blockerHandoffRows.map((row) => [row.taskId, row])),
-    [blockerHandoffRows]
-  );
-  const evidenceGapPacket = useMemo(
-    () =>
-      buildEvidenceGapPacket({
-        players,
-        buyins,
-        tournaments,
-        tasks: commissionerTasks,
-        sourceEntries: SOURCE_SEARCH_LEDGER,
-      }),
-    [players, buyins, tournaments, commissionerTasks]
-  );
-  const evidenceGapPacketText = useMemo(
-    () => buildEvidenceGapPacketText(evidenceGapPacket),
-    [evidenceGapPacket]
-  );
-  const launchGateChecklist = useMemo(
-    () =>
-      buildLaunchGateChecklist(launchCheckEvidence, {
-        productionUrlRequired: launchChecks.productionUrlRequired,
-      }),
-    [launchCheckEvidence, launchChecks.productionUrlRequired]
-  );
-  const launchGateChecklistText = useMemo(
-    () =>
-      buildLaunchGateChecklistText(launchCheckEvidence, {
-        productionUrlRequired: launchChecks.productionUrlRequired,
-      }),
-    [launchCheckEvidence, launchChecks.productionUrlRequired]
-  );
-  useEffect(() => {
-    let cancelled = false;
-    setCompletionAuditError(false);
-    fetch("/api/export/completion-audit.json")
-      .then((response) => {
-        if (!response.ok) throw new Error("completion audit unavailable");
-        return response.json() as Promise<CompletionAuditExport>;
-      })
-      .then((data) => {
-        if (!cancelled) setCompletionAudit(data);
-      })
-      .catch(() => {
-        if (!cancelled) setCompletionAuditError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    accessCodeRequired,
-    buyins,
-    commissionerTasks.length,
-    issues.length,
-    launchChecks,
-    players,
-    teeTimes,
-    tournaments,
-  ]);
   const openOpsSection = (id: string) => {
     window.requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({
@@ -614,29 +413,11 @@ export function Operations({
         label: task.area === "access" ? "Open Exports" : "Open Launch Gates",
         onClick: () =>
           openOpsSection(
-            task.area === "access" ? "ops-season-export" : "ops-launch-gates"
+            task.area === "access" ? "admin-exports" : "admin-launch-access"
           ),
       };
     }
     return null;
-  };
-  const launchGateCount = launchGateChecklist.summary.total;
-  const verifiedLaunchGateCount = launchGateChecklist.summary.verified;
-  const patchLaunchCheck = async (
-    key:
-      | "dockerBuildVerified"
-      | "tailnetServeVerified"
-      | "productionUrlVerified"
-      | "mobileSafariVerified",
-    verified: boolean,
-    note?: string | null
-  ) => {
-    setSavingLaunchCheck(key);
-    try {
-      await onPatchLaunchCheck(key, verified, note);
-    } finally {
-      setSavingLaunchCheck(null);
-    }
   };
   const stillToScore = useMemo(() => {
     if (!activeTournament) return [];
@@ -871,27 +652,6 @@ export function Operations({
       setScheduleBulkSaving(false);
     }
   };
-  const applyUnifiedIntake = async () => {
-    if (unifiedIntakeCount === 0 || !unifiedIntakeConfirmed) return;
-    setUnifiedIntakeSaving(true);
-    setUnifiedIntakeStatus("");
-    try {
-      await onApplyUnifiedIntake(unifiedIntakeText);
-      setUnifiedIntakeStatus(
-        `Applied ${unifiedIntakeMatches.payments.length} buy-in status update${
-          unifiedIntakeMatches.payments.length === 1 ? "" : "s"
-        }, ${unifiedIntakeMatches.handicaps.length} handicap record${
-          unifiedIntakeMatches.handicaps.length === 1 ? "" : "es"
-        }, and ${unifiedIntakeMatches.schedules.length} schedule update${
-          unifiedIntakeMatches.schedules.length === 1 ? "" : "s"
-        }.`
-      );
-      setUnifiedIntakeText("");
-      setUnifiedIntakeConfirmed(false);
-    } finally {
-      setUnifiedIntakeSaving(false);
-    }
-  };
   const copyScheduleAsk = async () => {
     setScheduleFallbackText("");
     if (await writeClipboard(scheduleAsk)) {
@@ -910,36 +670,6 @@ export function Operations({
     } else {
       setTaskFallbackText(requestPacket);
       setTaskCopyStatus("blocked");
-    }
-  };
-  const copyBlockerHandoff = async () => {
-    setHandoffFallbackText("");
-    if (await writeClipboard(blockerHandoffText)) {
-      setHandoffCopyStatus("copied");
-      window.setTimeout(() => setHandoffCopyStatus("idle"), 1600);
-    } else {
-      setHandoffFallbackText(blockerHandoffText);
-      setHandoffCopyStatus("blocked");
-    }
-  };
-  const copyEvidenceGapPacket = async () => {
-    setEvidenceGapFallbackText("");
-    if (await writeClipboard(evidenceGapPacketText)) {
-      setEvidenceGapCopyStatus("copied");
-      window.setTimeout(() => setEvidenceGapCopyStatus("idle"), 1600);
-    } else {
-      setEvidenceGapFallbackText(evidenceGapPacketText);
-      setEvidenceGapCopyStatus("blocked");
-    }
-  };
-  const copyLaunchChecklist = async () => {
-    setLaunchChecklistFallbackText("");
-    if (await writeClipboard(launchGateChecklistText)) {
-      setLaunchChecklistCopyStatus("copied");
-      window.setTimeout(() => setLaunchChecklistCopyStatus("idle"), 1600);
-    } else {
-      setLaunchChecklistFallbackText(launchGateChecklistText);
-      setLaunchChecklistCopyStatus("blocked");
     }
   };
   const copyTaskAction = async (task: CommissionerTask) => {
@@ -1070,7 +800,7 @@ export function Operations({
                 />
                 <SettingShortcutButton
                   label="Launch"
-                  onClick={() => openOpsSection("ops-launch-gates")}
+                  onClick={() => openOpsSection("admin-launch-access")}
                 />
               </div>
             </div>
@@ -1152,171 +882,6 @@ export function Operations({
       </section>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">
-              Completion Audit
-            </h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              {completionAudit
-                ? `App ${completionAudit.appStatusCounts.open} open · league data ${completionAudit.leagueDataOpen} open · device ${completionAudit.externalVerificationOpen} open`
-                : completionAuditError
-                  ? "Audit export unavailable."
-                  : "Loading proof map..."}
-            </p>
-          </div>
-          <span
-            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-              completionAudit?.appReady
-                ? "bg-fairway-50 text-fairway-700"
-                : completionAudit?.appStatusCounts.blocked
-                  ? "bg-red-50 text-red-700"
-                  : "bg-amber-50 text-amber-700"
-            }`}
-          >
-            {completionAudit?.appReady ? (
-              <CheckCircle2 className="h-5 w-5" />
-            ) : (
-              <AlertTriangle className="h-5 w-5" />
-            )}
-          </span>
-        </div>
-
-        {completionAudit && (
-          <ul className="mt-3 space-y-2">
-            {completionAudit.items
-              .filter((item) => item.status !== "passed")
-              .slice(0, 6)
-              .map((item) => (
-                <li key={item.id} className="rounded-xl bg-stone-50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-stone-900">
-                        {item.area}: {item.requirement}
-                      </p>
-                      <p className="mt-0.5 text-xs text-stone-500">
-                        {item.evidence[0] ?? "No evidence recorded"}
-                      </p>
-                      <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-                        {auditScopeLabel(item.readinessScope)}
-                      </p>
-                      {item.nextAction && (
-                        <p className="mt-1 text-xs font-medium text-stone-700">
-                          Next: {item.nextAction}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        item.status === "blocked"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        )}
-
-        {completionAudit?.appReady && (
-          <p className="mt-3 rounded-xl bg-fairway-50 p-3 text-sm text-fairway-800">
-            App readiness is proven; remaining handicap, buy-in status, schedule, or device items
-            are separate from the app itself.
-          </p>
-        )}
-
-        <a
-          href={apiPath("/api/export/completion-audit.json")}
-          download
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-100 px-3 py-2 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-200"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Download proof map
-        </a>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">
-              League Checklist
-            </h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              {launchRisks.length === 0
-                ? "No open league or device items."
-                : `${launchRisks.length} item${
-                    launchRisks.length === 1 ? "" : "s"
-                  } to review`}
-            </p>
-          </div>
-          <span
-            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-              launchRisks.some((risk) => risk.severity === "blocker")
-                ? "bg-red-50 text-red-700"
-                : launchRisks.length > 0
-                  ? "bg-amber-50 text-amber-700"
-                  : "bg-fairway-50 text-fairway-700"
-            }`}
-          >
-            {launchRisks.length > 0 ? (
-              <AlertTriangle className="h-5 w-5" />
-            ) : (
-              <CheckCircle2 className="h-5 w-5" />
-            )}
-          </span>
-        </div>
-        {launchRisks.length > 0 ? (
-          <ul className="mt-3 divide-y divide-stone-100">
-            {launchRisks.map((risk) => (
-              <li key={risk.id} className="py-2">
-                <div className="flex items-start gap-2">
-                  <span
-                    className={`mt-0.5 inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      risk.severity === "blocker"
-                        ? "bg-red-50 text-red-700"
-                        : risk.severity === "external"
-                          ? "bg-stone-100 text-stone-600"
-                          : "bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {risk.severity}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-stone-900">
-                      {risk.label}
-                    </p>
-                    <p className="mt-0.5 text-xs text-stone-500">
-                      {risk.detail}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-stone-700">
-                      Action: {risk.nextAction}
-                    </p>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 rounded-xl bg-fairway-50 p-3 text-sm text-fairway-800">
-            Data, access, production, and mobile launch checks are clear.
-          </p>
-        )}
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <ExportButton
-            href="/api/export/risks.json"
-            label="Download checklist JSON"
-          />
-          <ExportButton
-            href="/api/export/risks.csv"
-            label="Download checklist CSV"
-          />
-        </div>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-stone-900">
@@ -1347,38 +912,6 @@ export function Operations({
                   ? "Select text"
                   : "Copy tasks"}
             </button>
-            <button
-              type="button"
-              onClick={copyBlockerHandoff}
-              className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-            >
-              {handoffCopyStatus === "copied" ? (
-                <ClipboardCheck className="h-3.5 w-3.5" />
-              ) : (
-                <Clipboard className="h-3.5 w-3.5" />
-              )}
-              {handoffCopyStatus === "copied"
-                ? "Copied"
-                : handoffCopyStatus === "blocked"
-                  ? "Select text"
-                  : "Copy request list"}
-            </button>
-            <button
-              type="button"
-              onClick={copyEvidenceGapPacket}
-              className="inline-flex items-center justify-center gap-1 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200"
-            >
-              {evidenceGapCopyStatus === "copied" ? (
-                <ClipboardCheck className="h-3.5 w-3.5" />
-              ) : (
-                <Clipboard className="h-3.5 w-3.5" />
-              )}
-              {evidenceGapCopyStatus === "copied"
-                ? "Copied"
-                : evidenceGapCopyStatus === "blocked"
-                  ? "Select text"
-                  : "Copy evidence packet"}
-            </button>
           </div>
         </div>
 
@@ -1395,50 +928,10 @@ export function Operations({
           </label>
         )}
 
-        {handoffCopyStatus === "blocked" && (
-          <label className="mt-3 block text-xs font-medium text-stone-600">
-            Copy unavailable. Select request list below.
-            <textarea
-              readOnly
-              value={handoffFallbackText}
-              onFocus={(event) => event.target.select()}
-              rows={6}
-              className="mt-1 w-full resize-none rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
-            />
-          </label>
-        )}
-
-        {evidenceGapCopyStatus === "blocked" && (
-          <label className="mt-3 block text-xs font-medium text-stone-600">
-            Copy unavailable. Select evidence packet below.
-            <textarea
-              readOnly
-              value={evidenceGapFallbackText}
-              onFocus={(event) => event.target.select()}
-              rows={6}
-              className="mt-1 w-full resize-none rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-800 focus:border-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-100"
-            />
-          </label>
-        )}
-
-        {evidenceGapPacket.items.length > 0 && (
-          <div className="mt-3 rounded-xl border border-stone-200 bg-white p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Evidence gaps
-            </p>
-            <p className="mt-1 text-sm font-semibold text-stone-900">
-              {evidenceGapPacket.summary.total} open ·{" "}
-              {evidenceGapPacket.summary.onePasteReady} paste-ready ·{" "}
-              {evidenceGapPacket.summary.launchVerification} launch checks
-            </p>
-          </div>
-        )}
-
         {commissionerTasks.length > 0 ? (
           <ol className="mt-3 space-y-2">
             {commissionerTasks.map((task) => {
               const openAction = taskOpenAction(task);
-              const handoffRow = blockerHandoffByTaskId.get(task.id);
               return (
                 <li key={task.id} className="rounded-xl bg-stone-50 p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -1499,14 +992,6 @@ export function Operations({
                     {task.items.join(" · ")}
                   </p>
                 )}
-                {handoffRow?.manualEvidencePath && (
-                  <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
-                    <p className="font-semibold">Evidence path</p>
-                    <p className="mt-0.5 leading-relaxed">
-                      {handoffRow.manualEvidencePath}
-                    </p>
-                  </div>
-                )}
                 {taskActionCopyStatus[task.id] === "blocked" && (
                   <label className="mt-2 block text-xs font-medium text-stone-600">
                     Copy unavailable. Select this ask.
@@ -1529,335 +1014,6 @@ export function Operations({
           </p>
         )}
       </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">
-              One-Paste Intake
-            </h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              Match buy-in status, handicap-index records, and schedule replies from one paste.
-            </p>
-          </div>
-          <Merge className="mt-0.5 h-5 w-5 shrink-0 text-fairway-700" />
-        </div>
-        <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-stone-600">
-          Paste group replies
-          <textarea
-            value={unifiedIntakeText}
-            onChange={(event) => {
-              setUnifiedIntakeText(event.target.value);
-              setUnifiedIntakeStatus("");
-              setUnifiedIntakeConfirmed(false);
-            }}
-            placeholder="Beck buy-in paid cash $325 2026-05-19&#10;Chris handicap index 11.4&#10;Championship — 2-day post-season: Fossil Trace, 2026-10-10 to 2026-10-11, finals"
-            rows={5}
-            className="mt-1 w-full resize-none rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs normal-case tracking-normal text-stone-900 placeholder:text-stone-300 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-          />
-        </label>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <MiniCount
-            label="Buy-in replies"
-            value={unifiedIntakeMatches.payments.length}
-          />
-          <MiniCount
-            label="Handicap"
-            value={unifiedIntakeMatches.handicaps.length}
-          />
-          <MiniCount
-            label="Schedule"
-            value={unifiedIntakeMatches.schedules.length}
-          />
-        </div>
-        {unifiedIntakeCount > 0 ? (
-          <div className="mt-3 space-y-2 rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
-            {unifiedIntakeMatches.payments.map((match) => (
-              <IntakePreviewRow
-                key={`ops-pay-${match.name}`}
-                label={match.name}
-                detail={`Buy-in status -> ${match.paymentStatus}${match.amount != null ? ` · $${match.amount}` : ""}${match.paymentMethod ? ` · ${match.paymentMethod}` : ""}${match.paidAt ? ` · ${match.paidAt}` : ""}`}
-                source={match.source}
-              />
-            ))}
-            {unifiedIntakeMatches.handicaps.map((match) => (
-              <IntakePreviewRow
-                key={`ops-hcp-${match.name}`}
-                label={match.name}
-                detail={`Roster -> index ${match.handicap}${match.ghinNumber ? ` · GHIN ${match.ghinNumber}` : " · source note only"}`}
-                source={match.source}
-              />
-            ))}
-            {unifiedIntakeMatches.schedules.map((match) => (
-              <IntakePreviewRow
-                key={`ops-schedule-${match.id}`}
-                label={match.name}
-                detail={`Schedule -> ${match.course} · ${match.windowStart}${match.windowEnd !== match.windowStart ? ` to ${match.windowEnd}` : ""}`}
-                source={match.source}
-              />
-            ))}
-            <label className="flex items-start gap-2 pt-1 text-xs font-semibold text-stone-700">
-              <input
-                type="checkbox"
-                checked={unifiedIntakeConfirmed}
-                onChange={(event) =>
-                  setUnifiedIntakeConfirmed(event.target.checked)
-                }
-                className="mt-0.5 h-4 w-4 rounded border-stone-300 text-fairway-700 focus:ring-fairway-200"
-              />
-              Confirm these exact updates before applying
-            </label>
-          </div>
-        ) : (
-          <p className="mt-2 text-xs text-stone-500">
-            {unifiedIntakeText.trim()
-              ? "No known buy-in status, handicap, or TBD schedule replies found yet."
-              : "Paid/comped lines need status language, method, amount, and date. Handicap and schedule replies can stay separate."}
-          </p>
-        )}
-        <button
-          type="button"
-          disabled={
-            unifiedIntakeCount === 0 ||
-            unifiedIntakeSaving ||
-            !unifiedIntakeConfirmed
-          }
-          onClick={applyUnifiedIntake}
-          className="mt-3 w-full rounded-xl bg-fairway-700 px-3 py-2 text-sm font-semibold text-white hover:bg-fairway-800 disabled:bg-stone-100 disabled:text-stone-400"
-        >
-          {unifiedIntakeSaving
-            ? "Applying..."
-            : `Apply intake${unifiedIntakeCount > 0 ? ` (${unifiedIntakeCount})` : ""}`}
-        </button>
-        {unifiedIntakeStatus && (
-          <p className="mt-2 rounded-xl bg-fairway-50 p-2 text-xs font-medium text-fairway-800">
-            {unifiedIntakeStatus}
-          </p>
-        )}
-      </section>
-
-      {launchGateCount > 0 && (
-        <section
-          id="ops-launch-gates"
-          className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-stone-900">
-                Launch Gates
-              </h2>
-              <p className="mt-0.5 text-sm text-stone-500">
-                {verifiedLaunchGateCount} of {launchGateCount} external checks
-                verified
-                {launchGateChecklist.summary.notRequired > 0
-                  ? ` · ${launchGateChecklist.summary.notRequired} not required`
-                  : ""}
-                .
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={copyLaunchChecklist}
-              className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-fairway-50 px-3 py-1.5 text-xs font-semibold text-fairway-800 hover:bg-fairway-100 sm:w-auto"
-            >
-              {launchChecklistCopyStatus === "copied" ? (
-                <ClipboardCheck className="h-3.5 w-3.5" />
-              ) : (
-                <ShieldCheck className="h-3.5 w-3.5" />
-              )}
-              {launchChecklistCopyStatus === "copied"
-                ? "Copied"
-                : launchChecklistCopyStatus === "blocked"
-                  ? "Select text"
-                  : "Copy launch checklist"}
-            </button>
-          </div>
-          {launchChecklistCopyStatus === "blocked" && (
-            <label className="mt-3 block text-xs font-medium text-stone-600">
-              Copy unavailable. Select launch checklist below.
-              <textarea
-                readOnly
-                value={launchChecklistFallbackText}
-                onFocus={(event) => event.target.select()}
-                rows={6}
-                className="mt-1 w-full resize-none rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
-              />
-            </label>
-          )}
-          <ul className="mt-3 space-y-2">
-            {launchCheckEvidence.map((check) => {
-              const checklistItem = launchGateChecklist.items.find(
-                (item) => item.key === check.key
-              );
-              const saving = savingLaunchCheck === check.key;
-              const envLocked = check.verified && check.source === "env";
-              const notRequired = checklistItem?.status === "not_required";
-              const noteDraft =
-                launchCheckNotes[check.key] ??
-                check.note ??
-                defaultLaunchCheckNote(check.key, check.label);
-              const noteError = check.verified
-                ? null
-                : launchCheckEvidenceNoteError(check.key, noteDraft);
-              const canPatchLaunchCheck =
-                !saving && !envLocked && (check.verified || !noteError);
-              return (
-                <li
-                  key={check.key}
-                  className="rounded-xl bg-stone-50 p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-stone-900">
-                        {check.label}
-                      </p>
-                      <p className="mt-0.5 text-xs text-stone-500">
-                        {check.verified
-                          ? `Verified${check.verifiedAt ? ` ${formatDateLabel(check.verifiedAt.slice(0, 10))}` : ""}${
-                              check.verifiedBy ? ` by ${check.verifiedBy}` : ""
-                            }`
-                          : `Open · ${check.envVar}`}
-                      </p>
-                      {notRequired && (
-                        <p className="mt-1 text-xs font-semibold text-fairway-700">
-                          Optional for current Tailscale hosting.
-                        </p>
-                      )}
-                      {check.note && (
-                        <p className="mt-1 text-xs text-stone-600">
-                          {check.note}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        notRequired
-                          ? "bg-fairway-50 text-fairway-800"
-                        : check.verified
-                          ? "bg-fairway-50 text-fairway-800"
-                          : "bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {notRequired
-                        ? "not required"
-                        : check.verified
-                          ? check.source
-                          : "open"}
-                    </span>
-                  </div>
-                  {!envLocked && !notRequired && (
-                    <label className="mt-2 block text-xs font-medium text-stone-600">
-                      Evidence note
-                      <textarea
-                        value={noteDraft}
-                        onChange={(event) =>
-                          setLaunchCheckNotes((prev) => ({
-                            ...prev,
-                            [check.key]: event.target.value,
-                          }))
-                        }
-                        rows={2}
-                        aria-label={`${check.label} evidence note`}
-                        aria-invalid={!!noteError}
-                        className="mt-1 w-full resize-none rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                      />
-                      {noteError && (
-                        <span className="mt-1 block text-[11px] font-semibold text-amber-700">
-                          {noteError}
-                        </span>
-                      )}
-                    </label>
-                  )}
-                  {check.key === "mobileSafariVerified" && !check.verified && !notRequired && (
-                    <div className="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-900 ring-1 ring-amber-100">
-                      <p className="font-semibold">
-                        Open this screen on physical iPhone Safari.
-                      </p>
-                      <p className="mt-0.5">
-                        The note must include iPhone, Safari, and the exact URL
-                        tested.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLaunchCheckNotes((prev) => ({
-                            ...prev,
-                            [check.key]: mobileSafariEvidenceNote(),
-                          }))
-                        }
-                        className="mt-2 w-full rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
-                      >
-                        {isIphoneSafari()
-                          ? "Use this iPhone Safari"
-                          : "Fill note with this URL"}
-                      </button>
-                    </div>
-                  )}
-                  {!notRequired && (
-                    <button
-                      type="button"
-                      disabled={!canPatchLaunchCheck}
-                      onClick={() =>
-                        patchLaunchCheck(
-                          check.key,
-                          !check.verified,
-                          check.verified ? null : noteDraft
-                        )
-                      }
-                      className={`mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold ${
-                        envLocked
-                          ? "bg-stone-100 text-stone-400"
-                          : check.verified
-                            ? "bg-stone-100 text-stone-700 hover:bg-stone-200"
-                            : noteError
-                              ? "bg-stone-100 text-stone-400"
-                            : "bg-fairway-700 text-white hover:bg-fairway-800"
-                      }`}
-                    >
-                      {saving
-                        ? "Saving..."
-                        : envLocked
-                          ? "Set by environment"
-                          : noteError
-                            ? "Evidence note required"
-                          : check.verified
-                            ? "Clear verification"
-                            : `Mark ${check.label} verified`}
-                    </button>
-                  )}
-                  {checklistItem && (
-                    <div className="mt-3 rounded-xl bg-white p-3 ring-1 ring-stone-200">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                        Evidence checklist
-                      </p>
-                      <ol className="mt-2 space-y-2">
-                        {checklistItem.steps.map((step, index) => (
-                          <li key={step.id} className="text-xs text-stone-700">
-                            <p className="font-medium text-stone-900">
-                              {index + 1}. {step.label}
-                            </p>
-                            <p className="mt-0.5 text-stone-500">
-                              {step.requiredEvidence}
-                            </p>
-                            {step.command && (
-                              <code className="mt-1 block overflow-x-auto rounded-lg bg-stone-100 px-2 py-1 text-[11px] text-stone-700">
-                                {step.command}
-                              </code>
-                            )}
-                          </li>
-                        ))}
-                      </ol>
-                      <p className="mt-2 text-xs font-medium text-stone-700">
-                        Final: {checklistItem.finalAction}
-                      </p>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
 
       {unconfirmedTournaments.length > 0 && (
         <section
@@ -2220,133 +1376,6 @@ export function Operations({
         </section>
       )}
 
-      <section
-        id="ops-season-export"
-        className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">
-              Season Export
-            </h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              {buyins.length} buy-ins · ${totals.settled.toLocaleString()} of $
-              {totals.expected.toLocaleString()} settled
-            </p>
-          </div>
-          <Database className="mt-0.5 h-5 w-5 shrink-0 text-fairway-700" />
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-2">
-          <ExportButton href="/api/export/season.json" label="Download JSON" />
-          <ExportButton href="/api/export/rules.json" label="Download rules JSON" />
-          <ExportButton href="/api/export/tee-times.csv" label="Download tee times CSV" />
-          <ExportButton href="/api/export/buyins.csv" label="Download buy-ins CSV" />
-          <ExportButton href="/api/export/payouts.csv" label="Download payouts CSV" />
-          <ExportButton href="/api/export/roster.csv" label="Download roster CSV" />
-          <ExportButton href="/api/export/scores.csv" label="Download scores CSV" />
-          <ExportButton
-            href="/api/export/attestations.csv"
-            label="Download attestations CSV"
-          />
-          <ExportButton
-            href="/api/export/standings.csv"
-            label="Download standings CSV"
-          />
-          <ExportButton
-            href="/api/export/readiness.json"
-            label="Download readiness JSON"
-          />
-          <ExportButton href="/api/export/tasks.json" label="Download task JSON" />
-          <ExportButton href="/api/export/tasks.csv" label="Download task CSV" />
-          <ExportButton href="/api/export/risks.json" label="Download checklist JSON" />
-          <ExportButton href="/api/export/risks.csv" label="Download checklist CSV" />
-          <ExportButton
-            href="/api/export/request-packet.txt"
-            label="Download request packet"
-          />
-          <ExportButton
-            href="/api/export/commissioner-requests.json"
-            label="Download request list JSON"
-          />
-          <ExportButton
-            href="/api/export/commissioner-requests.txt"
-            label="Download request list"
-          />
-          <ExportButton
-            href="/api/export/evidence-gap-packet.json"
-            label="Download evidence gap JSON"
-          />
-          <ExportButton
-            href="/api/export/evidence-gap-packet.csv"
-            label="Download evidence gap CSV"
-          />
-          <ExportButton
-            href="/api/export/evidence-gap-packet.txt"
-            label="Download evidence gap packet"
-          />
-          <ExportButton
-            href="/api/export/source-search-ledger.json"
-            label="Download source search JSON"
-          />
-          <ExportButton
-            href="/api/export/source-search-ledger.csv"
-            label="Download source search CSV"
-          />
-          <ExportButton
-            href="/api/export/completion-audit.json"
-            label="Download completion audit"
-          />
-          <ExportButton
-            href="/api/export/completion-audit.csv"
-            label="Download completion CSV"
-          />
-          <ExportButton
-            href="/api/export/launch-checks.json"
-            label="Download launch checks JSON"
-          />
-          <ExportButton
-            href="/api/export/launch-checks.csv"
-            label="Download launch checks CSV"
-          />
-          <ExportButton
-            href="/api/export/launch-gate-checklist.json"
-            label="Download launch checklist JSON"
-          />
-          <ExportButton
-            href="/api/export/launch-gate-checklist.csv"
-            label="Download launch checklist CSV"
-          />
-          <ExportButton
-            href="/api/export/launch-gate-checklist.txt"
-            label="Download launch checklist"
-          />
-          <ExportButton href="/api/export/audit.json" label="Download audit JSON" />
-          <ExportButton href="/api/export/audit.csv" label="Download audit CSV" />
-          <ExportButton
-            href="/api/export/verification-runs.json"
-            label="Download verification JSON"
-          />
-          <ExportButton
-            href="/api/export/verification-runs.csv"
-            label="Download verification CSV"
-          />
-          <ExportButton href="/api/export/archive.json" label="Download archive manifest" />
-          <ExportButton href="/api/export/summary.txt" label="Download summary" />
-          <ExportButton
-            href="/api/export/launch-packet.txt"
-            label="Download launch packet"
-          />
-          <ExportButton href="/api/export/database" label="Download database" />
-        </div>
-
-        {totals.outstanding > 0 && (
-          <p className="mt-2 text-xs text-amber-700">
-            ${totals.outstanding.toLocaleString()} still owed.
-          </p>
-        )}
-      </section>
-
       {closeoutRows.length > 0 && (
         <section
           id="ops-tournament-closeout"
@@ -2558,19 +1587,6 @@ export function Operations({
   );
 }
 
-function ExportButton({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={apiPath(href)}
-      download
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-fairway-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-fairway-800"
-    >
-      <Download className="h-4 w-4" />
-      {label}
-    </a>
-  );
-}
-
 function SettingShortcutButton({
   label,
   onClick,
@@ -2667,37 +1683,6 @@ function TournamentSettingsRow({
   );
 }
 
-function defaultLaunchCheckNote(key: string, label: string) {
-  const date = todayISO();
-  if (key === "productionUrlVerified") {
-    return `Final URL [paste URL] remote smoke passed on ${date}.`;
-  }
-  if (key === "mobileSafariVerified") {
-    return mobileSafariEvidenceNote(date);
-  }
-  if (key === "tailnetServeVerified") {
-    return `Tailscale Funnel smoke and mobile checks passed on ${date}.`;
-  }
-  if (key === "dockerBuildVerified") {
-    return `Docker smoke passed on ${date}.`;
-  }
-  return `${label} verified on ${date}.`;
-}
-
-function mobileSafariEvidenceNote(date = todayISO()) {
-  const href =
-    typeof window === "undefined"
-      ? "[paste URL]"
-      : window.location.href.split("#")[0];
-  return `Physical iPhone Safari golden path passed on ${date} at ${href}.`;
-}
-
-function isIphoneSafari() {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /iphone/i.test(ua) && /safari/i.test(ua) && !/(crios|fxios|edgios)/i.test(ua);
-}
-
 function SettingNumberInput({
   label,
   value,
@@ -2719,78 +1704,6 @@ function SettingNumberInput({
         className="mt-1 h-9 w-full rounded-lg border border-stone-200 bg-stone-50 px-2 text-sm font-semibold normal-case tracking-normal text-stone-900 focus:border-fairway-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-fairway-100"
       />
     </label>
-  );
-}
-
-function launchCheckEvidenceNoteError(key: string, note: string) {
-  const trimmed = note.trim();
-  if (!trimmed) return "Add the evidence note before marking verified.";
-  if (key === "productionUrlVerified") {
-    const urls = trimmed.match(/https?:\/\/[^\s<>)]+/gi) ?? [];
-    if (urls.length === 0) return "Paste the final public URL in the note.";
-    if (
-      urls.some((url) =>
-        /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::|\/|$)/i.test(
-          url
-        )
-      )
-    ) {
-      return "Use the final public URL, not localhost or loopback.";
-    }
-    if (!/remote smoke|verify:remote-smoke|smoke passed/i.test(trimmed)) {
-      return "Mention the remote smoke proof in the note.";
-    }
-  }
-  if (key === "mobileSafariVerified") {
-    if (!/iphone/i.test(trimmed)) return "Mention the physical iPhone.";
-    if (!/safari/i.test(trimmed)) return "Mention Safari.";
-    const urls = trimmed.match(/https?:\/\/[^\s<>)]+/gi) ?? [];
-    if (urls.length === 0) return "Paste the URL tested on the iPhone.";
-    if (
-      urls.some((url) =>
-        /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::|\/|$)/i.test(
-          url
-        )
-      )
-    ) {
-      return "Use the deployed URL tested on iPhone, not localhost.";
-    }
-  }
-  return null;
-}
-
-function MiniCount({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl bg-stone-50 p-2 text-center">
-      <div className="text-base font-semibold text-stone-900">{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function IntakePreviewRow({
-  label,
-  detail,
-  source,
-}: {
-  label: string;
-  detail: string;
-  source: string;
-}) {
-  return (
-    <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-stone-200">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-stone-900">{label}</p>
-        <p className="text-right text-xs font-medium text-fairway-800">
-          {detail}
-        </p>
-      </div>
-      <p className="mt-1 break-words text-[11px] text-stone-500">
-        Source: {source}
-      </p>
-    </div>
   );
 }
 

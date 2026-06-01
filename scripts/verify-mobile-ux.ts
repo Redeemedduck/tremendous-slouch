@@ -423,7 +423,7 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: "Past tee times (1)" }).click();
     await page.getByText("Scores", { exact: true }).waitFor();
     await page
-      .getByText(/attested|commissioner override|needs confirm/)
+      .getByText(/confirmed by|awaiting|to confirm/)
       .first()
       .waitFor();
     await page.getByText(/net 70/).first().waitFor();
@@ -656,24 +656,6 @@ async function verifyMobileBrowser(url: string) {
     await nav.getByRole("button", { name: "Admin", exact: true }).click();
     await page.getByText("Admin Console", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Next Actions" }).waitFor();
-    const readinessPanel = page.locator(
-      'section[aria-label="Operational readiness and data gaps"]'
-    );
-    await readinessPanel
-      .getByRole("heading", { name: "Operational Readiness" })
-      .waitFor();
-    await readinessPanel
-      .getByText("App readiness separated from handicap, buy-in status, schedule, and device gaps.")
-      .waitFor();
-    await readinessPanel.getByText(/App \d+ open/).waitFor();
-    await readinessPanel.getByText(/Data \d+ open/).waitFor();
-    await readinessPanel
-      .getByRole("button", { name: /Roster.*missing\/unverified:/s })
-      .waitFor();
-    await readinessPanel
-      .getByRole("link", { name: "Completion Audit", exact: true })
-      .first()
-      .waitFor();
     await page.getByRole("button", { name: "Verify backup" }).click();
     await page.getByText("Backup verified").waitFor();
     logPhase("browser:admin-backup");
@@ -690,41 +672,21 @@ async function verifyMobileBrowser(url: string) {
     await page.getByRole("button", { name: /Buy-ins/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).waitFor();
     await page.getByRole("button", { name: /Score review/ }).waitFor();
-    await page.getByRole("button", { name: /Attestation review/ }).waitFor();
-    await page.getByRole("button", { name: /Standings closeout/ }).waitFor();
-    await page.getByRole("button", { name: /Closeout packets/ }).waitFor();
-    await page.getByRole("button", { name: /Payout closeout/ }).waitFor();
-    await page.getByRole("button", { name: /Launch checks/ }).waitFor();
-    await page.getByRole("link", { name: "Backup database" }).waitFor();
-    await page.getByRole("button", { name: /Backup proof/ }).waitFor();
+    await page.getByRole("button", { name: /Closeout/ }).waitFor();
     await page.getByRole("button", { name: /Exports/ }).waitFor();
-    await page.getByRole("button", { name: /Audit log/ }).waitFor();
-    await page.getByRole("button", { name: /Full Operations/ }).waitFor();
     await page.getByRole("button", { name: /Tee times/ }).click();
     await expectSectionAnchored(page, "admin-tee-time-oversight");
     await page.getByRole("button", { name: /Score review/ }).click();
     await expectSectionAnchored(page, "admin-score-attestation-review");
-    await page.getByRole("button", { name: /Attestation review/ }).click();
-    await expectSectionAnchored(page, "admin-score-attestation-review");
-    await page.getByRole("button", { name: /Launch checks/ }).click();
-    await expectSectionAnchored(page, "admin-launch-access");
     await page.getByRole("button", { name: /Exports/ }).click();
     await expectSectionAnchored(page, "admin-exports");
-    await page.getByRole("button", { name: /Audit log/ }).click();
-    await expectSectionAnchored(page, "admin-audit-log");
-    await page
-      .getByRole("heading", { name: "Operations Workbench" })
-      .waitFor();
-    await page.getByRole("button", { name: "Open full operations" }).waitFor();
     await page.getByRole("heading", { name: "Tee-Time Oversight" }).waitFor();
     await page.getByText("Future", { exact: true }).waitFor();
     await page.getByText("Past", { exact: true }).waitFor();
     await page.getByText("Scores", { exact: true }).waitFor();
     await page.getByText("Attest", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Open tee-time board" }).waitFor();
-    await page
-      .getByRole("heading", { name: "Score Review" })
-      .waitFor();
+    await page.getByRole("heading", { name: "Score Review" }).waitFor();
     await page.getByText("Official", { exact: true }).waitFor();
     await page.getByText("Needs confirm", { exact: true }).waitFor();
     await page.getByText("Draft", { exact: true }).waitFor();
@@ -735,89 +697,14 @@ async function verifyMobileBrowser(url: string) {
     logPhase("browser:attestation-override");
     await page.getByRole("button", { name: "Open score cards" }).waitFor();
     await page.getByRole("heading", { name: "One-Paste Updates" }).waitFor();
-    await page.getByRole("heading", { name: "Launch And Access" }).waitFor();
-    await page.getByRole("button", { name: "Fill note with this URL" }).first().waitFor();
-    await page.getByRole("heading", { name: "Audit Log" }).waitFor();
-    await page.getByRole("link", { name: "Audit JSON", exact: true }).first().waitFor();
-    await page.getByRole("link", { name: "Audit CSV", exact: true }).first().waitFor();
     await page.getByRole("heading", { name: "Exports" }).waitFor();
-    await page.getByRole("link", { name: "Audit JSON", exact: true }).first().waitFor();
-    await page.getByRole("link", { name: "Audit CSV", exact: true }).first().waitFor();
-    await page
-      .getByRole("link", { name: "Verification JSON", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Verification CSV", exact: true })
-      .waitFor();
-    await page.getByRole("link", { name: "Rules JSON", exact: true }).waitFor();
-    await page
-      .getByRole("link", { name: "Readiness JSON", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Checks JSON", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Checks CSV", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Checklist JSON", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Checklist CSV", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Checklist", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Launch Packet", exact: true })
-      .waitFor();
+    await page.getByRole("link", { name: "Season JSON", exact: true }).waitFor();
+    await page.getByRole("link", { name: "Standings CSV", exact: true }).waitFor();
+    await page.getByRole("link", { name: "Roster CSV", exact: true }).waitFor();
+    await page.getByRole("link", { name: "Buy-ins CSV", exact: true }).waitFor();
     await page.getByRole("link", { name: "Payouts CSV", exact: true }).waitFor();
-    await page.getByRole("link", { name: "Tasks CSV", exact: true }).waitFor();
-    await page.getByRole("link", { name: "Checklist JSON", exact: true }).waitFor();
-    await page
-      .getByRole("link", { name: "Request Packet", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Request List", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Evidence Gap Packet", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Source Ledger CSV", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: /Stop 1.*Packet/ })
-      .waitFor();
-    await page
-      .getByRole("link", { name: /Stop 1.*Ledger/ })
-      .waitFor();
-    await page
-      .getByRole("link", { name: /Stop 7.*Packet/ })
-      .waitFor();
-    await page
-      .getByRole("link", { name: /Stop 7.*Ledger/ })
-      .waitFor();
-    await page
-      .locator(`a[href="${mountedApiHref(url, "/api/export/completion-audit.json")}"]`)
-      .nth(1)
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Completion CSV", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Archive Manifest", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Database Backup", exact: true })
-      .waitFor();
+    await page.getByRole("link", { name: "Database Backup", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Full Operations" }).waitFor();
-    await expectMountedLinkHref(
-      page,
-      url,
-      "Download proof map",
-      "/api/export/completion-audit.json"
-    );
     await page.getByRole("heading", { name: "Commissioner Readiness" }).waitFor();
     await page.getByRole("button", { name: /Settings/ }).click();
     await page.getByText("League values and admin shortcuts.").waitFor();
@@ -825,21 +712,17 @@ async function verifyMobileBrowser(url: string) {
     await page.getByText("Tournament values").waitFor();
     await page.getByRole("button", { name: "Schedule", exact: true }).waitFor();
     await page.getByRole("button", { name: "Launch", exact: true }).waitFor();
-    await page.getByRole("heading", { name: "League Checklist" }).waitFor();
     await page.getByRole("heading", { name: "Open Admin Work" }).waitFor();
     await page.getByText("Track buy-in status", { exact: true }).waitFor();
     await page.getByText("Record handicap indexes", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Copy tasks" }).waitFor();
-    await page.getByRole("button", { name: "Copy request list" }).waitFor();
     await page.getByRole("button", { name: "Copy Track buy-in status" }).waitFor();
     await page
       .getByRole("button", { name: "Copy Record handicap indexes" })
       .waitFor();
-    await page.getByText("Evidence path", { exact: true }).first().waitFor();
-    await page.getByText("Admin > One-Paste Intake").first().waitFor();
-    await page.getByRole("heading", { name: "One-Paste Intake" }).waitFor();
-    await page
-      .getByLabel("Paste group replies")
+    const onePaste = page.locator("#admin-one-paste-updates");
+    await onePaste
+      .locator("textarea")
       .fill(
         [
           "Chris buy-in paid venmo $325 2026-05-19",
@@ -847,24 +730,16 @@ async function verifyMobileBrowser(url: string) {
           "Championship — 2-day post-season: Fossil Trace, 2026-10-10 to 2026-10-11, finals",
         ].join("\n")
       );
-    await page
+    await onePaste
       .getByText("Buy-in status -> paid · $325 · venmo · 2026-05-19")
       .waitFor();
-    await page.getByText("Roster -> index 11.4 · source note only").waitFor();
-    await page
-      .getByText(
-        "Schedule -> Fossil Trace · 2026-10-10 to 2026-10-11"
-      )
+    await onePaste.getByText("Roster -> index 11.4 · source note only").waitFor();
+    await onePaste
+      .getByText("Schedule -> Fossil Trace · 2026-10-10 to 2026-10-11")
       .waitFor();
-    await page
-      .getByLabel("Confirm these exact updates before applying")
-      .check();
-    await page.getByRole("button", { name: "Apply intake (3)" }).click();
-    await page
-      .getByText(
-        "Applied 1 buy-in status update, 1 handicap record, and 1 schedule update."
-      )
-      .waitFor();
+    await onePaste.getByRole("checkbox").check();
+    await onePaste.getByRole("button", { name: /Apply 3 updates/ }).click();
+    await page.getByText("Applied 3 updates.").waitFor();
     await page.getByRole("button", { name: "Copy TBDs" }).waitFor();
     await page
       .getByLabel("Paste schedule replies")
@@ -872,29 +747,6 @@ async function verifyMobileBrowser(url: string) {
     await page.getByText("1 matched: Mid-season major").waitFor();
     await page.getByRole("button", { name: "Apply 1" }).click();
     await page.getByText("All event details confirmed").waitFor();
-    await page.getByRole("heading", { name: "Launch Gates" }).waitFor();
-    await page.getByRole("button", { name: "Copy launch checklist" }).waitFor();
-    await page.getByText("Evidence checklist").first().waitFor();
-    await page
-      .getByText(
-        "tailscale funnel --bg --yes --https=443 --set-path=/golf 3131 && tailscale funnel --bg --yes --https=443 --set-path=/golf-api http://127.0.0.1:3131/api",
-        { exact: true }
-      )
-      .waitFor();
-    await page
-      .getByText(
-        "REMOTE_SMOKE_URL=https://... REMOTE_SMOKE_ACCESS_CODE=<code> REMOTE_SMOKE_COMMISSIONER_CODE=<commissioner-code> npm run verify:remote-smoke"
-      )
-      .waitFor();
-    await page
-      .getByText("Open the direct Tailscale-IP phone URL on physical iPhone Safari.")
-      .waitFor();
-    await page
-      .getByLabel("Docker image build evidence note")
-      .fill("Mobile UX verifier saw Docker gate note field.");
-    await page
-      .getByRole("button", { name: "Mark Docker image build verified" })
-      .waitFor();
     await page.getByRole("heading", { name: "Score Rule Audit" }).waitFor();
     await page.getByRole("heading", { name: "Tournament Closeout" }).waitFor();
     await page.getByText(/leads at net|No scored rounds yet/).first().waitFor();
@@ -920,71 +772,6 @@ async function verifyMobileBrowser(url: string) {
       "/api/export/closeout/",
       { prefix: true }
     );
-    await page.getByRole("link", { name: "Download rules JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download buy-ins CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download payouts CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download roster CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download tee times CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download scores CSV" }).waitFor();
-    await page
-      .getByRole("link", { name: "Download attestations CSV" })
-      .waitFor();
-    await page.getByRole("link", { name: "Download standings CSV" }).waitFor();
-    await expectMountedLinkHref(
-      page,
-      url,
-      "Download readiness JSON",
-      "/api/export/readiness.json"
-    );
-    await page.getByRole("link", { name: "Download task JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download task CSV" }).waitFor();
-    await page
-      .getByRole("link", { name: "Download checklist JSON" })
-      .first()
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download checklist CSV" })
-      .first()
-      .waitFor();
-    await page.getByRole("link", { name: "Download checklist JSON" }).first().waitFor();
-    await page.getByRole("link", { name: "Download checklist CSV" }).first().waitFor();
-    await page.getByRole("link", { name: "Download request packet" }).waitFor();
-    await page
-      .getByRole("link", { name: "Download request list JSON" })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download request list", exact: true })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download evidence gap JSON" })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download evidence gap CSV" })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download evidence gap packet" })
-      .waitFor();
-    await page.getByRole("link", { name: "Download source search JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download source search CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download completion audit" }).waitFor();
-    await page.getByRole("link", { name: "Download completion CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download launch checks JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download launch checks CSV" }).waitFor();
-    await page
-      .getByRole("link", { name: "Download launch checklist JSON" })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download launch checklist CSV" })
-      .waitFor();
-    await page
-      .getByRole("link", { name: "Download launch checklist", exact: true })
-      .waitFor();
-    await page.getByRole("link", { name: "Download audit JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download audit CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download verification JSON" }).waitFor();
-    await page.getByRole("link", { name: "Download verification CSV" }).waitFor();
-    await page.getByRole("link", { name: "Download archive manifest" }).waitFor();
-    await page.getByRole("link", { name: "Download launch packet" }).waitFor();
     await page.getByRole("button", { name: "Open Roster", exact: true }).click();
     await page.getByRole("button", { name: "Save Beck handicap" }).waitFor();
     logPhase("browser:ops-complete");

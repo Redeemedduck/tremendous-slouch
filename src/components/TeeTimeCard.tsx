@@ -2,7 +2,6 @@ import { type FormEvent, useState } from "react";
 import {
   Clock,
   MapPin,
-  X,
   MoreHorizontal,
   Trash2,
   Calendar as CalendarIcon,
@@ -452,18 +451,15 @@ export function TeeTimeCard({
                   !!myName &&
                   !!s.attestedBy &&
                   eqName(myName, s.attestedBy);
+                // Only flag handicaps that aren't trusted; GHIN and
+                // calculated course handicaps need no extra badge.
                 const hcpSource =
-                  s.courseHcpSource === "manual_unverified"
-                    ? "unverified CH"
+                  s.courseHcpSource === "manual_unverified" ||
+                  s.courseHcpSource === "calculated_unverified"
+                    ? "unverified handicap"
                     : s.courseHcpSource === "commissioner_override"
-                      ? "CH override"
-                      : s.courseHcpSource === "calculated"
-                        ? "calculated CH"
-                        : s.courseHcpSource === "calculated_unverified"
-                          ? "unverified calculated CH"
-                          : s.courseHcpSource === "ghin"
-                            ? "GHIN CH"
-                            : null;
+                      ? "adjusted by commissioner"
+                      : null;
                 return (
                   <li
                     key={s.name}
@@ -480,14 +476,14 @@ export function TeeTimeCard({
                       </span>
                       <span className="mt-0.5 block text-[10px] text-stone-400">
                         {status === "pending"
-                          ? `pending ${s.attestedBy ?? "attester"}`
+                          ? `awaiting ${s.attestedBy ?? "attester"}`
                           : status === "attested"
-                            ? `attested ${s.attestedBy ?? ""}`
+                            ? `confirmed by ${s.attestedBy ?? "attester"}`
                             : status === "overridden"
-                              ? "commissioner override"
+                              ? "confirmed by commissioner"
                               : status === "legacy_unconfirmed"
-                                ? `needs confirm ${s.attestedBy ?? "attester"}`
-                                : "draft"}
+                                ? `needs ${s.attestedBy ?? "attester"} to confirm`
+                                : "draft — no attester yet"}
                         {hcpSource ? ` · ${hcpSource}` : ""}
                       </span>
                     </span>

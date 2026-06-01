@@ -12,32 +12,19 @@ import {
   isPast,
   todayISO,
 } from "../lib/format";
-import type { Buyin, TeeTime, Tournament } from "../lib/types";
+import type { TeeTime, Tournament } from "../lib/types";
 import type { Player } from "../lib/types";
 
 export function CommandCenter({
   teeTimes,
   tournaments,
-  buyins,
   players,
-  accessCodeRequired,
-  launchChecks,
   loaded,
-  onOpenView,
 }: {
   teeTimes: TeeTime[];
   tournaments: Tournament[];
-  buyins: Buyin[];
   players: Player[];
-  accessCodeRequired: boolean;
-  launchChecks: {
-    dockerBuildVerified: boolean;
-    tailnetServeVerified: boolean;
-    productionUrlVerified: boolean;
-    mobileSafariVerified: boolean;
-  };
   loaded: boolean;
-  onOpenView?: (view: "money" | "roster" | "ops") => void;
 }) {
   const today = todayISO();
   const activeTournament =

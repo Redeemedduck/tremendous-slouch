@@ -1,6 +1,5 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   CalendarDays,
   ClipboardCheck,
   CheckCircle2,
@@ -8,11 +7,7 @@ import {
   Database,
   Download,
   ExternalLink,
-  FileArchive,
-  ListChecks,
-  ScrollText,
   Settings,
-  ShieldCheck,
   Trophy,
   Users,
   WalletCards,
@@ -23,24 +18,6 @@ import { parseUnifiedBlockerIntake } from "../lib/bulkIntake";
 import { formatDateLabel, formatTimeLabel, todayISO } from "../lib/format";
 import { missingSourceBackedHandicapPlayers } from "../lib/handicapEvidence";
 import type { Buyin, Player, TeeTime, Tournament } from "../lib/types";
-
-type LaunchKey =
-  | "dockerBuildVerified"
-  | "tailnetServeVerified"
-  | "productionUrlVerified"
-  | "mobileSafariVerified";
-
-type LaunchCheckEvidence = {
-  key: LaunchKey;
-  label: string;
-  envVar: string;
-  verified: boolean;
-  source: "env" | "database" | "none";
-  verifiedAt: string | null;
-  verifiedBy: string | null;
-  note: string | null;
-  updatedAt: string | null;
-};
 
 type AdminViewTarget = "board" | "season" | "money" | "roster" | "ops";
 
@@ -56,90 +33,31 @@ type BackupProof = {
   };
 };
 
-type CompletionAudit = {
-  ready: boolean;
-  appReady: boolean;
-  statusCounts: {
-    passed: number;
-    open: number;
-    blocked: number;
-  };
-  appStatusCounts: {
-    passed: number;
-    open: number;
-    blocked: number;
-  };
-  leagueDataOpen: number;
-  externalVerificationOpen: number;
-  items: Array<{
-    id: string;
-    area: string;
-    requirement: string;
-    status: "passed" | "open" | "blocked";
-    readinessScope: "app" | "league_data" | "external_verification";
-    evidence: string[];
-    nextAction: string | null;
-  }>;
-};
-
-type AuditExport = {
-  count: number;
-  events: Array<{
-    id: string;
-    createdAt: string;
-    action: string;
-    actor: string;
-    summary: string;
-  }>;
-};
-
-const readinessScopeLabel = (
-  scope: "app" | "league_data" | "external_verification"
-) => {
-  if (scope === "league_data") return "league data";
-  if (scope === "external_verification") return "device check";
-  return "app";
-};
-
 export function AdminConsole({
   teeTimes,
   tournaments,
   players,
   buyins,
-  accessCodeRequired,
-  launchChecks,
-  launchCheckEvidence,
   onOpenView,
   onFixIssue,
   onAttestScore,
   onApplyUnifiedIntake,
-  onPatchLaunchCheck,
   advanced,
 }: {
   teeTimes: TeeTime[];
   tournaments: Tournament[];
   players: Player[];
   buyins: Buyin[];
-  accessCodeRequired: boolean;
-  launchChecks: Record<LaunchKey, boolean>;
-  launchCheckEvidence: LaunchCheckEvidence[];
   onOpenView: (view: AdminViewTarget) => void;
   onFixIssue: (issue: RuleIssue) => void;
   onAttestScore: (teeTimeId: string, playerName: string) => void | Promise<void>;
   onApplyUnifiedIntake: (text: string) => Promise<void>;
-  onPatchLaunchCheck: (
-    key: LaunchKey,
-    verified: boolean,
-    note?: string | null
-  ) => Promise<void>;
   advanced?: ReactNode;
 }) {
   const [intakeText, setIntakeText] = useState("");
   const [intakeStatus, setIntakeStatus] = useState("");
   const [applyingIntake, setApplyingIntake] = useState(false);
   const [intakeConfirmed, setIntakeConfirmed] = useState(false);
-  const [launchNotes, setLaunchNotes] = useState<Record<string, string>>({});
-  const [savingLaunchKey, setSavingLaunchKey] = useState<string | null>(null);
   const [backupProof, setBackupProof] = useState<BackupProof | null>(null);
   const [backupStatus, setBackupStatus] = useState("");
   const [verifyingBackup, setVerifyingBackup] = useState(false);
@@ -150,11 +68,6 @@ export function AdminConsole({
     useState(false);
   const [bulkAttestationSaving, setBulkAttestationSaving] = useState(false);
   const [bulkAttestationStatus, setBulkAttestationStatus] = useState("");
-  const [completionAudit, setCompletionAudit] =
-    useState<CompletionAudit | null>(null);
-  const [completionAuditError, setCompletionAuditError] = useState(false);
-  const [auditExport, setAuditExport] = useState<AuditExport | null>(null);
-  const [auditExportError, setAuditExportError] = useState(false);
   const today = useMemo(() => todayISO(), []);
   const ruleIssues = useMemo(
     () => auditLeagueRules(teeTimes, tournaments, players, today),
@@ -182,7 +95,6 @@ export function AdminConsole({
   const members = players.filter((player) => player.member);
   const missingHandicaps = missingSourceBackedHandicapPlayers(members);
   const unpaid = buyins.filter((buyin) => !buyin.paid);
-  const launchVerified = launchCheckEvidence.filter((check) => check.verified).length;
   const scoreReview = useMemo(() => {
     const rows = teeTimes.flatMap((teeTime) =>
       teeTime.scores.map((score) => {
@@ -305,99 +217,6 @@ export function AdminConsole({
         .slice(0, 4),
     };
   }, [players, teeTimes, today, tournaments]);
-  const openCompletionItems = useMemo(
-    () =>
-      completionAudit?.items.filter((item) => item.status !== "passed") ?? [],
-    [completionAudit]
-  );
-
-  const completionAuditRefreshKey = useMemo(
-    () =>
-      JSON.stringify({
-        teeTimes: teeTimes.map((teeTime) => [
-          teeTime.id,
-          teeTime.createdAt,
-          teeTime.claims.length,
-          teeTime.scores.length,
-          teeTime.scores.map((score) => [
-            score.name,
-            score.gross,
-            score.attestationStatus,
-            score.attestedAt,
-          ]),
-        ]),
-        tournaments: tournaments.map((tournament) => [
-          tournament.id,
-          tournament.closedAt,
-          tournament.course,
-          tournament.windowStart,
-          tournament.windowEnd,
-          tournament.closedBy,
-        ]),
-        players: players.map((player) => [
-          player.name,
-          player.member,
-          player.handicap,
-          player.ghinNumber,
-        ]),
-        buyins: buyins.map((buyin) => [
-          buyin.playerName,
-          buyin.paid,
-          buyin.paymentStatus,
-          buyin.paidAt,
-          buyin.updatedAt,
-        ]),
-        launch: launchCheckEvidence.map((check) => [
-          check.key,
-          check.verified,
-          check.updatedAt,
-        ]),
-      }),
-    [teeTimes, tournaments, players, buyins, launchCheckEvidence]
-  );
-
-  useEffect(() => {
-    let canceled = false;
-    fetch(apiPath("/api/export/completion-audit.json"))
-      .then((response) => {
-        if (!response.ok) throw new Error("completion audit unavailable");
-        return response.json();
-      })
-      .then((data: CompletionAudit) => {
-        if (!canceled) {
-          setCompletionAudit(data);
-          setCompletionAuditError(false);
-        }
-      })
-      .catch(() => {
-        if (!canceled) setCompletionAuditError(true);
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [completionAuditRefreshKey]);
-
-  useEffect(() => {
-    let canceled = false;
-    fetch(apiPath("/api/export/audit.json"))
-      .then((response) => {
-        if (!response.ok) throw new Error("audit unavailable");
-        return response.json();
-      })
-      .then((data: AuditExport) => {
-        if (!canceled) {
-          setAuditExport(data);
-          setAuditExportError(false);
-        }
-      })
-      .catch(() => {
-        if (!canceled) setAuditExportError(true);
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [completionAuditRefreshKey]);
-
   const scrollToAdminSection = (id: string) => {
     onOpenView("ops");
     window.requestAnimationFrame(() => {
@@ -417,14 +236,6 @@ export function AdminConsole({
     });
   };
 
-  const openCompletionItem = (id: string) => {
-    if (id === "roster-ghin") onOpenView("roster");
-    else if (id === "money-collected") onOpenView("money");
-    else if (id === "schedule-confirmed") scrollToAdminSection("ops-schedule-confirmation");
-    else if (id === "iphone-safari-gate") scrollToAdminSection("ops-launch-gates");
-    else scrollToAdminSection("admin-full-workbench");
-  };
-
   const applyIntake = async () => {
     if (intakeCount === 0 || applyingIntake || !intakeConfirmed) return;
     setApplyingIntake(true);
@@ -436,37 +247,6 @@ export function AdminConsole({
       setIntakeStatus(`Applied ${intakeCount} update${intakeCount === 1 ? "" : "s"}.`);
     } finally {
       setApplyingIntake(false);
-    }
-  };
-
-  const patchLaunch = async (check: LaunchCheckEvidence, verified: boolean) => {
-    const note = (launchNotes[check.key] ?? check.note ?? "").trim();
-    setSavingLaunchKey(check.key);
-    try {
-      await onPatchLaunchCheck(check.key, verified, note || null);
-    } finally {
-      setSavingLaunchKey(null);
-    }
-  };
-
-  const fillMobileSafariNote = (key: string) => {
-    setLaunchNotes((prev) => ({
-      ...prev,
-      [key]: mobileSafariEvidenceNote(),
-    }));
-  };
-
-  const verifyMobileSafari = async (check: LaunchCheckEvidence) => {
-    const note = mobileSafariEvidenceNote();
-    setLaunchNotes((prev) => ({
-      ...prev,
-      [check.key]: note,
-    }));
-    setSavingLaunchKey(check.key);
-    try {
-      await onPatchLaunchCheck(check.key, true, note);
-    } finally {
-      setSavingLaunchKey(null);
     }
   };
 
@@ -566,101 +346,11 @@ export function AdminConsole({
             value={String(missingHandicaps.length)}
           />
           <AdminMetric
-            icon={ShieldCheck}
-            label="Launch"
-            value={`${launchVerified}/${launchCheckEvidence.length || 4}`}
+            icon={WalletCards}
+            label="Buy-ins open"
+            value={String(unpaid.length)}
           />
         </div>
-      </section>
-
-      <section
-        aria-label="Operational readiness and data gaps"
-        className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">
-              Operational Readiness
-            </h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              App readiness separated from handicap, buy-in status, schedule, and device gaps.
-            </p>
-          </div>
-          {completionAudit && (
-            <StatusPill tone={completionAudit.appReady ? "ok" : "warn"}>
-              {completionAudit.appReady
-                ? "app ready"
-                : `${completionAudit.appStatusCounts.open} app open`}
-            </StatusPill>
-          )}
-        </div>
-        {completionAuditError ? (
-          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-            Completion audit unavailable.
-          </p>
-        ) : completionAudit ? (
-          openCompletionItems.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
-                <div className="rounded-xl bg-fairway-50 px-2 py-2 text-fairway-800">
-                  App {completionAudit.appStatusCounts.open} open
-                </div>
-                <div className="rounded-xl bg-stone-50 px-2 py-2 text-stone-700">
-                  Data {completionAudit.leagueDataOpen} open
-                </div>
-                <div className="rounded-xl bg-stone-50 px-2 py-2 text-stone-700">
-                  Device {completionAudit.externalVerificationOpen} open
-                </div>
-              </div>
-              {openCompletionItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => openCompletionItem(item.id)}
-                  className="w-full rounded-xl bg-stone-50 px-3 py-2 text-left ring-1 ring-stone-200 hover:bg-stone-100"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-stone-900">
-                        {item.area}
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                        {readinessScopeLabel(item.readinessScope)}
-                      </p>
-                      <p className="mt-0.5 text-xs leading-5 text-stone-600">
-                        {item.evidence.join(" · ")}
-                      </p>
-                    </div>
-                    <StatusPill tone={item.status === "blocked" ? "danger" : "warn"}>
-                      {item.status}
-                    </StatusPill>
-                  </div>
-                  {item.nextAction && (
-                    <p className="mt-1 text-xs font-semibold text-fairway-800">
-                      {item.nextAction}
-                    </p>
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 rounded-xl bg-fairway-50 px-3 py-2 text-sm font-semibold text-fairway-800">
-              App checks are clear.
-            </p>
-          )
-        ) : (
-          <p className="mt-3 rounded-xl bg-stone-50 px-3 py-2 text-sm text-stone-600">
-            Loading completion audit…
-          </p>
-        )}
-        <a
-          href={apiPath("/api/export/completion-audit.json")}
-          download
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-800 ring-1 ring-stone-200 hover:bg-stone-200"
-        >
-          <Download className="h-4 w-4" />
-          Completion Audit
-        </a>
       </section>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
@@ -784,97 +474,19 @@ export function AdminConsole({
             onClick={() => scrollToLocalSection("admin-score-attestation-review")}
           />
           <AdminToolButton
-            icon={ShieldCheck}
-            label="Attestation review"
-            detail={`${scoreReview.openAttestations} need confirm`}
-            onClick={() => scrollToLocalSection("admin-score-attestation-review")}
-          />
-          <AdminToolButton
             icon={Trophy}
-            label="Standings closeout"
+            label="Closeout"
             detail={activeTournament?.name ?? "season"}
             onClick={() => scrollToAdminSection("ops-tournament-closeout")}
           />
           <AdminToolButton
-            icon={ListChecks}
-            label="Closeout packets"
-            detail="standings"
-            onClick={() => scrollToAdminSection("ops-tournament-closeout")}
-          />
-          <AdminToolButton
-            icon={WalletCards}
-            label="Payout closeout"
-            detail="ledger"
-            onClick={() => scrollToAdminSection("ops-tournament-closeout")}
-          />
-          <AdminToolButton
-            icon={Settings}
-            label="Launch checks"
-            detail={`${launchVerified}/${launchCheckEvidence.length || 4}`}
-            onClick={() => scrollToLocalSection("admin-launch-access")}
-          />
-          <a
-            href={apiPath("/api/export/database")}
-            download
-            className="min-h-16 rounded-xl bg-stone-50 p-3 text-left ring-1 ring-stone-200 hover:bg-stone-100"
-          >
-            <FileArchive className="h-4 w-4 text-fairway-700" />
-            <span className="mt-1 block text-sm font-semibold text-stone-900">
-              Backup
-            </span>
-            <span className="block text-xs text-stone-500">database</span>
-          </a>
-          <AdminToolButton
-            icon={CheckCircle2}
-            label="Backup proof"
-            detail={backupProof?.ok ? "verified" : "restore check"}
-            onClick={verifyBackup}
-          />
-          <AdminToolButton
             icon={Download}
             label="Exports"
-            detail="all files"
+            detail="downloads"
             onClick={() => scrollToLocalSection("admin-exports")}
-          />
-          <AdminToolButton
-            icon={ScrollText}
-            label="Audit log"
-            detail="events"
-            onClick={() => scrollToLocalSection("admin-audit-log")}
-          />
-          <AdminToolButton
-            icon={Settings}
-            label="Full Operations"
-            detail="all tools"
-            onClick={() => scrollToAdminSection("admin-full-workbench")}
           />
         </div>
       </section>
-
-      {advanced && (
-        <section className="rounded-2xl bg-fairway-900 p-4 text-white shadow-sm">
-          <div className="flex items-start gap-3">
-            <Settings className="mt-0.5 h-5 w-5 shrink-0 text-fairway-100" />
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold">
-                Operations Workbench
-              </h2>
-              <p className="mt-0.5 text-sm leading-5 text-fairway-100">
-                The complete operations tools are still here: settings, admin tasks,
-                one-paste intake, launch gates, rule audit, exports, closeout,
-                payout ledger, and evidence packets.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => scrollToAdminSection("admin-full-workbench")}
-            className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-sm font-semibold text-fairway-900 hover:bg-fairway-50"
-          >
-            Open full operations
-          </button>
-        </section>
-      )}
 
       <section
         id="admin-tee-time-oversight"
@@ -1146,203 +758,19 @@ export function AdminConsole({
       </section>
 
       <section
-        id="admin-launch-access"
-        className="scroll-mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-      >
-        <h2 className="text-base font-semibold text-stone-900">Launch And Access</h2>
-        <p className="mt-0.5 text-sm text-stone-500">
-          Verify only what has actually been tested.
-        </p>
-        <ul className="mt-3 space-y-2">
-          {launchCheckEvidence.map((check) => {
-            const saving = savingLaunchKey === check.key;
-            const noteDraft = launchNotes[check.key] ?? check.note ?? "";
-            const noteError = check.verified
-              ? null
-              : launchCheckEvidenceNoteError(check.key, noteDraft);
-            return (
-              <li key={check.key} className="rounded-xl bg-stone-50 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-stone-900">
-                      {check.label}
-                    </p>
-                    <p className="mt-0.5 text-xs text-stone-500">
-                      {check.verified
-                        ? `Verified by ${check.verifiedBy ?? check.source}`
-                        : `Needs proof. Env: ${check.envVar}`}
-                    </p>
-                  </div>
-                  <StatusPill tone={check.verified ? "ok" : "warn"}>
-                    {check.verified ? "done" : "open"}
-                  </StatusPill>
-                </div>
-                <input
-                  value={noteDraft}
-                  onChange={(event) =>
-                    setLaunchNotes((prev) => ({
-                      ...prev,
-                      [check.key]: event.target.value,
-                    }))
-                  }
-                  placeholder="Evidence note"
-                  aria-invalid={!!noteError}
-                  className="mt-2 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-                />
-                {noteError && (
-                  <p className="mt-1 text-[11px] font-semibold text-amber-700">
-                    {noteError}
-                  </p>
-                )}
-                {check.key === "mobileSafariVerified" && !check.verified && (
-                  isIphoneSafari() ? (
-                    <button
-                      type="button"
-                      onClick={() => verifyMobileSafari(check)}
-                      disabled={saving}
-                      className="mt-2 w-full rounded-lg bg-fairway-700 px-3 py-2 text-xs font-semibold text-white ring-1 ring-fairway-800 hover:bg-fairway-800 disabled:bg-stone-200 disabled:text-stone-500"
-                    >
-                      Verify this iPhone Safari
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fillMobileSafariNote(check.key)}
-                      className="mt-2 w-full rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
-                    >
-                      Fill note with this URL
-                    </button>
-                  )
-                )}
-                <button
-                  type="button"
-                  disabled={saving || check.source === "env" || (!check.verified && !!noteError)}
-                  onClick={() => patchLaunch(check, !check.verified)}
-                  className="mt-2 w-full rounded-xl bg-white px-3 py-2 text-sm font-semibold text-stone-800 ring-1 ring-stone-200 hover:bg-stone-100 disabled:text-stone-400"
-                >
-                  {saving
-                    ? "Saving..."
-                    : check.verified
-                      ? "Mark open"
-                      : "Mark verified"}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      <section
-        id="admin-audit-log"
-        className="scroll-mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-stone-900">Audit Log</h2>
-            <p className="mt-0.5 text-sm text-stone-500">
-              Recent commissioner and verification events.
-            </p>
-          </div>
-          <StatusPill tone={auditExportError ? "warn" : "ok"}>
-            {auditExport ? `${auditExport.count}` : auditExportError ? "error" : "load"}
-          </StatusPill>
-        </div>
-        {auditExport?.events.length ? (
-          <div className="mt-3 space-y-2">
-            {auditExport.events.slice(0, 4).map((event) => (
-              <div
-                key={event.id}
-                className="rounded-xl bg-stone-50 px-3 py-2 ring-1 ring-stone-200"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 text-sm font-semibold text-stone-900">
-                    {event.action}
-                  </p>
-                  <p className="shrink-0 text-right text-[11px] font-semibold text-stone-500">
-                    {event.createdAt.slice(0, 10)}
-                  </p>
-                </div>
-                <p className="mt-0.5 text-xs leading-5 text-stone-600">
-                  {event.summary}
-                </p>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                  {event.actor}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl bg-stone-50 px-3 py-2 text-sm text-stone-600">
-            {auditExportError ? "Audit log unavailable." : "Loading audit log..."}
-          </p>
-        )}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <ExportLink href="/api/export/audit.json" label="Audit JSON" />
-          <ExportLink href="/api/export/audit.csv" label="Audit CSV" />
-        </div>
-      </section>
-
-      <section
         id="admin-exports"
         className="scroll-mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
       >
         <h2 className="text-base font-semibold text-stone-900">Exports</h2>
+        <p className="mt-0.5 text-sm text-stone-500">
+          The files a commissioner needs. The full set is under Full Operations.
+        </p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <ExportLink href="/api/export/season.json" label="Season JSON" />
-          <ExportLink href="/api/export/rules.json" label="Rules JSON" />
-          <ExportLink href="/api/export/tee-times.csv" label="Tee Times CSV" />
-          <ExportLink href="/api/export/scores.csv" label="Scores CSV" />
-          <ExportLink href="/api/export/attestations.csv" label="Attestations CSV" />
           <ExportLink href="/api/export/standings.csv" label="Standings CSV" />
           <ExportLink href="/api/export/roster.csv" label="Roster CSV" />
           <ExportLink href="/api/export/buyins.csv" label="Buy-ins CSV" />
           <ExportLink href="/api/export/payouts.csv" label="Payouts CSV" />
-          {tournaments
-            .filter((tournament) => tournament.type !== "post")
-            .flatMap((tournament) => [
-              <ExportLink
-                key={`${tournament.id}-closeout-packet`}
-                href={`/api/export/closeout/${encodeURIComponent(tournament.id)}.txt`}
-                label={`${tournament.name} Packet`}
-              />,
-              <ExportLink
-                key={`${tournament.id}-closeout-ledger`}
-                href={`/api/export/closeout/${encodeURIComponent(tournament.id)}.json`}
-                label={`${tournament.name} Ledger`}
-              />,
-            ])}
-          <ExportLink href="/api/export/audit.json" label="Audit JSON" />
-          <ExportLink href="/api/export/audit.csv" label="Audit CSV" />
-          <ExportLink href="/api/export/tasks.json" label="Tasks JSON" />
-          <ExportLink href="/api/export/tasks.csv" label="Tasks CSV" />
-          <ExportLink href="/api/export/risks.json" label="Checklist JSON" />
-          <ExportLink href="/api/export/risks.csv" label="Checklist CSV" />
-          <ExportLink href="/api/export/request-packet.txt" label="Request Packet" />
-          <ExportLink
-            href="/api/export/commissioner-requests.json"
-            label="Request List JSON"
-          />
-          <ExportLink
-            href="/api/export/commissioner-requests.txt"
-            label="Request List"
-          />
-          <ExportLink href="/api/export/evidence-gap-packet.json" label="Evidence Gap JSON" />
-          <ExportLink href="/api/export/evidence-gap-packet.csv" label="Evidence Gap CSV" />
-          <ExportLink href="/api/export/evidence-gap-packet.txt" label="Evidence Gap Packet" />
-          <ExportLink href="/api/export/source-search-ledger.json" label="Source Ledger JSON" />
-          <ExportLink href="/api/export/source-search-ledger.csv" label="Source Ledger CSV" />
-          <ExportLink href="/api/export/verification-runs.json" label="Verification JSON" />
-          <ExportLink href="/api/export/verification-runs.csv" label="Verification CSV" />
-          <ExportLink href="/api/export/readiness.json" label="Readiness JSON" />
-          <ExportLink href="/api/export/launch-checks.json" label="Launch Checks JSON" />
-          <ExportLink href="/api/export/launch-checks.csv" label="Launch Checks CSV" />
-          <ExportLink href="/api/export/launch-gate-checklist.json" label="Launch Checklist JSON" />
-          <ExportLink href="/api/export/launch-gate-checklist.csv" label="Launch Checklist CSV" />
-          <ExportLink href="/api/export/launch-gate-checklist.txt" label="Launch Checklist" />
-          <ExportLink href="/api/export/launch-packet.txt" label="Launch Packet" />
-          <ExportLink href="/api/export/completion-audit.json" label="Completion Audit" />
-          <ExportLink href="/api/export/completion-audit.csv" label="Completion CSV" />
-          <ExportLink href="/api/export/archive.json" label="Archive Manifest" />
           <ExportLink href="/api/export/database" label="Database Backup" />
         </div>
       </section>
@@ -1554,57 +982,6 @@ function TeeTimeOversightRow({
       </p>
     </div>
   );
-}
-
-function mobileSafariEvidenceNote(date = todayISO()) {
-  const href =
-    typeof window === "undefined"
-      ? "[paste URL]"
-      : window.location.href.split("#")[0];
-  return `Physical iPhone Safari golden path passed on ${date} at ${href}.`;
-}
-
-function isIphoneSafari() {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /iphone/i.test(ua) && /safari/i.test(ua) && !/(crios|fxios|edgios)/i.test(ua);
-}
-
-function launchCheckEvidenceNoteError(key: string, note: string) {
-  const trimmed = note.trim();
-  if (!trimmed) return "Add the evidence note before marking verified.";
-  if (key === "productionUrlVerified") {
-    const urls = trimmed.match(/https?:\/\/[^\s<>)]+/gi) ?? [];
-    if (urls.length === 0) return "Paste the final public URL in the note.";
-    if (
-      urls.some((url) =>
-        /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::|\/|$)/i.test(
-          url
-        )
-      )
-    ) {
-      return "Use the final public URL, not localhost or loopback.";
-    }
-    if (!/remote smoke|verify:remote-smoke|smoke passed/i.test(trimmed)) {
-      return "Mention the remote smoke proof in the note.";
-    }
-  }
-  if (key === "mobileSafariVerified") {
-    if (!/iphone/i.test(trimmed)) return "Mention the physical iPhone.";
-    if (!/safari/i.test(trimmed)) return "Mention Safari.";
-    const urls = trimmed.match(/https?:\/\/[^\s<>)]+/gi) ?? [];
-    if (urls.length === 0) return "Paste the URL tested on the iPhone.";
-    if (
-      urls.some((url) =>
-        /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::|\/|$)/i.test(
-          url
-        )
-      )
-    ) {
-      return "Use the deployed URL tested on iPhone, not localhost.";
-    }
-  }
-  return null;
 }
 
 function StatusPill({
