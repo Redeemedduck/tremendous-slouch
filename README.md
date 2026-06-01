@@ -57,11 +57,13 @@ manager that follows the rule sheet end-to-end.
   packet/ledger, remaining risk, task, and a SHA-256 snapshot hash.
 - **Completion audit** — one JSON export maps each objective area to current
   proof status, evidence links, and next action so "done" is not guessed.
-- **Launch gates** — Admin can persist Docker, production URL, and physical
-  iPhone Safari verification evidence into the readiness JSON, launch packet,
+- **Launch gates** — Docker, production URL, and physical iPhone Safari
+  verification evidence persist into the readiness JSON, launch packet,
   `/api/export/launch-checks.json`, `/api/export/launch-checks.csv`, and the
-  launch-gate checklist exports. The Launch Gates panel also shows the
-  evidence checklist inline and can copy the full checklist for external proof.
+  launch-gate checklist exports. Gates are driven by the `DJDI_*_VERIFIED`
+  environment variables and the `/api/launch-checks` API. (The in-UI Launch
+  Gates panel was removed during the 2026-06 commissioner-UI simplification; the
+  data and exports are unchanged.)
 - **Commissioner settings** — Admin has a mobile settings toggle for coordination
   routes plus adjustable unpaid buy-in amounts, tournament points, and payout
   values. Bulk buy-in changes deliberately skip paid rows so receipt-backed
@@ -99,8 +101,27 @@ manager that follows the rule sheet end-to-end.
   attestations explicit, then bulk-fill one other group member as attester for
   scored member rows without overwriting existing attestations.
 
-See [`SCREENSHOTS.md`](./SCREENSHOTS.md) for core mobile visuals plus current
-Admin export/launch-gate evidence screenshots.
+### Commissioner UI
+
+The Admin tab is intentionally lean (simplified 2026-06; see
+[`docs/2026-06-01-commissioner-ui-simplification.md`](./docs/2026-06-01-commissioner-ui-simplification.md)).
+It is two surfaces:
+
+- **Admin Console** — the curated daily controls: snapshot metrics, score
+  review with attestation override, tee-time oversight, one-paste intake,
+  roster/money/closeout quick links, and a short core-exports list (season,
+  standings, roster, buy-ins, payouts, database backup).
+- **Full Operations** — a focused workbench for league settings, schedule
+  confirmation, score rule audit, name cleanup, the open admin task list, and
+  per-tournament closeout (packets + payout ledger).
+
+The audit-log, launch-gate, completion-audit, league-checklist, source-search,
+evidence-gap, and archive views were removed from the UI to reduce commissioner
+load. Every underlying `/api/export/*` route still works for handoff downloads —
+nothing in the data model or export surface was removed, only UI clutter.
+
+See [`SCREENSHOTS.md`](./SCREENSHOTS.md) for core mobile visuals plus Admin
+export evidence screenshots.
 
 ## Run
 
@@ -248,10 +269,10 @@ export, and launch-packet export. It does
 not create tee times, scores, payments, roster rows, or
 verification-run rows.
 
-Admin also exposes a Launch Gates panel backed by `/api/launch-checks`. These
-records let the commissioner mark Docker, tailnet URL, public URL, and physical
-iPhone Safari verification as proven without relying only on environment
-variables. The same evidence is exportable as JSON and CSV for launch handoffs.
+Launch-gate records are backed by `/api/launch-checks` and the `DJDI_*_VERIFIED`
+environment variables, and remain exportable as JSON and CSV for launch
+handoffs. (The in-UI Launch Gates panel was removed during the 2026-06
+commissioner-UI simplification; gates are now driven by env vars and the API.)
 
 ### Remote mobile UX verification
 
@@ -285,9 +306,11 @@ npm run verify:mobile-ux
 The command starts the built client against a temporary SQLite database with an
 access code, seeds a Stop 1 score scenario, and drives a 390×844 mobile
 Chromium viewport through access unlock, bottom navigation, Season standings,
-Money, Roster, and Admin. It verifies course-handicap net values, commissioner
-risk copy, score-summary fill, bulk attester fill, closeout packet/ledger
-visibility, buy-in/roster/score/risk/audit/archive export visibility, bulk
+Money, Roster, and Admin. It verifies course-handicap net values, score-summary
+fill, bulk attester fill, the consolidated Admin Console (next actions, admin
+map, tee-time oversight, score review with attestation override), the trimmed
+core exports, the Full Operations workbench (settings, schedule confirmation,
+score rule audit, tournament closeout, open task list), one-paste and bulk
 payment/GHIN/schedule intake, records a verification run, and proves browser
 console health without touching the real league DB.
 

@@ -51,7 +51,17 @@ No Gemini API key is required for this app.
 
 - Main UI lives under `src/`, with reusable rule logic in `src/lib/`.
 - The app coordinates tee times, group polls, roster identity, league score entry, tournament leaderboards, season standings, championship/post-season ranking, and buy-in pool tracking.
-- Ops coordinates rule audits, closeout packets/ledgers, payout settlement-note evidence, launch gates, inline/copyable launch-gate checklist, request packets, commissioner request lists, bulk reply intake, payment-note/evidence review, task exports, completion audit, source-search ledger, archive manifest, and the verification ledger.
+- The commissioner UI is split into two surfaces (see
+  `docs/2026-06-01-commissioner-ui-simplification.md`): an **Admin Console** with
+  the curated daily controls (snapshot metrics, score review/attestation,
+  tee-time oversight, one-paste intake, roster/money/closeout quick links, and a
+  short core-exports list), and a focused **Full Operations** workbench (league
+  settings, schedule confirmation, score rule audit, name cleanup, tournament
+  closeout, and the open admin task list). The audit-log, launch-gate,
+  operational-readiness/completion-audit, league-checklist, source-search,
+  evidence-gap, and archive panels were removed from the UI to cut clutter; their
+  `/api/export/*` routes and the launch-check data remain server-side for handoff
+  downloads. When trimming admin UI, keep server export routes intact.
 - Player GHIN index updates can include a `handicapSource` note so roster CSV
   exports preserve direct evidence instead of relying on chat memory.
 - Keep app copy short and operational. Do not over-gate score entry or tee-time

@@ -91,7 +91,13 @@ is `golf-group-coordinator`.
 The app coordinates tee times, group polls, comments, roster identity,
 member/guest status, buy-ins, league score entry, score review,
 tournament leaderboards, season standings, championship/post-season logic,
-commissioner Admin workflows, launch gates, and evidence exports.
+and commissioner Admin workflows. The commissioner UI is consolidated into an
+**Admin Console** (curated daily controls + a short core-exports list) and a
+focused **Full Operations** workbench (settings, schedule confirmation, score
+rule audit, name cleanup, tournament closeout, open task list). Audit-log,
+launch-gate, completion-audit, source-search, evidence-gap, and archive views
+are export-only — their `/api/export/*` routes remain but they are no longer
+rendered in the UI (see `docs/2026-06-01-commissioner-ui-simplification.md`).
 
 ### Server
 
@@ -100,7 +106,8 @@ commissioner Admin workflows, launch gates, and evidence exports.
 - Testable seams are exported as `createDb`, `createApp`, and `startServer`.
 - SQLite uses WAL mode and state-changing operations are wrapped in
   transactions where consistency matters.
-- Commissioner evidence includes audit events, verification runs, closeout
+- Commissioner evidence is exposed as `/api/export/*` endpoints (not all
+  surfaced in the trimmed Admin UI): audit events, verification runs, closeout
   packets/ledgers, payout settlement-note evidence, launch checks,
   inline/copyable launch-gate checklist, completion audit, source-search
   ledger, archive manifest, payment evidence review, commissioner request list,
