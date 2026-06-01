@@ -270,8 +270,7 @@ const SEED_HOST_CLAIM = JSON.stringify([
 
 // Final scores from the Stop 1 12:40 group's paper scorecard (gross / course
 // handicap per the figures written on the card). Course handicap drives net
-// on the tournament leaderboard; each player is attested by another in the
-// group per the league rule. Timestamped to the round date.
+// on the tournament leaderboard. Timestamped to the round date.
 const ROUND1_RECORDED_AT = "2026-05-16T19:00:00.000Z";
 const ROUND1_1240_CLAIMS = JSON.stringify([
   { name: SEED_HOST, claimedAt: NOW_ISO },
@@ -280,9 +279,9 @@ const ROUND1_1240_CLAIMS = JSON.stringify([
   { name: "Andrew", claimedAt: NOW_ISO },
 ]);
 const ROUND1_1240_SCORES = JSON.stringify([
-  { name: "John", gross: 91, courseHcp: 18, attestedBy: "Noah", recordedAt: ROUND1_RECORDED_AT },
-  { name: "Noah", gross: 83, courseHcp: 13, attestedBy: "Andrew", recordedAt: ROUND1_RECORDED_AT },
-  { name: "Andrew", gross: 85, courseHcp: 16, attestedBy: "John", recordedAt: ROUND1_RECORDED_AT },
+  { name: "John", gross: 91, courseHcp: 18, recordedAt: ROUND1_RECORDED_AT },
+  { name: "Noah", gross: 83, courseHcp: 13, recordedAt: ROUND1_RECORDED_AT },
+  { name: "Andrew", gross: 85, courseHcp: 16, recordedAt: ROUND1_RECORDED_AT },
 ]);
 stmtSeedTeeTime.run(
   "seed-2026-w1-1240",
@@ -309,26 +308,6 @@ stmtSeedTeeTime.run(
   NOW_ISO
 );
 
-// Register the Stop 1 12:40 group (host + the three players on the scorecard)
-// as league members with buy-in records. Without member = 1 rows, the league
-// attestation rule in recordScoreTx would reject any later UI edit of these
-// seeded scores ("… isn't a registered member"). Handicap is left NULL: the
-// card only gives Common-Ground course handicaps (already on each score and
-// driving leaderboard net), not the player's GHIN index. INSERT OR IGNORE so
-// hand-edited rows aren't clobbered on re-seed.
-const stmtSeedPlayer = db.prepare(
-  "INSERT OR IGNORE INTO players (name, handicap, member, updated_at) VALUES (?, NULL, 1, ?)"
-);
-const stmtSeedBuyin = db.prepare(
-  `INSERT OR IGNORE INTO league_buyins
-   (player_name, amount, paid, paid_at, notes, updated_at)
-   VALUES (?, 325, 0, NULL, NULL, ?)`
-);
-for (const name of [SEED_HOST, "John", "Noah", "Andrew"]) {
-  stmtSeedPlayer.run(name, NOW_ISO);
-  stmtSeedBuyin.run(name, NOW_ISO);
-}
-
 type TeeTimeRow = {
   id: string;
   course: string;
@@ -350,7 +329,6 @@ type Score = {
   name: string;
   gross: number;
   courseHcp?: number | null;
-  attestedBy?: string | null;
   recordedAt: string;
 };
 type Comment = {
@@ -786,63 +764,18 @@ const dropInterestTx = db.transaction(
 );
 
 // Upsert a score for one player on a past tee time. Replaces the existing
-// score if (case-insensitive) name already has one. Enforces the league
-// attestation rule when the tee time falls inside a non-post tournament
-// window: attestedBy must be (a) one of the other claims, (b) a registered
-// member, and (c) not the scorer themselves.
-const stmtSelectMatchingTournaments = db.prepare(`
-  SELECT * FROM tournaments
-  WHERE type != 'post'
-    AND ? BETWEEN window_start AND window_end
-  LIMIT 1
-`);
-const stmtSelectMemberByName = db.prepare(
-  `SELECT * FROM players WHERE name = ? COLLATE NOCASE AND member = 1`
-);
+// score if (case-insensitive) name already has one. Honor-system: anyone can
+// record any score; attestation is handled off-app.
 const recordScoreTx = db.transaction(
   (
     teeId: string,
     name: string,
     gross: number,
-    courseHcp: number | null,
-    attestedBy: string | null
+    courseHcp: number | null
   ): TeeTimeRow => {
     const row = stmtSelectById.get(teeId) as TeeTimeRow | undefined;
     if (!row) throw new NotFoundError("Tee time not found");
-    const claims = JSON.parse(row.claims) as Claim[];
     const lowerScorer = name.toLowerCase();
-
-    // Is this tee time inside a non-post tournament window?
-    const inTournament = stmtSelectMatchingTournaments.get(row.date) as
-      | TournamentRow
-      | undefined;
-    if (inTournament) {
-      if (!attestedBy) {
-        throw new ValidationError(
-          "League rounds need an attester (another member who played in your group)"
-        );
-      }
-      const lowerAttester = attestedBy.toLowerCase();
-      if (lowerAttester === lowerScorer) {
-        throw new ValidationError("Attester can't be the scorer themselves");
-      }
-      const attesterOnTeeTime = claims.some(
-        (c) => c.name.toLowerCase() === lowerAttester
-      );
-      if (!attesterOnTeeTime) {
-        throw new ValidationError(
-          `${attestedBy} wasn't on this tee time — pick someone who played in your group`
-        );
-      }
-      const memberRow = stmtSelectMemberByName.get(attestedBy) as
-        | PlayerRow
-        | undefined;
-      if (!memberRow) {
-        throw new ValidationError(
-          `${attestedBy} isn't a registered member — drop-ins can't attest scores`
-        );
-      }
-    }
 
     const scores = JSON.parse(row.scores) as Score[];
     const idx = scores.findIndex((s) => s.name.toLowerCase() === lowerScorer);
@@ -850,7 +783,6 @@ const recordScoreTx = db.transaction(
       name,
       gross,
       courseHcp,
-      attestedBy: attestedBy ?? null,
       recordedAt: new Date().toISOString(),
     };
     if (idx === -1) scores.push(entry);
@@ -1074,17 +1006,7 @@ async function startServer() {
         }
         courseHcp = h;
       }
-      let attestedBy: string | null = null;
-      if (req.body?.attestedBy != null && req.body.attestedBy !== "") {
-        attestedBy = trimStr(req.body.attestedBy, NAME_MAX, "Attester");
-      }
-      const updated = recordScoreTx.immediate(
-        id,
-        name,
-        gross,
-        courseHcp,
-        attestedBy
-      );
+      const updated = recordScoreTx.immediate(id, name, gross, courseHcp);
       res.json({ teeTime: rowToTeeTime(updated) });
     } catch (err: any) {
       if (err?.status) return res.status(err.status).json({ error: err.message });

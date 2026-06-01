@@ -288,7 +288,7 @@ async function main() {
        VALUES (?, 'Colorado National', '2026-06-01', '08:00', 4, 'Greg', NULL,
                '[{"name":"Greg","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Mike","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Alex","claimedAt":"2026-06-01T00:00:00Z"},{"name":"Sam","claimedAt":"2026-06-01T00:00:00Z"}]',
                '[]',
-               '[{"name":"Greg","gross":76,"courseHcp":8,"attestedBy":"Alex","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":13,"attestedBy":"Alex","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"attestedBy":"Greg","recordedAt":"2026-06-01T19:00:00Z"},{"name":"Sam","gross":96,"courseHcp":19,"attestedBy":"Greg","recordedAt":"2026-06-01T19:00:00Z"}]',
+               '[{"name":"Greg","gross":76,"courseHcp":8,"recordedAt":"2026-06-01T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":13,"recordedAt":"2026-06-01T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"recordedAt":"2026-06-01T19:00:00Z"},{"name":"Sam","gross":96,"courseHcp":19,"recordedAt":"2026-06-01T19:00:00Z"}]',
                '2026-06-01T00:00:00Z')`
     ).run("stop2-r1");
     db3.close();
@@ -317,7 +317,7 @@ async function main() {
        VALUES (?, 'Championship', '2026-10-10', '08:00', 4, 'Jason', 'Day 1',
                '[{"name":"Jason","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Greg","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Alex","claimedAt":"2026-10-10T00:00:00Z"},{"name":"Mike","claimedAt":"2026-10-10T00:00:00Z"}]',
                '[]',
-               '[{"name":"Jason","gross":78,"courseHcp":7,"attestedBy":"Greg","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Greg","gross":80,"courseHcp":8,"attestedBy":"Jason","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"attestedBy":"Mike","recordedAt":"2026-10-10T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":12,"attestedBy":"Alex","recordedAt":"2026-10-10T19:00:00Z"}]',
+               '[{"name":"Jason","gross":78,"courseHcp":7,"recordedAt":"2026-10-10T19:00:00Z"},{"name":"Greg","gross":80,"courseHcp":8,"recordedAt":"2026-10-10T19:00:00Z"},{"name":"Alex","gross":74,"courseHcp":4,"recordedAt":"2026-10-10T19:00:00Z"},{"name":"Mike","gross":85,"courseHcp":12,"recordedAt":"2026-10-10T19:00:00Z"}]',
                '2026-10-10T00:00:00Z')`
     ).run("post-d1");
     db4.prepare(
@@ -325,7 +325,7 @@ async function main() {
        VALUES (?, 'Championship', '2026-10-11', '08:00', 4, 'Jason', 'Day 2',
                '[{"name":"Jason","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Greg","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Alex","claimedAt":"2026-10-11T00:00:00Z"},{"name":"Mike","claimedAt":"2026-10-11T00:00:00Z"}]',
                '[]',
-               '[{"name":"Jason","gross":76,"courseHcp":7,"attestedBy":"Greg","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Greg","gross":79,"courseHcp":8,"attestedBy":"Jason","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Alex","gross":75,"courseHcp":4,"attestedBy":"Mike","recordedAt":"2026-10-11T19:00:00Z"},{"name":"Mike","gross":82,"courseHcp":12,"attestedBy":"Alex","recordedAt":"2026-10-11T19:00:00Z"}]',
+               '[{"name":"Jason","gross":76,"courseHcp":7,"recordedAt":"2026-10-11T19:00:00Z"},{"name":"Greg","gross":79,"courseHcp":8,"recordedAt":"2026-10-11T19:00:00Z"},{"name":"Alex","gross":75,"courseHcp":4,"recordedAt":"2026-10-11T19:00:00Z"},{"name":"Mike","gross":82,"courseHcp":12,"recordedAt":"2026-10-11T19:00:00Z"}]',
                '2026-10-11T00:00:00Z')`
     ).run("post-d2");
     db4.close();
