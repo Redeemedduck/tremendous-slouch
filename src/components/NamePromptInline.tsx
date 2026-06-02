@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 
 export function NamePromptInline({
   onSubmit,
@@ -8,24 +8,12 @@ export function NamePromptInline({
   nameSuggestions: string[];
 }) {
   const [name, setName] = useState("");
-  const [handicap, setHandicap] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     const n = name.trim();
     if (!n) return;
-    let h: number | null = null;
-    if (handicap.trim() !== "") {
-      const v = Number(handicap);
-      if (!Number.isFinite(v) || v < -10 || v > 54) {
-        setError("Handicap must be between -10 and 54");
-        return;
-      }
-      h = Math.round(v * 10) / 10;
-    }
-    onSubmit(n, h);
+    onSubmit(n, null);
   };
 
   return (
@@ -34,7 +22,7 @@ export function NamePromptInline({
         What name should we use for your spots?
       </p>
       <form className="space-y-2" onSubmit={submit}>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex">
           <input
             autoFocus
             value={name}
@@ -42,19 +30,7 @@ export function NamePromptInline({
             maxLength={30}
             placeholder="Your name"
             list="name-suggestions"
-            className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-          />
-          <input
-            type="number"
-            value={handicap}
-            onChange={(e) => setHandicap(e.target.value)}
-            step={0.1}
-            min={-10}
-            max={54}
-            placeholder="Hcp"
-            inputMode="decimal"
-            className="w-20 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-            aria-label="Handicap (optional)"
+            className="col-span-2 min-w-0 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100 sm:col-span-1 sm:flex-1"
           />
           <button
             type="submit"
@@ -72,13 +48,8 @@ export function NamePromptInline({
           </datalist>
         )}
         <p className="text-xs text-stone-400">
-          Handicap is optional — same number you have in GHIN.
+          Handicap info lives in the roster and can be updated later.
         </p>
-        {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
       </form>
     </div>
   );

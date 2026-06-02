@@ -1,12 +1,14 @@
 import { computeTournamentLeaderboard } from "./tournamentLeaderboard";
+import { ACTIVE_RULES_VERSION, POSITION_POINTS } from "./leagueRules";
 import type { TeeTime, Tournament } from "./types";
 
 export type StandingRow = {
+  rulesVersion: string;
   name: string;
   rounds: number;
   totalGross: number;
-  avgGross: number;
-  bestGross: number;
+  avgGross: number | null;
+  bestGross: number | null;
   // Net stats are only populated when at least one round had a known
   // handicap for this player. Otherwise null.
   totalNet: number | null;
@@ -15,41 +17,53 @@ export type StandingRow = {
   // Cumulative regular-season points (FedEx-Cup-style). Always defined; 0
   // when the player hasn't placed in any regular tournament yet.
   seasonPoints: number;
+  scoreStatusCounts: ScoreStatusCounts;
+};
+
+export type ScoreStatusCounts = {
+  total: number;
+  official: number;
+  draft: number;
+  pending: number;
+  attested: number;
+  overridden: number;
+  legacyUnconfirmed: number;
 };
 
 export type StandingsSort = "seasonPoints" | "avgNet" | "avgGross" | "rounds";
-
-// FedEx-Cup-style points distribution by finishing position. Length 20 is
-// plenty for a 12-15 player league; anyone outside the top 20 gets 0.
-// Tunable in one place.
-export const POSITION_POINTS = [
-  100, // 1st
-  80,
-  65,
-  55,
-  50,
-  45,
-  40,
-  36,
-  33,
-  31,
-  29,
-  27,
-  25,
-  23,
-  21,
-  19,
-  17,
-  15,
-  13,
-  11,
-] as const;
 
 export const pointsForPosition = (pos: number): number =>
   pos >= 1 && pos <= POSITION_POINTS.length ? POSITION_POINTS[pos - 1] : 0;
 
 const eq = (a: string, b: string) =>
   a.trim().toLowerCase() === b.trim().toLowerCase();
+
+const isOfficialScore = (score: TeeTime["scores"][number]) =>
+  score.attestationStatus === "attested" ||
+  score.attestationStatus === "overridden";
+
+const emptyScoreStatusCounts = (): ScoreStatusCounts => ({
+  total: 0,
+  official: 0,
+  draft: 0,
+  pending: 0,
+  attested: 0,
+  overridden: 0,
+  legacyUnconfirmed: 0,
+});
+
+const addScoreStatus = (
+  counts: ScoreStatusCounts,
+  score: TeeTime["scores"][number]
+) => {
+  counts.total += 1;
+  if (isOfficialScore(score)) counts.official += 1;
+  if (score.attestationStatus === "draft") counts.draft += 1;
+  else if (score.attestationStatus === "pending") counts.pending += 1;
+  else if (score.attestationStatus === "attested") counts.attested += 1;
+  else if (score.attestationStatus === "overridden") counts.overridden += 1;
+  else counts.legacyUnconfirmed += 1;
+};
 
 /**
  * Walks every regular-type tournament, computes its leaderboard, and sums
@@ -93,6 +107,7 @@ export function computeStandings(
       displayName: string;
       grosses: number[];
       nets: number[];
+      scoreStatusCounts: ScoreStatusCounts;
     }
   >();
   for (const t of teeTimes) {
@@ -101,15 +116,22 @@ export function computeStandings(
       if (!key) continue;
       let agg = byKey.get(key);
       if (!agg) {
-        agg = { displayName: s.name, grosses: [], nets: [] };
+        agg = {
+          displayName: s.name,
+          grosses: [],
+          nets: [],
+          scoreStatusCounts: emptyScoreStatusCounts(),
+        };
         byKey.set(key, agg);
       }
+      addScoreStatus(agg.scoreStatusCounts, s);
+      if (!isOfficialScore(s)) continue;
       agg.grosses.push(s.gross);
-      // For aggregate avg-net / best-net (non-tournament-specific), keep
-      // using the GHIN index. Tournament-specific net (and therefore
-      // tournament leaderboard position) uses course handicap when
-      // available — see computeTournamentLeaderboard.
-      const hcp = getHandicap(s.name);
+      // League scores carry the GHIN course handicap for that tee/course.
+      // Use it first so season aggregate net matches tournament and summary
+      // closeout math. Older/non-league rows can still fall back to the
+      // player's recorded handicap index for display.
+      const hcp = s.courseHcp ?? getHandicap(s.name);
       if (hcp != null) agg.nets.push(s.gross - hcp);
     }
   }
@@ -123,15 +145,15 @@ export function computeStandings(
   const rows: StandingRow[] = [];
   for (const [key, agg] of byKey.entries()) {
     const rounds = agg.grosses.length;
-    if (rounds === 0) continue;
     const totalGross = agg.grosses.reduce((a, b) => a + b, 0);
-    const avgGross = totalGross / rounds;
-    const bestGross = Math.min(...agg.grosses);
+    const avgGross = rounds > 0 ? totalGross / rounds : null;
+    const bestGross = rounds > 0 ? Math.min(...agg.grosses) : null;
     const hasNet = agg.nets.length > 0;
     const totalNet = hasNet ? agg.nets.reduce((a, b) => a + b, 0) : null;
     const avgNet = hasNet ? totalNet! / agg.nets.length : null;
     const bestNet = hasNet ? Math.min(...agg.nets) : null;
     rows.push({
+      rulesVersion: ACTIVE_RULES_VERSION,
       name: agg.displayName,
       rounds,
       totalGross,
@@ -141,6 +163,7 @@ export function computeStandings(
       avgNet,
       bestNet,
       seasonPoints: seasonPointsByKey.get(key) ?? 0,
+      scoreStatusCounts: { ...agg.scoreStatusCounts },
     });
   }
   return rows;
@@ -163,9 +186,15 @@ export function sortStandings(
       return b.rounds - a.rounds;
     });
   } else if (by === "rounds") {
-    sorted.sort((a, b) => b.rounds - a.rounds || a.avgGross - b.avgGross);
+    sorted.sort(
+      (a, b) =>
+        b.rounds - a.rounds ||
+        (a.avgGross ?? Infinity) - (b.avgGross ?? Infinity)
+    );
   } else if (by === "avgGross") {
-    sorted.sort((a, b) => a.avgGross - b.avgGross);
+    sorted.sort(
+      (a, b) => (a.avgGross ?? Infinity) - (b.avgGross ?? Infinity)
+    );
   } else {
     sorted.sort((a, b) => {
       // Players with no net handicap data sink to the bottom.

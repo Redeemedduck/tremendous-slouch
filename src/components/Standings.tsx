@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, Trophy } from "lucide-react";
 import { formatHandicap } from "../lib/format";
+import { ACTIVE_RULES_VERSION, POST_SEASON_SEEDS } from "../lib/leagueRules";
 import {
   type StandingRow,
   type StandingsSort,
@@ -10,8 +11,6 @@ import {
 import type { TeeTime, Tournament } from "../lib/types";
 
 const fmt1 = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
-const POST_SEASON_SEEDS = 4;
-
 export function Standings({
   teeTimes,
   tournaments,
@@ -69,7 +68,7 @@ export function Standings({
           </span>
           <span className="text-xs text-stone-500">
             {rows.length} player{rows.length === 1 ? "" : "s"} ·{" "}
-            {totalRounds} round{totalRounds === 1 ? "" : "s"}
+            {totalRounds} card{totalRounds === 1 ? "" : "s"}
           </span>
         </span>
         <ChevronDown
@@ -141,7 +140,8 @@ export function Standings({
                 Points awarded by finishing position in each regular
                 tournament (1st = 100, 2nd = 80, 3rd = 65, …). Top{" "}
                 {POST_SEASON_SEEDS} seed the post-season with stroke
-                advantages of −4 / −3 / −2 / −1.
+                advantages of −4 / −3 / −2 / −1. Rules{" "}
+                {ACTIVE_RULES_VERSION}.
                 {totalRegularTournaments > 0 && (
                   <>
                     {" "}
@@ -151,8 +151,9 @@ export function Standings({
               </>
             ) : (
               <>
-                Net = gross − handicap index. Players with no recorded
-                handicap show only gross.
+                Net = gross − course handicap when entered; GHIN index is the
+                fallback for non-league rows. Players with no net source show
+                only gross.
               </>
             )}
           </p>
@@ -206,6 +207,10 @@ function Row({
   const usingNet = showNet && row.avgNet != null;
   const avg = usingNet ? row.avgNet! : row.avgGross;
   const best = usingNet ? row.bestNet! : row.bestGross;
+  const openScoreCount =
+    row.scoreStatusCounts.draft +
+    row.scoreStatusCounts.pending +
+    row.scoreStatusCounts.legacyUnconfirmed;
   return (
     <tr className={isMe ? "bg-fairway-50" : undefined}>
       <td className="py-1.5 pr-2">
@@ -220,6 +225,11 @@ function Row({
           )}
           <span className="font-medium text-stone-900">{row.name}</span>
           {hcp && <span className="ml-0.5 text-xs text-stone-400">{hcp}</span>}
+          {openScoreCount > 0 && (
+            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+              {openScoreCount} open
+            </span>
+          )}
         </span>
       </td>
       <td className="py-1.5 pr-2 text-right tabular-nums text-stone-700">
@@ -232,10 +242,10 @@ function Row({
       ) : (
         <>
           <td className="py-1.5 pr-2 text-right tabular-nums text-stone-700">
-            {fmt1(avg)}
+            {avg == null ? "—" : fmt1(avg)}
           </td>
           <td className="py-1.5 text-right tabular-nums text-stone-700">
-            {usingNet ? fmt1(best) : best}
+            {best == null ? "—" : usingNet ? fmt1(best) : best}
           </td>
         </>
       )}

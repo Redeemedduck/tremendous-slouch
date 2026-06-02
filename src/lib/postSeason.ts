@@ -1,9 +1,6 @@
+export { POST_SEASON_SEEDS, STROKE_ADVANTAGES } from "./leagueRules";
 import type { Score, TeeTime, Tournament } from "./types";
-
-/** Stroke advantage applied to the post-season total for the top 4 regular-
- *  season seeds. Index = seed - 1. */
-export const STROKE_ADVANTAGES = [-4, -3, -2, -1] as const;
-export const POST_SEASON_SEEDS = STROKE_ADVANTAGES.length;
+import { POST_SEASON_SEEDS, STROKE_ADVANTAGES } from "./leagueRules";
 
 export type PostSeasonRow = {
   name: string;
@@ -35,6 +32,10 @@ const netFor = (
 const inWindow = (t: Tournament, date: string) =>
   date >= t.windowStart && date <= t.windowEnd;
 
+const isOfficialScore = (score: Score) =>
+  score.attestationStatus === "attested" ||
+  score.attestationStatus === "overridden";
+
 /**
  * Walks every tee time inside the post-season tournament's window, sums
  * each player's net across all rounds, applies the seed's stroke advantage,
@@ -59,6 +60,7 @@ export function computePostSeasonLeaderboard(
   >();
   for (const tt of inTournament) {
     for (const s of tt.scores) {
+      if (!isOfficialScore(s)) continue;
       const key = s.name.trim().toLowerCase();
       if (!key) continue;
       let agg = byKey.get(key);

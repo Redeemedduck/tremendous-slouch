@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 
 export function ProfileSheet({
   open,
@@ -8,6 +8,7 @@ export function ProfileSheet({
   initialHandicap,
   onSave,
   onClear,
+  onOpenCommissioner,
   nameSuggestions,
 }: {
   open: boolean;
@@ -16,6 +17,7 @@ export function ProfileSheet({
   initialHandicap: number | null;
   onSave: (name: string, handicap: number | null) => Promise<void> | void;
   onClear: () => void;
+  onOpenCommissioner: () => void;
   nameSuggestions: string[];
 }) {
   const [name, setName] = useState(initialName);
@@ -150,6 +152,14 @@ export function ProfileSheet({
             className="w-full rounded-xl py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
           >
             Forget me on this device
+          </button>
+          <button
+            type="button"
+            onClick={onOpenCommissioner}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+          >
+            <ShieldCheck className="h-4 w-4 text-fairway-700" />
+            Commissioner tools
           </button>
         </form>
       </div>

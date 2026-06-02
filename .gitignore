@@ -1,9 +1,15 @@
 node_modules/
 build/
+.build-work/
 dist/
+dist-phone/
+dist-djdi/
+dist-server/
+output/
 coverage/
 .DS_Store
 *.log
+/djdi-*.png
 .env*
 !.env.example
 *.db
@@ -11,3 +17,5 @@ coverage/
 *.db-shm
 *.db-wal
 .claude/
+.playwright-cli/
+.playwright-mcp/

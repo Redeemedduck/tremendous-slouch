@@ -9,6 +9,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { formatDateLabel, formatTimeLabel, todayISO } from "../lib/format";
+import { ACTIVE_RULES_VERSION } from "../lib/leagueRules";
 import {
   POST_SEASON_SEEDS,
   computePostSeasonLeaderboard,
@@ -123,6 +124,9 @@ export function SeasonSchedule({
 
       {open && (
         <ul className="mt-2 space-y-2">
+          <li className="px-1 text-[11px] font-medium text-stone-400">
+            Rules {ACTIVE_RULES_VERSION}
+          </li>
           {enriched.map((t) => {
             const Icon = TYPE_ICON[t.type] ?? Flag;
             const isExpanded = expandedId === t.id;

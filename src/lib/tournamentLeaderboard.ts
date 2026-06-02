@@ -1,6 +1,8 @@
+import { ACTIVE_RULES_VERSION } from "./leagueRules";
 import type { Score, TeeTime, Tournament } from "./types";
 
 export type LeaderboardRow = {
+  rulesVersion: string;
   name: string;
   rounds: number;
   bestGross: number;
@@ -28,6 +30,10 @@ const netFor = (score: Score, getHandicap: (n: string) => number | null) => {
   return { net: null as number | null, fromCourse: false };
 };
 
+const isOfficialScore = (score: Score) =>
+  score.attestationStatus === "attested" ||
+  score.attestationStatus === "overridden";
+
 export function computeTournamentLeaderboard(
   tournament: Tournament,
   teeTimes: TeeTime[],
@@ -46,6 +52,7 @@ export function computeTournamentLeaderboard(
   >();
   for (const tt of inTournament) {
     for (const s of tt.scores) {
+      if (!isOfficialScore(s)) continue;
       const key = s.name.trim().toLowerCase();
       if (!key) continue;
       let agg = byKey.get(key);
@@ -69,6 +76,7 @@ export function computeTournamentLeaderboard(
   for (const agg of byKey.values()) {
     if (agg.grosses.length === 0) continue;
     rows.push({
+      rulesVersion: ACTIVE_RULES_VERSION,
       name: agg.displayName,
       rounds: agg.grosses.length,
       bestGross: Math.min(...agg.grosses),

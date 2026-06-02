@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import type { NewTeeTimeInput, TeeTime } from "../lib/types";
 
+export type ScoreHandicapEvidenceInput = {
+  teeName?: string | null;
+  teeRating?: number | null;
+  teeSlope?: number | null;
+  teePar?: number | null;
+  handicapIndexUsed?: number | null;
+  courseHcpSource?:
+    | "ghin"
+    | "calculated"
+    | "calculated_unverified"
+    | "manual_unverified"
+    | "commissioner_override";
+};
+
 export function useTeeTimes(onError: (msg: string) => void) {
   const [teeTimes, setTeeTimes] = useState<TeeTime[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -164,17 +178,40 @@ export function useTeeTimes(onError: (msg: string) => void) {
       name: string,
       gross: number,
       courseHcp: number | null,
-      attestedBy: string | null
+      attestedBy: string | null,
+      handicapEvidence: ScoreHandicapEvidenceInput = {}
     ) => {
       const r = await fetch(`/api/teetimes/${id}/scores`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, gross, courseHcp, attestedBy }),
+        body: JSON.stringify({
+          name,
+          gross,
+          courseHcp,
+          attestedBy,
+          ...handicapEvidence,
+        }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't record score");
         throw new Error(data.error || "score failed");
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
+  const attestScore = useCallback(
+    async (id: string, name: string) => {
+      const r = await fetch(
+        `/api/teetimes/${id}/scores/${encodeURIComponent(name)}/attest`,
+        { method: "POST", headers: { "content-type": "application/json" } }
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't attest score");
+        throw new Error(data.error || "attestation failed");
       }
       replace(data.teeTime);
     },
@@ -213,6 +250,23 @@ export function useTeeTimes(onError: (msg: string) => void) {
     [onError, replace]
   );
 
+  const editComment = useCallback(
+    async (id: string, commentId: string, body: string) => {
+      const r = await fetch(`/api/teetimes/${id}/comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        onError(data.error || "Couldn't edit comment");
+        throw new Error(data.error || "comment edit failed");
+      }
+      replace(data.teeTime);
+    },
+    [onError, replace]
+  );
+
   const removeScore = useCallback(
     async (id: string, name: string) => {
       const r = await fetch(
@@ -222,7 +276,7 @@ export function useTeeTimes(onError: (msg: string) => void) {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't remove score");
-        return;
+        throw new Error(data.error || "score delete failed");
       }
       replace(data.teeTime);
     },
@@ -232,6 +286,7 @@ export function useTeeTimes(onError: (msg: string) => void) {
   return {
     teeTimes,
     loaded,
+    refresh,
     create,
     update,
     claim,
@@ -239,8 +294,10 @@ export function useTeeTimes(onError: (msg: string) => void) {
     markInterested,
     dropInterest,
     recordScore,
+    attestScore,
     removeScore,
     postComment,
+    editComment,
     deleteComment,
     remove,
   };

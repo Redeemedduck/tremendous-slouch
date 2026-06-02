@@ -165,7 +165,7 @@ export function NewTeeTimeSheet({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Total spots">
+            <Field label="Total spots, including you">
               <select
                 value={spots}
                 onChange={(e) => setSpots(Number(e.target.value))}
@@ -194,6 +194,9 @@ export function NewTeeTimeSheet({
                   ))}
                 </datalist>
               )}
+              <p className="mt-1 text-xs text-stone-400">
+                Posting claims one spot for the host.
+              </p>
             </Field>
           </div>
           <Field label="Notes (optional)">

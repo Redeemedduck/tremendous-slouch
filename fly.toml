@@ -18,6 +18,7 @@ primary_region = "den"
 
 [env]
   NODE_ENV = "production"
+  HOST = "0.0.0.0"
   PORT = "3000"
   DB_PATH = "/data/golf_coordinator.db"
 

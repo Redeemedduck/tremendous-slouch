@@ -1,13 +1,7 @@
 import { useState } from "react";
-import { MessageSquare, Send, X } from "lucide-react";
+import { Check, MessageSquare, Pencil, Send, X } from "lucide-react";
 import { eqName } from "../lib/format";
 import type { Comment } from "../lib/types";
-
-const RELATIVE_THRESHOLDS = [
-  { ms: 60_000, label: (m: number) => `${m}m ago` },
-  { ms: 3_600_000, label: (m: number) => `${m}h ago` },
-  { ms: 86_400_000, label: (m: number) => `${m}d ago` },
-] as const;
 
 function relativeTime(iso: string): string {
   const dt = Date.parse(iso);
@@ -28,17 +22,22 @@ export function Comments({
   myName,
   readOnly,
   onPost,
+  onEdit,
   onDelete,
 }: {
   comments: Comment[];
   myName: string;
   readOnly: boolean;
   onPost: (body: string) => void | Promise<void>;
+  onEdit: (commentId: string, body: string) => void | Promise<void>;
   onDelete: (commentId: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +49,19 @@ export function Comments({
       setDraft("");
     } finally {
       setPosting(false);
+    }
+  };
+
+  const saveEdit = async (commentId: string) => {
+    const body = editDraft.trim();
+    if (!body) return;
+    setSavingEdit(true);
+    try {
+      await onEdit(commentId, body);
+      setEditingId(null);
+      setEditDraft("");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -76,37 +88,95 @@ export function Comments({
             <ul className="space-y-1.5">
               {comments.map((c) => {
                 const mine = !!myName && eqName(c.author, myName);
+                const editing = editingId === c.id;
                 return (
                   <li
                     key={c.id}
                     className="group flex items-start justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-1.5 text-xs text-stone-500">
                         <span className="font-medium text-stone-700">
                           {c.author}
                         </span>
                         <span className="text-stone-400">
                           {relativeTime(c.createdAt)}
+                          {c.editedAt ? " · edited" : ""}
                         </span>
                       </div>
-                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-stone-800">
-                        {c.body}
-                      </p>
+                      {editing ? (
+                        <div className="mt-1 flex items-end gap-1.5">
+                          <textarea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            maxLength={500}
+                            rows={2}
+                            disabled={savingEdit}
+                            className="min-h-[2.5rem] flex-1 resize-none rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-stone-800 focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                saveEdit(c.id);
+                              } else if (e.key === "Escape") {
+                                setEditingId(null);
+                                setEditDraft("");
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveEdit(c.id)}
+                            disabled={!editDraft.trim() || savingEdit}
+                            aria-label="Save comment"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-fairway-600 text-white hover:bg-fairway-700 disabled:bg-stone-200 disabled:text-stone-400"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditDraft("");
+                            }}
+                            disabled={savingEdit}
+                            aria-label="Cancel edit"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-200 hover:text-stone-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="mt-0.5 whitespace-pre-wrap text-sm text-stone-800">
+                          {c.body}
+                        </p>
+                      )}
                     </div>
-                    {mine && !readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm("Delete this comment?")) {
-                            onDelete(c.id);
-                          }
-                        }}
-                        aria-label="Delete comment"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 opacity-0 transition-opacity hover:bg-stone-200 hover:text-rose-600 group-hover:opacity-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                    {mine && !readOnly && !editing && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(c.id);
+                            setEditDraft(c.body);
+                          }}
+                          aria-label="Edit comment"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-200 hover:text-fairway-700"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Delete this comment?")) {
+                              onDelete(c.id);
+                            }
+                          }}
+                          aria-label="Delete comment"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-200 hover:text-rose-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </li>
                 );

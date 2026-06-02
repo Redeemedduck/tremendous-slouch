@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HANDICAP_KEY, NAME_KEY } from "../lib/format";
 
 type Profile = { name: string; handicap: number | null };
@@ -17,10 +17,41 @@ const readProfile = (): Profile => {
 export function useMyProfile() {
   const [profile, setProfileState] = useState<Profile>(readProfile);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/profile")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { name?: string | null } | null) => {
+        if (cancelled) return;
+        const serverName = data?.name?.trim().slice(0, 30);
+        if (!serverName) return;
+        setProfileState((prev) => {
+          if (prev.name.trim()) return prev;
+          localStorage.setItem(NAME_KEY, serverName);
+          return { ...prev, name: serverName };
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const name = profile.name.trim();
+    if (!name) return;
+    void fetch("/api/profile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    }).catch(() => {});
+  }, [profile.name]);
+
   const setProfile = useCallback((next: Partial<Profile> | null) => {
     if (next == null) {
       localStorage.removeItem(NAME_KEY);
       localStorage.removeItem(HANDICAP_KEY);
+      void fetch("/api/profile", { method: "DELETE" }).catch(() => {});
       setProfileState({ name: "", handicap: null });
       return;
     }
