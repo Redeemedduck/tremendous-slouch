@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, Trophy } from "lucide-react";
 import { formatHandicap } from "../lib/format";
+import { formatPoints } from "../lib/leaguePoints";
 import {
   type StandingRow,
   type StandingsSort,
@@ -40,9 +41,9 @@ export function Standings({
   const seedByKey = useMemo(() => {
     const map = new Map<string, number>();
     for (let i = 0; i < Math.min(POST_SEASON_SEEDS, seedOrder.length); i++) {
-      const r = seedOrder[i];
-      if (r.seasonPoints > 0) {
-        map.set(r.name.trim().toLowerCase(), i + 1);
+      const row = seedOrder[i];
+      if (row.seasonPoints > 0) {
+        map.set(row.name.trim().toLowerCase(), i + 1);
       }
     }
     return map;
@@ -50,16 +51,13 @@ export function Standings({
 
   if (rows.length === 0) return null;
 
-  const totalRounds = teeTimes.filter((t) => t.scores.length > 0).length;
-  const totalRegularTournaments = tournaments.filter(
-    (t) => t.type === "regular"
-  ).length;
+  const totalStarts = allRows.reduce((sum, row) => sum + row.rounds, 0);
 
   return (
     <section className="mb-3">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((value) => !value)}
         className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 hover:bg-stone-50"
       >
         <span className="flex items-center gap-2">
@@ -69,7 +67,7 @@ export function Standings({
           </span>
           <span className="text-xs text-stone-500">
             {rows.length} player{rows.length === 1 ? "" : "s"} ·{" "}
-            {totalRounds} round{totalRounds === 1 ? "" : "s"}
+            {totalStarts} start{totalStarts === 1 ? "" : "s"}
           </span>
         </span>
         <ChevronDown
@@ -99,7 +97,7 @@ export function Standings({
             />
             <SortChip
               active={sort === "rounds"}
-              label="Rounds"
+              label="Starts"
               onClick={() => setSort("rounds")}
             />
           </div>
@@ -108,7 +106,7 @@ export function Standings({
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-stone-400">
                 <th className="pb-2 pr-2 font-medium">Player</th>
-                <th className="pb-2 pr-2 text-right font-medium">Rds</th>
+                <th className="pb-2 pr-2 text-right font-medium">Starts</th>
                 {sort === "seasonPoints" ? (
                   <th className="pb-2 text-right font-medium">Pts</th>
                 ) : (
@@ -120,17 +118,18 @@ export function Standings({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {rows.map((r) => (
+              {rows.map((row) => (
                 <Row
-                  key={r.name}
-                  row={r}
+                  key={row.name}
+                  row={row}
                   sort={sort}
                   getHandicap={getHandicap}
                   isMe={
                     !!myName &&
-                    r.name.trim().toLowerCase() === myName.trim().toLowerCase()
+                    row.name.trim().toLowerCase() ===
+                      myName.trim().toLowerCase()
                   }
-                  seed={seedByKey.get(r.name.trim().toLowerCase())}
+                  seed={seedByKey.get(row.name.trim().toLowerCase())}
                 />
               ))}
             </tbody>
@@ -138,21 +137,15 @@ export function Standings({
           <p className="mt-2 text-[11px] text-stone-400">
             {sort === "seasonPoints" ? (
               <>
-                Points awarded by finishing position in each regular
-                tournament (1st = 100, 2nd = 80, 3rd = 65, …). Top{" "}
-                {POST_SEASON_SEEDS} seed the post-season with stroke
-                advantages of −4 / −3 / −2 / −1.
-                {totalRegularTournaments > 0 && (
-                  <>
-                    {" "}
-                    {totalRegularTournaments} regular tournaments this season.
-                  </>
-                )}
+                DJDI points: 20, 15, 14, 11, 9, 8, 7, 6, 5, 4, 3, 2.
+                Ties split the points for all occupied positions. Top{" "}
+                {POST_SEASON_SEEDS} receive championship advantages of −4 / −3
+                / −2 / −1.
               </>
             ) : (
               <>
-                Net = gross − handicap index. Players with no recorded
-                handicap show only gross.
+                Published events use the final league net board. Other rounds
+                use the recorded course handicap when available.
               </>
             )}
           </p>
@@ -201,11 +194,11 @@ function Row({
    *  N for the post-season; undefined otherwise. */
   seed?: number;
 }) {
-  const hcp = formatHandicap(getHandicap(row.name));
+  const handicap = formatHandicap(getHandicap(row.name));
   const showNet = sort !== "avgGross";
   const usingNet = showNet && row.avgNet != null;
-  const avg = usingNet ? row.avgNet! : row.avgGross;
-  const best = usingNet ? row.bestNet! : row.bestGross;
+  const avg = usingNet ? row.avgNet : row.avgGross;
+  const best = usingNet ? row.bestNet : row.bestGross;
   return (
     <tr className={isMe ? "bg-fairway-50" : undefined}>
       <td className="py-1.5 pr-2">
@@ -219,7 +212,9 @@ function Row({
             </span>
           )}
           <span className="font-medium text-stone-900">{row.name}</span>
-          {hcp && <span className="ml-0.5 text-xs text-stone-400">{hcp}</span>}
+          {handicap && (
+            <span className="ml-0.5 text-xs text-stone-400">{handicap}</span>
+          )}
         </span>
       </td>
       <td className="py-1.5 pr-2 text-right tabular-nums text-stone-700">
@@ -227,15 +222,15 @@ function Row({
       </td>
       {sort === "seasonPoints" ? (
         <td className="py-1.5 text-right tabular-nums font-semibold text-stone-900">
-          {row.seasonPoints}
+          {formatPoints(row.seasonPoints)}
         </td>
       ) : (
         <>
           <td className="py-1.5 pr-2 text-right tabular-nums text-stone-700">
-            {fmt1(avg)}
+            {avg == null ? "—" : fmt1(avg)}
           </td>
           <td className="py-1.5 text-right tabular-nums text-stone-700">
-            {usingNet ? fmt1(best) : best}
+            {best == null ? "—" : usingNet ? fmt1(best) : best}
           </td>
         </>
       )}
