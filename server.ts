@@ -129,7 +129,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-05-01",
     window_end: "2026-05-24",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -142,7 +142,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-05-25",
     window_end: "2026-06-14",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -155,7 +155,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-06-15",
     window_end: "2026-07-05",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -168,7 +168,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-07-06",
     window_end: "2026-07-26",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -181,7 +181,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-07-27",
     window_end: "2026-08-16",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -194,7 +194,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-08-17",
     window_end: "2026-09-06",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -207,7 +207,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-09-07",
     window_end: "2026-09-27",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -256,6 +256,15 @@ for (const t of SEASON_TOURNAMENTS) {
     NOW_ISO
   );
 }
+
+// Data correction: earlier seeds advertised the invented 100-point scale.
+// The official DJDI scale awards 20 to the winner of a regular stop, so
+// bring already-seeded databases in line (hand-edited values other than the
+// legacy 100 are left untouched).
+db.prepare(
+  `UPDATE tournaments SET points_to_first = 20
+   WHERE type = 'regular' AND points_to_first = 100`
+).run();
 
 // Pre-seed two foursome tee times for Sat 5/16 at Common Ground (Stop 1).
 const stmtSeedTeeTime = db.prepare(`
