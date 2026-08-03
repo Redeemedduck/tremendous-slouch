@@ -21,12 +21,14 @@ manager that follows the rule sheet end-to-end.
   handicap** input (required for league rounds) and **attestation** by
   another member who played in your group.
 - **Tournaments** — the seven 2026 stops, mid-season major, and October
-  championship are seeded at startup with their windows, points, and
-  payouts. Each tournament card shows its leaderboard, payout footer, and
-  the list of rounds in the window.
-- **Season standings** — FedEx-Cup-style points (100/80/65/55/50/…)
-  accumulate across regular tournaments; top 4 get a projected seed badge
-  in the Standings card.
+  championship are seeded at startup with their windows and payouts. Each
+  tournament card shows its leaderboard and the list of rounds in the window.
+  Published final boards override incomplete raw tee-time records; Stops 1–3
+  are included as official final results.
+- **Season standings** — the DJDI points scale
+  **20/15/14/11/9/8/7/6/5/4/3/2** accumulates across regular tournaments.
+  Ties split all points assigned to the occupied finishing positions. The top
+  four receive projected championship seed badges.
 - **Post-season** — Championship card shows a sum-based 2-day bracket
   with stroke advantages (−4 / −3 / −2 / −1) for the top 4 seeds and
   payouts to the top 3.
@@ -83,6 +85,16 @@ React 19 + Vite + TypeScript on the client; Express + better-sqlite3 +
 tsx on the server. Single Node process; single SQLite file with WAL.
 All state writes are wrapped in `BEGIN IMMEDIATE` transactions so two
 phones tapping at the same time can't drop or duplicate state.
+
+## Verification
+
+```sh
+npm test
+npm run lint
+npm run build
+```
+
+CI runs all three commands on pushes and pull requests.
 
 ## Project tracking
 
