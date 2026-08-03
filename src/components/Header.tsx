@@ -1,35 +1,44 @@
 import { formatHandicap } from "../lib/format";
 
-// ============================================================
-// HEADER
-// ============================================================
 export function Header({
+  title,
+  subtitle,
   myName,
   myHandicap,
   onOpenProfile,
 }: {
+  title: string;
+  subtitle?: string;
   myName: string;
   myHandicap: number | null;
   onOpenProfile: () => void;
 }) {
-  const hcp = formatHandicap(myHandicap);
+  const handicap = formatHandicap(myHandicap);
+
   return (
-    <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-stone-200 bg-stone-50/85 px-4 py-3 backdrop-blur">
-      <div className="mx-auto flex max-w-md items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-          DJDI Golf Board
-        </h1>
+    <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-stone-200/80 bg-stone-50/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl">
+      <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold tracking-tight text-stone-950">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-xs font-medium text-stone-500">
+              {subtitle}
+            </p>
+          )}
+        </div>
         {myName ? (
           <button
             type="button"
             onClick={onOpenProfile}
-            aria-label={`Playing as ${myName}${hcp ? `, handicap ${hcp}` : ""}. Tap to edit.`}
-            className="rounded-full px-3 py-1.5 text-xs text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-700"
+            aria-label={`Playing as ${myName}${handicap ? `, handicap ${handicap}` : ""}. Edit profile.`}
+            className="min-h-11 shrink-0 rounded-full border border-stone-200 bg-white px-3 text-xs shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
           >
-            <span className="hidden sm:inline">You're </span>
-            <span className="font-medium text-stone-700">{myName}</span>
-            {hcp && <span className="ml-1 text-stone-400">({hcp})</span>}
-            <span className="ml-1 text-stone-400">· edit</span>
+            <span className="font-semibold text-stone-800">{myName}</span>
+            {handicap && (
+              <span className="ml-1.5 tabular-nums text-stone-400">{handicap}</span>
+            )}
           </button>
         ) : null}
       </div>
