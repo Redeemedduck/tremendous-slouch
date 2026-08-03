@@ -11,7 +11,7 @@ export function Toast({
       <div
         role="status"
         onClick={onDismiss}
-        className="cursor-pointer rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
+        className="animate-toast-in cursor-pointer rounded-full bg-fairway-950 px-4 py-2 text-sm font-medium text-cream-50 shadow-lg ring-1 ring-gold-400/30"
       >
         {message}
       </div>

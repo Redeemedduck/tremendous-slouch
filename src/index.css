@@ -1,11 +1,89 @@
 @import "tailwindcss";
 
+/* ============================================================
+   DJDI design tokens — "clubhouse board" language.
+   Three families: fairway (deep pine green), gold (trophy
+   accents), cream (parchment leaderboard surfaces).
+   ============================================================ */
 @theme {
-  --color-fairway-50: #ecfdf5;
-  --color-fairway-100: #d1fae5;
-  --color-fairway-600: #16785a;
-  --color-fairway-700: #125f47;
-  --color-fairway-900: #064e3b;
+  --color-fairway-50: #eef7f2;
+  --color-fairway-100: #d7ecdf;
+  --color-fairway-200: #b2d8c4;
+  --color-fairway-300: #84bda2;
+  --color-fairway-400: #559d7e;
+  --color-fairway-500: #348063;
+  --color-fairway-600: #1d684f;
+  --color-fairway-700: #135741;
+  --color-fairway-800: #0b4a3a;
+  --color-fairway-900: #093c30;
+  --color-fairway-950: #04231c;
+
+  --color-gold-50: #faf5e6;
+  --color-gold-100: #f3e6c0;
+  --color-gold-200: #eccf8f;
+  --color-gold-300: #e9c56a;
+  --color-gold-400: #d4a94a;
+  --color-gold-500: #bb9032;
+  --color-gold-600: #9c7527;
+  --color-gold-700: #7d5c20;
+  --color-gold-800: #5f451a;
+  --color-gold-900: #423012;
+
+  --color-cream-50: #fdfaf1;
+  --color-cream-100: #f7efd9;
+  --color-cream-200: #eee0bd;
+  --color-cream-300: #e2d0a4;
+  --color-cream-400: #d3bd8b;
+  --color-cream-500: #b09b64;
+  --color-cream-600: #8a7947;
+  --color-cream-700: #6f6039;
+
+  --font-display: "Cormorant Garamond", ui-serif, Georgia, "Times New Roman",
+    serif;
+
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.21, 0.8, 0.35, 1) both;
+  --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.21, 0.8, 0.35, 1) both;
+  --animate-backdrop: backdrop-fade 0.25s ease-out both;
+  --animate-toast-in: toast-in 0.28s cubic-bezier(0.21, 0.8, 0.35, 1) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(2.5rem);
+      opacity: 0.4;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes backdrop-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 html,
@@ -15,4 +93,14 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

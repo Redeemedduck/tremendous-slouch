@@ -104,14 +104,15 @@ export function SeasonSchedule({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 hover:bg-stone-50"
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50"
       >
         <span className="flex items-center gap-2">
           <CalendarRange className="h-4 w-4 text-fairway-700" />
-          <span className="text-base font-semibold text-stone-900">Season</span>
+          <span className="text-base font-bold text-stone-950">Season</span>
           <span className="text-xs text-stone-500">
             {summary.active > 0 && (
-              <span className="mr-2 font-medium text-fairway-700">
+              <span className="mr-2 font-semibold text-fairway-700">
                 {summary.active} active
               </span>
             )}
@@ -131,12 +132,12 @@ export function SeasonSchedule({
       </button>
 
       {open && (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 animate-fade-up space-y-2">
           {enriched.map((tournament) => {
             const Icon = TYPE_ICON[tournament.type] ?? Flag;
             const isExpanded = expandedId === tournament.id;
             const badgeClass = tournament.published
-              ? "bg-amber-100 text-amber-900"
+              ? "bg-gold-100 text-gold-800"
               : STATUS_BADGE[tournament.status];
             return (
               <li
@@ -150,6 +151,7 @@ export function SeasonSchedule({
                 <button
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : tournament.id)}
+                  aria-expanded={isExpanded}
                   className="flex w-full items-center justify-between gap-2 p-3 text-left"
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -353,14 +355,14 @@ function RegularLeaderboard({
   };
 
   return (
-    <div className="mt-3 rounded-xl bg-stone-50 p-3">
-      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
-        <Trophy className="h-3.5 w-3.5" />
+    <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-600">
+        <Trophy className="h-3.5 w-3.5 text-gold-500" />
         {published ? "Final leaderboard" : "Leaderboard"}
       </div>
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wide text-stone-400">
+          <tr className="text-left text-[10px] uppercase tracking-wide text-cream-600">
             <th className="pb-1 pr-2 font-medium">Pos</th>
             <th className="pb-1 pr-2 font-medium">Player</th>
             {published ? (
@@ -376,11 +378,15 @@ function RegularLeaderboard({
             )}
           </tr>
         </thead>
-        <tbody className="divide-y divide-stone-100">
+        <tbody className="divide-y divide-cream-200">
           {board.map((row) => (
             <tr key={row.name}>
               <td className="py-1 pr-2 tabular-nums text-stone-700">
-                <span className={row.position === 1 ? "font-semibold text-fairway-700" : ""}>
+                <span
+                  className={
+                    row.position === 1 ? "font-bold text-fairway-700" : ""
+                  }
+                >
                   {positionLabel(row)}
                 </span>
               </td>
@@ -395,7 +401,7 @@ function RegularLeaderboard({
                   <td className="py-1 pr-2 text-right tabular-nums text-stone-700">
                     {row.bestNet ?? "—"}
                   </td>
-                  <td className="py-1 text-right tabular-nums font-medium text-stone-700">
+                  <td className="py-1 text-right font-semibold tabular-nums text-fairway-950">
                     {formatPoints(row.points)}
                   </td>
                 </>
@@ -418,9 +424,9 @@ function RegularLeaderboard({
         </tbody>
       </table>
       {tournament.payoutFirst != null && board[0] && (
-        <p className="mt-2 text-[11px] text-stone-500">
-          <span className="font-medium">{board[0].name}</span> wins $
-          {tournament.payoutFirst}.
+        <p className="mt-2 text-[11px] text-cream-600">
+          <span className="font-semibold text-stone-700">{board[0].name}</span>{" "}
+          wins ${tournament.payoutFirst}.
         </p>
       )}
     </div>
@@ -440,9 +446,9 @@ function PostSeasonBoard({
   const fmt1 = (value: number) => (Math.round(value * 10) / 10).toFixed(1);
 
   return (
-    <div className="mt-3 rounded-xl bg-stone-50 p-3">
-      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
-        <Trophy className="h-3.5 w-3.5" /> Post-season leaderboard
+    <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-600">
+        <Trophy className="h-3.5 w-3.5 text-gold-500" /> Post-season leaderboard
       </div>
       {board.length === 0 ? (
         <div className="text-xs text-stone-500">
@@ -466,7 +472,7 @@ function PostSeasonBoard({
         <>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wide text-stone-400">
+              <tr className="text-left text-[10px] uppercase tracking-wide text-cream-600">
                 <th className="pb-1 pr-2 font-medium">Pos</th>
                 <th className="pb-1 pr-2 font-medium">Player</th>
                 <th className="pb-1 pr-2 text-right font-medium">Rds</th>
@@ -474,11 +480,15 @@ function PostSeasonBoard({
                 <th className="pb-1 text-right font-medium">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-cream-200">
               {board.map((row) => (
                 <tr key={row.name}>
                   <td className="py-1 pr-2 tabular-nums text-stone-700">
-                    <span className={row.position === 1 ? "font-semibold text-fairway-700" : ""}>
+                    <span
+                      className={
+                        row.position === 1 ? "font-bold text-fairway-700" : ""
+                      }
+                    >
                       {row.position}
                     </span>
                   </td>
@@ -499,7 +509,7 @@ function PostSeasonBoard({
                   <td className="py-1 pr-2 text-right tabular-nums text-stone-700">
                     {row.sumNet == null ? "—" : fmt1(row.sumNet)}
                   </td>
-                  <td className="py-1 text-right tabular-nums font-semibold text-stone-900">
+                  <td className="py-1 text-right font-semibold tabular-nums text-fairway-950">
                     {row.adjusted == null ? "—" : fmt1(row.adjusted)}
                   </td>
                 </tr>
@@ -507,9 +517,11 @@ function PostSeasonBoard({
             </tbody>
           </table>
           {board[0] && tournament.payoutFirst != null && (
-            <p className="mt-2 text-[11px] text-stone-500">
-              <span className="font-medium">{board[0].name}</span> wins $
-              {tournament.payoutFirst}
+            <p className="mt-2 text-[11px] text-cream-600">
+              <span className="font-semibold text-stone-700">
+                {board[0].name}
+              </span>{" "}
+              wins ${tournament.payoutFirst}
               {tournament.payoutSecond != null && board[1]
                 ? `, ${board[1].name} wins $${tournament.payoutSecond}`
                 : ""}
@@ -535,7 +547,7 @@ const STROKE_ADVANTAGE_LABEL: Record<number, string> = {
 function SeedBadge({ seed }: { seed: number }) {
   return (
     <span
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-fairway-600 text-[10px] font-semibold text-white"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-gold-200 to-gold-400 text-[10px] font-bold text-fairway-950 ring-1 ring-gold-500/60"
       title={`Seed ${seed}`}
     >
       {seed}

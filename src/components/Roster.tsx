@@ -44,9 +44,7 @@ export function Roster({
 
   if (seenNames.length === 0) return null;
 
-  const memberMap = new Map(
-    players.map((p) => [p.name.toLowerCase(), p])
-  );
+  const memberMap = new Map(players.map((p) => [p.name.toLowerCase(), p]));
 
   const memberCount = players.filter((p) => p.member).length;
   const dropInCount = players.filter((p) => !p.member && p.handicap != null)
@@ -58,17 +56,18 @@ export function Roster({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 hover:bg-stone-50"
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50"
       >
         <span className="flex items-center gap-2">
           <Users className="h-4 w-4 text-fairway-700" />
-          <span className="text-base font-semibold text-stone-900">Roster</span>
+          <span className="text-base font-bold text-stone-950">Roster</span>
           <span className="text-xs text-stone-500">
-            <span className="font-medium text-stone-700">{memberCount}</span>{" "}
+            <span className="font-semibold text-stone-700">{memberCount}</span>{" "}
             member{memberCount === 1 ? "" : "s"}
             {dropInCount > 0 && (
               <span className="ml-2">
-                · <span className="text-amber-700">{dropInCount}</span> guest
+                · <span className="text-gold-700">{dropInCount}</span> guest
                 {dropInCount === 1 ? "" : "s"}
               </span>
             )}
@@ -87,7 +86,7 @@ export function Roster({
       </button>
 
       {open && (
-        <div className="mt-2 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200">
+        <div className="mt-2 animate-fade-up rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200">
           <ul className="divide-y divide-stone-100">
             {seenNames.map((name) => {
               const p = memberMap.get(name.toLowerCase());
@@ -101,7 +100,9 @@ export function Roster({
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="font-medium text-stone-900">{name}</span>
                     {hcp && (
-                      <span className="text-xs text-stone-400">{hcp}</span>
+                      <span className="text-xs tabular-nums text-stone-400">
+                        {hcp}
+                      </span>
                     )}
                     {!p && (
                       <span className="text-[10px] uppercase tracking-wide text-stone-400">
@@ -112,10 +113,10 @@ export function Roster({
                   <button
                     type="button"
                     onClick={() => onUpdate(name, { member: !member })}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`min-h-8 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                       member
                         ? "bg-fairway-100 text-fairway-900 hover:bg-fairway-200"
-                        : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                        : "bg-gold-100 text-gold-800 hover:bg-gold-200"
                     }`}
                   >
                     {member ? "Member" : "Guest"}

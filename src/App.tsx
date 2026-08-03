@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
   ChevronDown,
+  ChevronRight,
   Flag,
   MessageCircleQuestion,
+  Trophy,
 } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { BottomNav, type AppSection } from "./components/BottomNav";
@@ -26,16 +28,16 @@ import { usePolls } from "./hooks/usePolls";
 import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
 import { useTournaments } from "./hooks/useTournaments";
-import { isPast } from "./lib/format";
+import { formatDateLabel, isPast, todayISO } from "./lib/format";
 import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
 
 type AccessState = "checking" | "gated" | "ok";
 type SheetKind = "teetime" | "poll" | null;
 
 const SECTION_META: Record<AppSection, { title: string; subtitle: string }> = {
-  board: { title: "DJDI Board", subtitle: "Tee times and group decisions" },
-  season: { title: "Season", subtitle: "Standings, events, and championship race" },
-  manage: { title: "Manage", subtitle: "Roster, buy-ins, and completed rounds" },
+  board: { title: "DJDI Board", subtitle: "Tee sheet & group decisions" },
+  season: { title: "Season", subtitle: "The race for the championship" },
+  manage: { title: "Manage", subtitle: "Roster, buy-ins & history" },
 };
 
 export default function App() {
@@ -144,6 +146,20 @@ function LeagueApp() {
     return result;
   }, [teeTimes]);
 
+  // A regular tournament whose scoring window is open today — surfaced on the
+  // Board so coordination stays connected to the competition.
+  const liveStop = useMemo(() => {
+    const today = todayISO();
+    return (
+      tournaments.find(
+        (tournament) =>
+          tournament.type === "regular" &&
+          today >= tournament.windowStart &&
+          today <= tournament.windowEnd
+      ) ?? null
+    );
+  }, [tournaments]);
+
   const handleSheetSubmit = async (input: NewTeeTimeInput) => {
     if (!myName) setProfile({ name: input.host });
     if (editing) await update(editing.id, input);
@@ -219,12 +235,34 @@ function LeagueApp() {
         )}
 
         {section === "board" && (
-          <main>
+          <main key="board" className="animate-fade-up">
+            {liveStop && (
+              <button
+                type="button"
+                onClick={() => setSection("season")}
+                className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-fairway-900 to-fairway-800 px-4 py-3 text-left shadow-sm ring-1 ring-fairway-950/40 transition-opacity hover:opacity-95"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Trophy className="h-4 w-4 shrink-0 text-gold-300" />
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">
+                      Window open · {liveStop.name.split("—")[0].trim()}
+                    </span>
+                    <span className="block truncate text-sm font-semibold text-cream-50">
+                      {liveStop.course} · through{" "}
+                      {formatDateLabel(liveStop.windowEnd)}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-white/60" />
+              </button>
+            )}
+
             <section className="mb-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setOpenSheet("teetime")}
-                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-fairway-600 px-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-fairway-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-fairway-800 px-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-fairway-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
               >
                 <CalendarPlus className="h-4 w-4" />
                 New tee time
@@ -265,7 +303,9 @@ function LeagueApp() {
             <section>
               <div className="mb-2 flex items-end justify-between px-1">
                 <div>
-                  <h2 className="text-base font-bold text-stone-950">Upcoming tee times</h2>
+                  <h2 className="text-base font-bold text-stone-950">
+                    Upcoming tee times
+                  </h2>
                   <p className="text-xs text-stone-500">
                     {upcoming.length} on the board
                   </p>
@@ -285,20 +325,24 @@ function LeagueApp() {
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
                     <Flag className="h-6 w-6" />
                   </div>
-                  <p className="font-semibold text-stone-800">No tee times posted</p>
+                  <p className="font-semibold text-stone-800">
+                    No tee times posted
+                  </p>
                   <p className="mt-1 text-sm text-stone-500">
                     Post the next group above.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">{upcoming.map((teeTime) => renderTeeTime(teeTime, false))}</div>
+                <div className="space-y-3">
+                  {upcoming.map((teeTime) => renderTeeTime(teeTime, false))}
+                </div>
               )}
             </section>
           </main>
         )}
 
         {section === "season" && (
-          <main>
+          <main key="season" className="animate-fade-up">
             <SeasonHome
               tournaments={tournaments}
               teeTimes={teeTimes}
@@ -309,24 +353,14 @@ function LeagueApp() {
         )}
 
         {section === "manage" && (
-          <main className="space-y-3">
-            <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-                League administration
-              </p>
-              <h2 className="mt-1 text-lg font-bold text-stone-950">
-                Roster and money in one place
-              </h2>
-              <p className="mt-1 text-sm leading-5 text-stone-500">
-                Membership changes update the buy-in list automatically.
-              </p>
-            </section>
-
+          <main key="manage" className="animate-fade-up space-y-3">
             <Roster
               players={players}
               teeTimes={teeTimes}
               onUpdate={async (name, patch) => {
                 await upsertPlayer(name, patch);
+                // Buy-ins auto-create/delete on the server when member flips;
+                // refresh so the Pool card reflects it immediately.
                 await refreshBuyins();
               }}
             />
@@ -341,7 +375,7 @@ function LeagueApp() {
                   type="button"
                   aria-expanded={pastOpen}
                   onClick={() => setPastOpen((value) => !value)}
-                  className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+                  className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
                 >
                   <span>Completed tee times ({past.length})</span>
                   <ChevronDown
@@ -349,7 +383,7 @@ function LeagueApp() {
                   />
                 </button>
                 {pastOpen && (
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-3 animate-fade-up space-y-3">
                     {past.map((teeTime) => renderTeeTime(teeTime, true))}
                   </div>
                 )}

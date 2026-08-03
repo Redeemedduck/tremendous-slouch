@@ -35,6 +35,25 @@ export const formatTimeLabel = (hhmm: string) => {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 };
 
+/** "1st", "2nd", "3rd", "4th"… with correct teens (11th, 12th, 13th). */
+export const ordinal = (n: number) => {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  const rem10 = n % 10;
+  const suffix = rem10 === 1 ? "st" : rem10 === 2 ? "nd" : rem10 === 3 ? "rd" : "th";
+  return `${n}${suffix}`;
+};
+
+/** Split an ISO date into calendar-tile parts: { month: "Aug", day: "12", weekday: "Sat" }. */
+export const dateTileParts = (dateISO: string) => {
+  const d = new Date(`${dateISO}T00:00:00`);
+  return {
+    month: d.toLocaleDateString(undefined, { month: "short" }),
+    day: d.toLocaleDateString(undefined, { day: "numeric" }),
+    weekday: d.toLocaleDateString(undefined, { weekday: "short" }),
+  };
+};
+
 // Naive datetime: interpreted in the client's local timezone, which is correct
 // for a single-region group. Server stores date/time as opaque strings.
 export const isPast = (t: { date: string; time: string }) =>

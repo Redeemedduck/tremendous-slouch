@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FormError, inputClass } from "./ui/Field";
 
 export function NamePromptInline({
   onSubmit,
@@ -29,37 +30,44 @@ export function NamePromptInline({
   };
 
   return (
-    <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-      <p className="mb-3 text-sm text-stone-600">
-        What name should we use for your spots?
+    <div className="mb-4 rounded-2xl border border-cream-300 bg-cream-100 p-4 shadow-sm">
+      <p className="font-display text-lg font-bold text-fairway-950">
+        Welcome to the club
+      </p>
+      <p className="mb-3 mt-0.5 text-sm text-cream-600">
+        What name should we put on the board?
       </p>
       <form className="space-y-2" onSubmit={submit}>
         <div className="flex gap-2">
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={30}
-            placeholder="Your name"
-            list="name-suggestions"
-            className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-          />
-          <input
-            type="number"
-            value={handicap}
-            onChange={(e) => setHandicap(e.target.value)}
-            step={0.1}
-            min={-10}
-            max={54}
-            placeholder="Hcp"
-            inputMode="decimal"
-            className="w-20 rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-            aria-label="Handicap (optional)"
-          />
+          <div className="min-w-0 flex-1">
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={30}
+              placeholder="Your name"
+              list="name-suggestions"
+              className={inputClass}
+            />
+          </div>
+          <div className="w-20 shrink-0">
+            <input
+              type="number"
+              value={handicap}
+              onChange={(e) => setHandicap(e.target.value)}
+              step={0.1}
+              min={-10}
+              max={54}
+              placeholder="Hcp"
+              inputMode="decimal"
+              className={inputClass}
+              aria-label="Handicap (optional)"
+            />
+          </div>
           <button
             type="submit"
             disabled={!name.trim()}
-            className="rounded-lg bg-fairway-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fairway-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-xl bg-fairway-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-fairway-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save
           </button>
@@ -71,14 +79,10 @@ export function NamePromptInline({
             ))}
           </datalist>
         )}
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-cream-600">
           Handicap is optional — same number you have in GHIN.
         </p>
-        {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
+        <FormError>{error}</FormError>
       </form>
     </div>
   );

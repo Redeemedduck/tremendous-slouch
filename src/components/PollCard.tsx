@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MoreHorizontal, Trash2, MessageCircleQuestion } from "lucide-react";
+import { MoreHorizontal, Trash2, MessageCircleQuestion, Check } from "lucide-react";
 import { eqName } from "../lib/format";
 import type { Poll } from "../lib/types";
 
@@ -23,6 +23,10 @@ export function PollCard({
     if (!byOption[r.optionIdx]) byOption[r.optionIdx] = [];
     byOption[r.optionIdx].push(r.name);
   }
+  const maxVotes = Math.max(
+    1,
+    ...poll.options.map((_, idx) => (byOption[idx] ?? []).length)
+  );
 
   const lower = myName.toLowerCase();
   const myPicks = new Set(
@@ -37,21 +41,21 @@ export function PollCard({
         <div className="flex items-start gap-2">
           <MessageCircleQuestion className="mt-0.5 h-4 w-4 shrink-0 text-fairway-700" />
           <div>
-            <span className="block text-xs font-medium uppercase tracking-wide text-stone-500">
-              Poll
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Poll · asked by {poll.host}
             </span>
-            <h2 className="mt-0.5 text-base font-semibold text-stone-900">
+            <h2 className="mt-0.5 text-base font-bold text-stone-950">
               {poll.prompt}
             </h2>
           </div>
         </div>
         {isHost && (
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Host options"
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-stone-100"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
@@ -63,7 +67,7 @@ export function PollCard({
                   onClick={() => setMenuOpen(false)}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-stone-200">
+                <div className="absolute right-0 top-8 z-20 w-44 rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -72,7 +76,7 @@ export function PollCard({
                         onDelete();
                       }
                     }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
                   >
                     <Trash2 className="h-4 w-4" /> Delete poll
                   </button>
@@ -83,59 +87,50 @@ export function PollCard({
         )}
       </div>
 
-      <p className="text-sm text-stone-500">
-        Asked by{" "}
-        <span className="font-medium text-stone-700">{poll.host}</span>
-      </p>
-
       <ul className="mt-3 space-y-2">
         {poll.options.map((opt, idx) => {
           const responders = byOption[idx] || [];
           const mine = myPicks.has(idx);
+          const share = (responders.length / maxVotes) * 100;
           return (
             <li key={idx}>
               <button
                 type="button"
                 onClick={() => onToggle(idx)}
                 disabled={!myName}
-                className={`group flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                className={`group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors ${
                   mine
                     ? "border-fairway-600 bg-fairway-50"
                     : "border-stone-200 bg-white hover:border-stone-300"
                 } disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                <span className="flex items-center gap-2 text-sm font-medium text-stone-900">
+                {responders.length > 0 && (
                   <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                    aria-hidden
+                    className={`absolute inset-y-0 left-0 transition-[width] duration-300 ${
+                      mine ? "bg-fairway-100/70" : "bg-stone-100/80"
+                    }`}
+                    style={{ width: `${share}%` }}
+                  />
+                )}
+                <span className="relative flex items-center gap-2 text-sm font-medium text-stone-900">
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                       mine
                         ? "border-fairway-600 bg-fairway-600"
                         : "border-stone-300 bg-white group-hover:border-stone-400"
                     }`}
                   >
-                    {mine && (
-                      <svg
-                        className="h-3 w-3 text-white"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <path
-                          d="M2 6.5l2.5 2.5L10 3"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    {mine && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                   </span>
                   {opt}
                 </span>
-                <span className="text-xs font-medium text-stone-500">
+                <span className="relative text-xs font-bold tabular-nums text-stone-500">
                   {responders.length}
                 </span>
               </button>
               {responders.length > 0 && (
-                <div className="mt-1.5 ml-7 flex flex-wrap gap-1">
+                <div className="ml-7 mt-1.5 flex flex-wrap gap-1">
                   {responders.map((n) => (
                     <span
                       key={n}

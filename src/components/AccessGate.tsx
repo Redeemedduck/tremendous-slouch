@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { FormError, inputClass } from "./ui/Field";
 
 export function AccessGate({ onUnlock }: { onUnlock: () => void }) {
   const [code, setCode] = useState("");
@@ -30,13 +31,26 @@ export function AccessGate({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-          DJDI Golf Board
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-fairway-950 via-fairway-900 to-fairway-800 px-4 py-10">
+      <div className="animate-fade-up text-center">
+        <p className="font-display text-6xl font-bold tracking-tight text-cream-50">
+          DJDI
+        </p>
+        <div className="mx-auto mt-3 flex items-center gap-3">
+          <span className="h-px w-12 bg-gold-400/60" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold-300">
+            2026 Summer League
+          </p>
+          <span className="h-px w-12 bg-gold-400/60" />
+        </div>
+      </div>
+
+      <div className="mt-10 w-full max-w-sm animate-fade-up rounded-2xl bg-white p-6 shadow-2xl [animation-delay:0.08s]">
+        <h1 className="text-lg font-bold tracking-tight text-stone-950">
+          Members only
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          Enter the group access code to continue.
+          Enter the group access code to open the board.
         </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <input
@@ -47,17 +61,13 @@ export function AccessGate({ onUnlock }: { onUnlock: () => void }) {
             inputMode="text"
             autoComplete="off"
             placeholder="Access code"
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
+            className={inputClass}
           />
-          {error && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </p>
-          )}
+          <FormError>{error}</FormError>
           <button
             type="submit"
             disabled={submitting || !code.trim()}
-            className="w-full rounded-xl bg-fairway-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-fairway-700 disabled:opacity-60"
+            className="w-full rounded-xl bg-fairway-800 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-fairway-700 disabled:opacity-60"
           >
             {submitting ? "Checking…" : "Unlock"}
           </button>
