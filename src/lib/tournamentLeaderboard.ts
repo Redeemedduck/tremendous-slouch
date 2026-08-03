@@ -1,16 +1,19 @@
+import { pointsForTie } from "./leaguePoints";
+import { getOfficialTournamentResults } from "./officialResults";
 import type { Score, TeeTime, Tournament } from "./types";
 
 export type LeaderboardRow = {
   name: string;
   rounds: number;
-  bestGross: number;
+  bestGross: number | null;
   bestNet: number | null;
   /** True iff at least one of the player's contributing rounds used a
    *  per-round course handicap (the league-correct way). When false, net
-   *  came from the player's GHIN index — fine outside of tournaments but
-   *  technically not the league rule. */
+   *  came from the player's GHIN index. Official final boards are already
+   *  published as net and therefore set this true. */
   netFromCourseHcp: boolean;
   position: number;
+  points: number;
 };
 
 const eq = (a: string, b: string) =>
@@ -33,6 +36,19 @@ export function computeTournamentLeaderboard(
   teeTimes: TeeTime[],
   getHandicap: (name: string) => number | null
 ): LeaderboardRow[] {
+  const official = getOfficialTournamentResults(tournament.id);
+  if (official) {
+    return official.results.map((row) => ({
+      name: row.name,
+      rounds: 1,
+      bestGross: null,
+      bestNet: row.net,
+      netFromCourseHcp: true,
+      position: row.position,
+      points: row.points,
+    }));
+  }
+
   const inTournament = teeTimes.filter((tt) => inWindow(tournament, tt.date));
   // case-insensitive merge: "Mike" / "mike" → one row
   const byKey = new Map<
@@ -65,7 +81,7 @@ export function computeTournamentLeaderboard(
     }
   }
 
-  const rows: Omit<LeaderboardRow, "position">[] = [];
+  const rows: Omit<LeaderboardRow, "position" | "points">[] = [];
   for (const agg of byKey.values()) {
     if (agg.grosses.length === 0) continue;
     rows.push({
@@ -77,16 +93,39 @@ export function computeTournamentLeaderboard(
     });
   }
 
-  // Sort by best net ascending; players with no net info sink to the bottom
-  // (sorted by best gross within that group).
+  // Sort by best net ascending. Gross and name only stabilize display order;
+  // they never break a net tie for position or points.
   rows.sort((a, b) => {
     const an = a.bestNet ?? Infinity;
     const bn = b.bestNet ?? Infinity;
     if (an !== bn) return an - bn;
-    return a.bestGross - b.bestGross;
+    const ag = a.bestGross ?? Infinity;
+    const bg = b.bestGross ?? Infinity;
+    if (ag !== bg) return ag - bg;
+    return a.name.localeCompare(b.name);
   });
 
-  return rows.map((r, i) => ({ ...r, position: i + 1 }));
+  const ranked: LeaderboardRow[] = [];
+  let index = 0;
+  while (index < rows.length) {
+    const net = rows[index].bestNet;
+    if (net == null) {
+      ranked.push({ ...rows[index], position: index + 1, points: 0 });
+      index += 1;
+      continue;
+    }
+
+    let end = index + 1;
+    while (end < rows.length && rows[end].bestNet === net) end += 1;
+    const position = index + 1;
+    const points = pointsForTie(position, end - index);
+    for (let cursor = index; cursor < end; cursor += 1) {
+      ranked.push({ ...rows[cursor], position, points });
+    }
+    index = end;
+  }
+
+  return ranked;
 }
 
 export { eq as eqName, inWindow };
