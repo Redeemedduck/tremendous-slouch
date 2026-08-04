@@ -119,7 +119,10 @@ type SeedTournament = {
   payout_third: number | null;
   notes: string | null;
 };
-const REGULAR_PAYOUT = 334; // from rule sheet @ $325 buy-in × 12 members
+// Per-stop winner payout. Was $334 (rule sheet @ $325 buy-in × 12 members);
+// re-set to $306 after a member dropped without paying dues, per the
+// commissioner's Aug 2026 settlement message.
+const REGULAR_PAYOUT = 306;
 const POST_PAYOUTS = { first: 1014, second: 390, third: 156 };
 const SEASON_TOURNAMENTS: SeedTournament[] = [
   {
@@ -264,6 +267,14 @@ for (const t of SEASON_TOURNAMENTS) {
 db.prepare(
   `UPDATE tournaments SET points_to_first = 20
    WHERE type = 'regular' AND points_to_first = 100`
+).run();
+
+// Data correction: per-stop payout dropped from $334 to $306 when the pool
+// lost an unpaid member (commissioner settlement, Aug 2026). Same rule as
+// above: only the known-stale value is rewritten.
+db.prepare(
+  `UPDATE tournaments SET payout_first = ${REGULAR_PAYOUT}
+   WHERE type = 'regular' AND payout_first = 334`
 ).run();
 
 // Pre-seed two foursome tee times for Sat 5/16 at Common Ground (Stop 1).
