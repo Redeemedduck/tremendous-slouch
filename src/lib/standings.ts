@@ -1,4 +1,3 @@
-import { POSITION_POINTS, pointsForPosition } from "./leaguePoints";
 import { getOfficialTournamentResults } from "./officialResults";
 import { computeTournamentLeaderboard } from "./tournamentLeaderboard";
 import type { Score, TeeTime, Tournament } from "./types";
@@ -17,10 +16,7 @@ export type StandingRow = {
   seasonPoints: number;
 };
 
-export type StandingsSort = "seasonPoints" | "avgNet" | "avgGross" | "rounds";
-
-const eq = (a: string, b: string) =>
-  a.trim().toLowerCase() === b.trim().toLowerCase();
+export type StandingsSort = "seasonPoints" | "avgNet";
 
 const roundPoints = (value: number) => Math.round(value * 100) / 100;
 
@@ -184,19 +180,6 @@ export function sortStandings(
       if (b.rounds !== a.rounds) return b.rounds - a.rounds;
       return a.name.localeCompare(b.name);
     });
-  } else if (by === "rounds") {
-    sorted.sort(
-      (a, b) =>
-        b.rounds - a.rounds ||
-        (a.avgGross ?? Infinity) - (b.avgGross ?? Infinity) ||
-        a.name.localeCompare(b.name)
-    );
-  } else if (by === "avgGross") {
-    sorted.sort(
-      (a, b) =>
-        (a.avgGross ?? Infinity) - (b.avgGross ?? Infinity) ||
-        a.name.localeCompare(b.name)
-    );
   } else {
     sorted.sort(
       (a, b) =>
@@ -206,5 +189,3 @@ export function sortStandings(
   }
   return sorted;
 }
-
-export { eq as eqName, POSITION_POINTS, pointsForPosition };

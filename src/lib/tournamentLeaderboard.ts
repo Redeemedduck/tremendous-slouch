@@ -16,9 +16,6 @@ export type LeaderboardRow = {
   points: number;
 };
 
-const eq = (a: string, b: string) =>
-  a.trim().toLowerCase() === b.trim().toLowerCase();
-
 const inWindow = (t: Tournament, date: string) =>
   date >= t.windowStart && date <= t.windowEnd;
 
@@ -127,5 +124,3 @@ export function computeTournamentLeaderboard(
 
   return ranked;
 }
-
-export { eq as eqName, inWindow };

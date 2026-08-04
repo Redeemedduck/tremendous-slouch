@@ -30,6 +30,19 @@ export function NewTeeTimeSheet({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Editing any field clears the banner — native date/time validation can
+  // block submit entirely, which would otherwise leave a stale error up.
+  const set = <T,>(setter: (value: T) => void) => (value: T) => {
+    setError(null);
+    setter(value);
+  };
+  const setCourseInput = set(setCourse);
+  const setDateInput = set(setDate);
+  const setTimeInput = set(setTime);
+  const setSpotsInput = set(setSpots);
+  const setHostInput = set(setHost);
+  const setNotesInput = set(setNotes);
+
   useEffect(() => {
     if (!open) return;
     if (editing) {
@@ -88,7 +101,7 @@ export function NewTeeTimeSheet({
           <input
             autoFocus
             value={course}
-            onChange={(e) => setCourse(e.target.value)}
+            onChange={(e) => setCourseInput(e.target.value)}
             maxLength={80}
             placeholder="Walnut Creek"
             list="course-suggestions"
@@ -107,7 +120,7 @@ export function NewTeeTimeSheet({
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => setDateInput(e.target.value)}
               min={todayISO()}
               className={inputClass}
             />
@@ -116,7 +129,7 @@ export function NewTeeTimeSheet({
             <input
               type="time"
               value={time}
-              onChange={(e) => setTime(e.target.value)}
+              onChange={(e) => setTimeInput(e.target.value)}
               className={inputClass}
             />
           </Field>
@@ -125,7 +138,7 @@ export function NewTeeTimeSheet({
           <Field label="Total spots">
             <select
               value={spots}
-              onChange={(e) => setSpots(Number(e.target.value))}
+              onChange={(e) => setSpotsInput(Number(e.target.value))}
               className={inputClass}
             >
               {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -138,7 +151,7 @@ export function NewTeeTimeSheet({
           <Field label="Your name (host)">
             <input
               value={host}
-              onChange={(e) => setHost(e.target.value)}
+              onChange={(e) => setHostInput(e.target.value)}
               maxLength={30}
               placeholder="You"
               list="name-suggestions-host"
@@ -156,7 +169,7 @@ export function NewTeeTimeSheet({
         <Field label="Notes (optional)">
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => setNotesInput(e.target.value)}
             maxLength={240}
             rows={2}
             placeholder="Meet at the range at 7:30"

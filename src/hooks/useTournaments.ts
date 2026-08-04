@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Tournament } from "../lib/types";
 
-const normalizeTournament = (tournament: Tournament): Tournament =>
-  tournament.type === "regular"
-    ? { ...tournament, pointsToFirst: 20 }
-    : tournament;
-
 export function useTournaments() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -15,7 +10,7 @@ export function useTournaments() {
       const response = await fetch("/api/tournaments");
       if (!response.ok) return;
       const data = (await response.json()) as { tournaments: Tournament[] };
-      setTournaments(data.tournaments.map(normalizeTournament));
+      setTournaments(data.tournaments);
       setLoaded(true);
     } catch {
       setLoaded(true);

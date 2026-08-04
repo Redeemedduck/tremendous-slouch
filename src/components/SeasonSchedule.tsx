@@ -46,7 +46,7 @@ const TYPE_ICON: Record<TournamentType, typeof Flag> = {
 const STATUS_BADGE: Record<Status, string> = {
   upcoming: "bg-stone-100 text-stone-600",
   active: "bg-fairway-100 text-fairway-900",
-  past: "bg-stone-50 text-stone-400",
+  past: "bg-stone-100 text-stone-600",
 };
 
 const formatRange = (startISO: string, endISO: string): string =>
@@ -121,7 +121,7 @@ export function SeasonSchedule({
               <span className="mr-2">{summary.upcoming} upcoming</span>
             )}
             {summary.past > 0 && (
-              <span className="text-stone-400">{summary.past} past</span>
+              <span className="text-stone-500">{summary.past} past</span>
             )}
           </span>
         </span>
@@ -144,7 +144,9 @@ export function SeasonSchedule({
               <li
                 key={tournament.id}
                 className={`rounded-2xl bg-white shadow-sm ring-1 ring-stone-200 ${
-                  tournament.status === "past" && !tournament.published
+                  tournament.status === "past" &&
+                  !tournament.published &&
+                  !isExpanded
                     ? "opacity-70"
                     : ""
                 }`}
@@ -200,7 +202,7 @@ export function SeasonSchedule({
 function Pair({ label, value }: { label: string; value: string }) {
   return (
     <>
-      <dt className="text-stone-400">{label}</dt>
+      <dt className="text-stone-600">{label}</dt>
       <dd className="text-right font-medium text-stone-700 tabular-nums">
         {value}
       </dd>
@@ -294,7 +296,7 @@ function ExpandedTournament({
 
       {inWindow.length > 0 && (
         <div className="mt-3">
-          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-stone-500">
             Recorded rounds in this window
           </div>
           <ul className="space-y-1">
@@ -324,7 +326,7 @@ function ExpandedTournament({
       {tournament.type === "post" &&
         postSeasonBoard.length === 0 &&
         inWindow.length === 0 && (
-          <p className="mt-3 text-xs text-stone-400">
+          <p className="mt-3 text-xs text-stone-500">
             Post-season hasn't started yet. The top {seedByKey.size || POST_SEASON_SEEDS}{" "}
             regular-season seeds receive −4 / −3 / −2 / −1.
           </p>
@@ -333,7 +335,7 @@ function ExpandedTournament({
       {tournament.type !== "post" &&
         leaderboard.length === 0 &&
         inWindow.length === 0 && (
-          <p className="mt-3 text-xs text-stone-400">
+          <p className="mt-3 text-xs text-stone-500">
             No rounds posted yet in this window.
           </p>
         )}
@@ -394,7 +396,7 @@ function RegularLeaderboard({
               <td className="py-1 pr-2">
                 <span className="font-medium text-stone-900">{row.name}</span>
                 {!published && row.rounds > 1 && (
-                  <span className="ml-1 text-[10px] text-stone-400">×{row.rounds}</span>
+                  <span className="ml-1 text-[10px] text-stone-500">×{row.rounds}</span>
                 )}
               </td>
               {published ? (
@@ -462,7 +464,7 @@ function PostSeasonBoard({
                 <li key={key} className="flex items-center gap-1.5">
                   <SeedMedallion seed={seed} />
                   <span className="capitalize text-stone-700">{key}</span>
-                  <span className="text-[10px] text-stone-400">
+                  <span className="text-[10px] text-stone-500">
                     starts at {STROKE_ADVANTAGE_LABEL[seed]}
                   </span>
                 </li>

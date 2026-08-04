@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
   ChevronDown,
@@ -164,19 +164,21 @@ function LeagueApp() {
   }, [tournaments]);
 
   const handleSheetSubmit = async (input: NewTeeTimeInput) => {
-    if (!myName) setProfile({ name: input.host });
     if (editing) await update(editing.id, input);
     else await create(input);
+    if (!myName) setProfile({ name: input.host });
   };
 
   const handlePollSubmit = async (input: NewPollInput) => {
-    if (!myName) setProfile({ name: input.host });
     await createPoll(input);
+    if (!myName) setProfile({ name: input.host });
   };
 
+  // Persist locally only after the server accepts — a rejected save must not
+  // switch the device to a name the roster doesn't have.
   const handleProfileSave = async (name: string, handicap: number | null) => {
-    setProfile({ name, handicap });
     await upsertPlayer(name, { handicap, member: true });
+    setProfile({ name, handicap });
   };
 
   const requireName = () => {
@@ -193,8 +195,23 @@ function LeagueApp() {
     setEditing(null);
   };
 
+  // League rounds (any date inside a non-post tournament window) need another
+  // member's attestation — mirrors the server rule in recordScoreTx.
+  const isLeagueDate = useCallback(
+    (date: string) =>
+      tournaments.some(
+        (tournament) =>
+          tournament.type !== "post" &&
+          date >= tournament.windowStart &&
+          date <= tournament.windowEnd
+      ),
+    [tournaments]
+  );
+
   // Rounds from the last ten days that were played but never scored — the
-  // nudge that keeps the season boards current.
+  // nudge that keeps the season boards current. Solo league rounds are
+  // excluded: with no possible attester their score can never be recorded,
+  // so the nudge would be a permanent dead end.
   const needsScores = useMemo(() => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 10);
@@ -203,9 +220,10 @@ function LeagueApp() {
       (teeTime) =>
         teeTime.claims.length > 0 &&
         teeTime.scores.length === 0 &&
-        teeTime.date >= cutoffISO
+        teeTime.date >= cutoffISO &&
+        (!isLeagueDate(teeTime.date) || teeTime.claims.length >= 2)
     );
-  }, [past]);
+  }, [past, isLeagueDate]);
 
   const renderTeeTime = (teeTime: TeeTime, readOnly: boolean) => (
     <TeeTimeCard
@@ -476,15 +494,7 @@ function LeagueApp() {
         open={!!scoringTeeTime}
         onClose={() => setScoringTeeTime(null)}
         teeTime={scoringTeeTime}
-        isLeagueRound={
-          !!scoringTeeTime &&
-          tournaments.some(
-            (tournament) =>
-              tournament.type !== "post" &&
-              scoringTeeTime.date >= tournament.windowStart &&
-              scoringTeeTime.date <= tournament.windowEnd
-          )
-        }
+        isLeagueRound={!!scoringTeeTime && isLeagueDate(scoringTeeTime.date)}
         isMember={isMember}
         onRecord={(name, gross, courseHcp, attestedBy) =>
           recordScore(scoringTeeTime!.id, name, gross, courseHcp, attestedBy)

@@ -1,6 +1,6 @@
 import { CalendarRange } from "lucide-react";
 import { useMemo, useState } from "react";
-import { formatDateLabel, ordinal, todayISO } from "../lib/format";
+import { eqName, formatDateLabel, ordinal, todayISO } from "../lib/format";
 import { formatPoints } from "../lib/leaguePoints";
 import { hasOfficialTournamentResults } from "../lib/officialResults";
 import { STROKE_ADVANTAGES } from "../lib/postSeason";
@@ -64,7 +64,7 @@ export function SeasonHome({
   ).length;
 
   const myIndex = standings.findIndex(
-    (row) => row.name.trim().toLowerCase() === myName.trim().toLowerCase()
+    (row) => eqName(row.name, myName)
   );
   const mine = myIndex >= 0 ? standings[myIndex] : null;
   const cutRow = standings[CHAMPIONSHIP_SEEDS - 1];
@@ -220,7 +220,7 @@ export function SeasonHome({
             {standings.map((row, index) => {
               const isMe =
                 !!myName &&
-                row.name.trim().toLowerCase() === myName.trim().toLowerCase();
+                eqName(row.name, myName);
               const seeded = index < CHAMPIONSHIP_SEEDS && row.seasonPoints > 0;
               const isLeader = index === 0 && row.seasonPoints > 0;
               const isBubble = index === CHAMPIONSHIP_SEEDS;
@@ -321,7 +321,7 @@ export function SeasonHome({
             {formRows.map((row, index) => {
               const isMe =
                 !!myName &&
-                row.name.trim().toLowerCase() === myName.trim().toLowerCase();
+                eqName(row.name, myName);
               return (
                 <div
                   key={row.name}

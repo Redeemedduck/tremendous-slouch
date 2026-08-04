@@ -7,8 +7,8 @@ import {
 import {
   OFFICIAL_TOURNAMENT_RESULTS,
 } from "./officialResults";
-import { computeStandings, sortStandings } from "./standings";
-import type { Tournament } from "./types";
+import { computeStandings, sortStandings, type StandingRow } from "./standings";
+import type { TeeTime, Tournament } from "./types";
 
 const tournament = (id: string, start: string, end: string): Tournament => ({
   id,
@@ -59,6 +59,73 @@ test("stores the final CommonGround, Colorado National, and Riverdale Dunes boar
   assert.equal(coloradoNational.at(-1)?.name, "Chris Moore");
   assert.equal(coloradoNational.at(-1)?.net, 83);
   assert.equal(coloradoNational.at(-1)?.points, 3);
+});
+
+const teeTimeWithScore = (
+  date: string,
+  name: string,
+  gross: number
+): TeeTime => ({
+  id: `tt-${date}`,
+  course: "Test Course",
+  date,
+  time: "08:00",
+  spots: 4,
+  host: name,
+  notes: null,
+  claims: [{ name, claimedAt: "2026-05-01T00:00:00.000Z" }],
+  interested: [],
+  scores: [
+    {
+      name,
+      gross,
+      courseHcp: 5,
+      attestedBy: "Noah Solomon",
+      recordedAt: "2026-05-01T00:00:00.000Z",
+    },
+  ],
+  comments: [],
+  createdAt: "2026-05-01T00:00:00.000Z",
+});
+
+const findRow = (rows: StandingRow[], name: string): StandingRow => {
+  const row = rows.find((r) => r.name === name);
+  assert.ok(row, `${name} missing from standings`);
+  return row;
+};
+
+test("published finals supersede raw in-window scores without double-counting", () => {
+  const baseline = findRow(
+    computeStandings([], () => null, FIRST_THREE),
+    "Matt Henderson"
+  );
+
+  // A raw round recorded inside the (published) w1 window must not add
+  // points, starts, or gross stats on top of the official board.
+  const withRawInWindow = findRow(
+    computeStandings(
+      [teeTimeWithScore("2026-05-16", "Matt Henderson", 74)],
+      () => null,
+      FIRST_THREE
+    ),
+    "Matt Henderson"
+  );
+  assert.equal(withRawInWindow.seasonPoints, baseline.seasonPoints);
+  assert.equal(withRawInWindow.rounds, baseline.rounds);
+  assert.equal(withRawInWindow.totalGross, null);
+
+  // The same round outside every published window keeps full stats.
+  const withRawOutside = findRow(
+    computeStandings(
+      [teeTimeWithScore("2026-07-10", "Matt Henderson", 74)],
+      () => null,
+      FIRST_THREE
+    ),
+    "Matt Henderson"
+  );
+  assert.equal(withRawOutside.seasonPoints, baseline.seasonPoints);
+  assert.equal(withRawOutside.rounds, baseline.rounds + 1);
+  assert.equal(withRawOutside.totalGross, 74);
 });
 
 test("computes the official top four after the first three final events", () => {

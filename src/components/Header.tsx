@@ -43,11 +43,13 @@ export function Header({
             type="button"
             onClick={onOpenProfile}
             aria-label={`Playing as ${myName}${handicap ? `, handicap ${handicap}` : ""}. Edit profile.`}
-            className="min-h-11 shrink-0 rounded-full border border-stone-200 bg-white px-3 text-xs shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+            className="flex min-h-11 min-w-0 max-w-[11rem] items-center rounded-full border border-stone-200 bg-white px-3 text-xs shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
           >
-            <span className="font-semibold text-stone-800">{myName}</span>
+            <span className="truncate font-semibold text-stone-800">
+              {myName}
+            </span>
             {handicap && (
-              <span className="ml-1.5 tabular-nums text-stone-500">
+              <span className="ml-1.5 shrink-0 tabular-nums text-stone-500">
                 {handicap}
               </span>
             )}
