@@ -27,23 +27,25 @@ export function Finances({
   const pct = totals.expected > 0 ? (totals.collected / totals.expected) * 100 : 0;
 
   return (
-    <section className="mb-3">
+    <section className="mb-3 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50"
+        className="w-full px-4 py-3 text-left transition-colors hover:bg-stone-50"
       >
         <span className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-fairway-700" />
-            <span className="text-base font-bold text-stone-950">Pool</span>
+            <span className="font-display text-lg font-bold text-stone-950">
+              Pool
+            </span>
             <span className="text-xs text-stone-500">
               <span className="font-semibold text-stone-900">
                 ${totals.collected.toLocaleString()}
               </span>{" "}
               of ${totals.expected.toLocaleString()}
-              <span className="ml-2 text-stone-400">
+              <span className="ml-2">
                 · {paidCount}/{buyins.length} paid
               </span>
             </span>
@@ -63,7 +65,7 @@ export function Finances({
       </button>
 
       {open && (
-        <div className="mt-2 animate-fade-up rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200">
+        <div className="animate-fade-up border-t border-stone-100 px-3 pb-3">
           <ul className="divide-y divide-stone-100">
             {buyins.map((b) => (
               <li
@@ -74,17 +76,17 @@ export function Finances({
                   <span className="font-medium text-stone-900">
                     {b.playerName}
                   </span>
-                  <span className="text-xs tabular-nums text-stone-400">
+                  <span className="text-xs tabular-nums text-stone-500">
                     ${b.amount.toLocaleString()}
                   </span>
                 </span>
                 <button
                   type="button"
                   onClick={() => onToggle(b.playerName, !b.paid)}
-                  className={`inline-flex min-h-8 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  className={`inline-flex min-h-9 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                     b.paid
                       ? "bg-fairway-100 text-fairway-900 hover:bg-fairway-200"
-                      : "bg-gold-100 text-gold-800 hover:bg-gold-200"
+                      : "bg-amber-100 text-amber-800 hover:bg-amber-200"
                   }`}
                 >
                   {b.paid && <Check className="h-3 w-3" />}
@@ -94,8 +96,8 @@ export function Finances({
             ))}
           </ul>
           {totals.outstanding > 0 && (
-            <p className="mt-2 text-[11px] text-stone-400">
-              <span className="font-semibold text-gold-700">
+            <p className="mt-2 text-[11px] text-stone-500">
+              <span className="font-semibold text-amber-700">
                 ${totals.outstanding.toLocaleString()}
               </span>{" "}
               outstanding. Default buy-in is $325 per member; toggle Paid as

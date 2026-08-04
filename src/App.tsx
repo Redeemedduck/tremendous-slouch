@@ -3,9 +3,10 @@ import {
   CalendarPlus,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   Flag,
+  History,
   MessageCircleQuestion,
-  Trophy,
 } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { BottomNav, type AppSection } from "./components/BottomNav";
@@ -34,10 +35,12 @@ import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
 type AccessState = "checking" | "gated" | "ok";
 type SheetKind = "teetime" | "poll" | null;
 
+// Subtitles are sized to fit beside the profile chip at 390px — a header
+// that ships with an ellipsis reads unfinished.
 const SECTION_META: Record<AppSection, { title: string; subtitle: string }> = {
-  board: { title: "DJDI Board", subtitle: "Tee sheet & group decisions" },
-  season: { title: "Season", subtitle: "The race for the championship" },
-  manage: { title: "Manage", subtitle: "Roster, buy-ins & history" },
+  board: { title: "DJDI Board", subtitle: "Tee sheet & polls" },
+  season: { title: "Season", subtitle: "Race to the title" },
+  manage: { title: "Manage", subtitle: "Roster & buy-ins" },
 };
 
 export default function App() {
@@ -178,6 +181,9 @@ function LeagueApp() {
 
   const requireName = () => {
     if (myName) return true;
+    // The name prompt lives at the top of the page — bring it into view
+    // instead of leaving the user with a toast and no next step.
+    window.scrollTo({ top: 0, behavior: "smooth" });
     toast.show("Add your name first");
     return false;
   };
@@ -187,15 +193,33 @@ function LeagueApp() {
     setEditing(null);
   };
 
+  // Rounds from the last ten days that were played but never scored — the
+  // nudge that keeps the season boards current.
+  const needsScores = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 10);
+    const cutoffISO = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+    return past.filter(
+      (teeTime) =>
+        teeTime.claims.length > 0 &&
+        teeTime.scores.length === 0 &&
+        teeTime.date >= cutoffISO
+    );
+  }, [past]);
+
   const renderTeeTime = (teeTime: TeeTime, readOnly: boolean) => (
     <TeeTimeCard
       key={teeTime.id}
       teeTime={teeTime}
       myName={myName}
       readOnly={readOnly}
-      onClaim={() => requireName() && claim(teeTime.id, myName)}
+      onClaim={() =>
+        requireName() ? claim(teeTime.id, myName) : Promise.resolve()
+      }
       onDrop={(name) => drop(teeTime.id, name)}
-      onMaybe={() => requireName() && markInterested(teeTime.id, myName)}
+      onMaybe={() =>
+        requireName() ? markInterested(teeTime.id, myName) : Promise.resolve()
+      }
       onDropMaybe={(name) => dropInterest(teeTime.id, name)}
       onDelete={() => remove(teeTime.id)}
       onEdit={() => {
@@ -240,10 +264,13 @@ function LeagueApp() {
               <button
                 type="button"
                 onClick={() => setSection("season")}
-                className="mb-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-fairway-900 to-fairway-800 px-4 py-3 text-left shadow-sm ring-1 ring-fairway-950/40 transition-opacity hover:opacity-95"
+                className="texture-pine mb-3 flex w-full items-center justify-between gap-3 overflow-hidden rounded-2xl px-4 py-3 text-left shadow-sm ring-1 ring-fairway-950/40 transition-opacity hover:opacity-95"
               >
                 <span className="flex min-w-0 items-center gap-2.5">
-                  <Trophy className="h-4 w-4 shrink-0 text-gold-300" />
+                  <span className="relative inline-flex h-1.5 w-1.5 shrink-0">
+                    <span className="absolute inset-0 rounded-full bg-gold-300 motion-safe:animate-ping-slow" />
+                    <span className="relative h-1.5 w-1.5 rounded-full bg-gold-300" />
+                  </span>
                   <span className="min-w-0">
                     <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">
                       Window open · {liveStop.name.split("—")[0].trim()}
@@ -255,6 +282,30 @@ function LeagueApp() {
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-white/60" />
+              </button>
+            )}
+
+            {needsScores.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setScoringTeeTime(needsScores[0])}
+                className="mb-3 flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-gold-300 transition-colors hover:bg-gold-50"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <ClipboardList className="h-4 w-4 shrink-0 text-gold-600" />
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-700">
+                      {needsScores.length === 1
+                        ? "1 round waiting on scores"
+                        : `${needsScores.length} rounds waiting on scores`}
+                    </span>
+                    <span className="block truncate text-sm font-semibold text-stone-900">
+                      {needsScores[0].course} ·{" "}
+                      {formatDateLabel(needsScores[0].date)}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
               </button>
             )}
 
@@ -270,7 +321,7 @@ function LeagueApp() {
               <button
                 type="button"
                 onClick={() => setOpenSheet("poll")}
-                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-800 shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-sm font-bold text-stone-800 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
               >
                 <MessageCircleQuestion className="h-4 w-4 text-fairway-700" />
                 Ask the group
@@ -301,15 +352,13 @@ function LeagueApp() {
             )}
 
             <section>
-              <div className="mb-2 flex items-end justify-between px-1">
-                <div>
-                  <h2 className="text-base font-bold text-stone-950">
-                    Upcoming tee times
-                  </h2>
-                  <p className="text-xs text-stone-500">
-                    {upcoming.length} on the board
-                  </p>
-                </div>
+              <div className="mb-2 flex items-baseline gap-2 px-1">
+                <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-stone-500">
+                  Upcoming tee times
+                </h2>
+                <p className="text-xs text-stone-500">
+                  · {upcoming.length} on the board
+                </p>
               </div>
               {!loaded ? (
                 <div className="space-y-3">
@@ -321,15 +370,15 @@ function LeagueApp() {
                   ))}
                 </div>
               ) : upcoming.length === 0 ? (
-                <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
+                <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
                     <Flag className="h-6 w-6" />
                   </div>
                   <p className="font-semibold text-stone-800">
-                    No tee times posted
+                    Nothing on the sheet
                   </p>
                   <p className="mt-1 text-sm text-stone-500">
-                    Post the next group above.
+                    Someone's gotta host — post the next group above.
                   </p>
                 </div>
               ) : (
@@ -375,9 +424,12 @@ function LeagueApp() {
                   type="button"
                   aria-expanded={pastOpen}
                   onClick={() => setPastOpen((value) => !value)}
-                  className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+                  className="flex min-h-12 w-full items-center justify-between rounded-2xl bg-white px-4 text-sm font-bold text-stone-800 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
                 >
-                  <span>Completed tee times ({past.length})</span>
+                  <span className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-fairway-700" />
+                    Completed tee times ({past.length})
+                  </span>
                   <ChevronDown
                     className={`h-4 w-4 text-stone-500 transition-transform ${pastOpen ? "rotate-180" : ""}`}
                   />

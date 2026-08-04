@@ -37,21 +37,28 @@ export function ScoresSheet({
 
   useEffect(() => {
     if (!open || !teeTime) return;
-    // Prefill from existing scores so edits are easy.
+    // Prefill from existing scores so edits are easy. When a player has
+    // exactly one eligible attester (the common foursome case), pre-select
+    // them instead of making everyone open four dropdowns.
     const prefill: Record<string, Draft> = {};
     for (const c of teeTime.claims) {
       const s = teeTime.scores.find(
         (x) => x.name.toLowerCase() === c.name.toLowerCase()
       );
+      const eligible = teeTime.claims.filter(
+        (other) => other.name !== c.name && isMember(other.name)
+      );
       prefill[c.name] = {
         gross: s ? String(s.gross) : "",
         courseHcp: s?.courseHcp != null ? String(s.courseHcp) : "",
-        attestedBy: s?.attestedBy ?? "",
+        attestedBy:
+          s?.attestedBy ??
+          (isLeagueRound && eligible.length === 1 ? eligible[0].name : ""),
       };
     }
     setDrafts(prefill);
     setError(null);
-  }, [open, teeTime]);
+  }, [open, teeTime, isMember, isLeagueRound]);
 
   if (!open || !teeTime) return null;
 

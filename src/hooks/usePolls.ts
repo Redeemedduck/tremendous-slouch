@@ -32,10 +32,14 @@ export function usePolls(onError: (msg: string) => void) {
     };
   }, [refresh]);
 
+  // Update in place — a vote must not teleport the poll to the top of the
+  // list under the voter's finger. Only genuinely new polls go first.
   const replace = useCallback((updated: Poll) => {
     setPolls((prev) => {
-      const next = prev.filter((p) => p.id !== updated.id);
-      next.unshift(updated);
+      const idx = prev.findIndex((p) => p.id === updated.id);
+      if (idx === -1) return [updated, ...prev];
+      const next = [...prev];
+      next[idx] = updated;
       return next;
     });
   }, []);

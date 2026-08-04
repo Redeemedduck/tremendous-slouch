@@ -52,29 +52,28 @@ export function Roster({
   const unknownCount = seenNames.length - players.length;
 
   return (
-    <section className="mb-3">
+    <section className="mb-3 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex min-h-12 w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50"
+        className="flex min-h-12 w-full items-center justify-between px-4 py-3 transition-colors hover:bg-stone-50"
       >
         <span className="flex items-center gap-2">
           <Users className="h-4 w-4 text-fairway-700" />
-          <span className="text-base font-bold text-stone-950">Roster</span>
+          <span className="font-display text-lg font-bold text-stone-950">
+            Roster
+          </span>
           <span className="text-xs text-stone-500">
             <span className="font-semibold text-stone-700">{memberCount}</span>{" "}
             member{memberCount === 1 ? "" : "s"}
             {dropInCount > 0 && (
               <span className="ml-2">
-                · <span className="text-gold-700">{dropInCount}</span> guest
-                {dropInCount === 1 ? "" : "s"}
+                · {dropInCount} guest{dropInCount === 1 ? "" : "s"}
               </span>
             )}
             {unknownCount > 0 && (
-              <span className="ml-2 text-stone-400">
-                · {unknownCount} unflagged
-              </span>
+              <span className="ml-2">· {unknownCount} unflagged</span>
             )}
           </span>
         </span>
@@ -86,7 +85,7 @@ export function Roster({
       </button>
 
       {open && (
-        <div className="mt-2 animate-fade-up rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200">
+        <div className="animate-fade-up border-t border-stone-100 px-3 pb-3">
           <ul className="divide-y divide-stone-100">
             {seenNames.map((name) => {
               const p = memberMap.get(name.toLowerCase());
@@ -100,12 +99,12 @@ export function Roster({
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="font-medium text-stone-900">{name}</span>
                     {hcp && (
-                      <span className="text-xs tabular-nums text-stone-400">
+                      <span className="text-xs tabular-nums text-stone-500">
                         {hcp}
                       </span>
                     )}
                     {!p && (
-                      <span className="text-[10px] uppercase tracking-wide text-stone-400">
+                      <span className="text-[10px] uppercase tracking-wide text-stone-500">
                         no profile
                       </span>
                     )}
@@ -113,10 +112,10 @@ export function Roster({
                   <button
                     type="button"
                     onClick={() => onUpdate(name, { member: !member })}
-                    className={`min-h-8 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                    className={`min-h-9 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                       member
                         ? "bg-fairway-100 text-fairway-900 hover:bg-fairway-200"
-                        : "bg-gold-100 text-gold-800 hover:bg-gold-200"
+                        : "bg-white text-stone-600 ring-1 ring-stone-300 hover:bg-stone-50"
                     }`}
                   >
                     {member ? "Member" : "Guest"}
@@ -125,7 +124,7 @@ export function Roster({
               );
             })}
           </ul>
-          <p className="mt-2 text-[11px] text-stone-400">
+          <p className="mt-2 text-[11px] text-stone-500">
             Tap to toggle. Members count toward the season; guests are drop-in
             players (a member's friend who buys into a single tournament).
           </p>

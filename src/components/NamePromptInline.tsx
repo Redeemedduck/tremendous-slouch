@@ -34,9 +34,28 @@ export function NamePromptInline({
       <p className="font-display text-lg font-bold text-fairway-950">
         Welcome to the club
       </p>
-      <p className="mb-3 mt-0.5 text-sm text-cream-600">
+      <p className="mb-3 mt-0.5 text-sm text-cream-700">
         What name should we put on the board?
       </p>
+      {nameSuggestions.length > 0 && (
+        <div className="mb-3">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-cream-700">
+            One of these?
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {nameSuggestions.slice(0, 8).map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setName(suggestion)}
+                className="min-h-9 rounded-full bg-white px-3 py-1 text-sm font-medium text-fairway-950 ring-1 ring-cream-400 transition-colors hover:bg-cream-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <form className="space-y-2" onSubmit={submit}>
         <div className="flex gap-2">
           <div className="min-w-0 flex-1">
@@ -58,7 +77,7 @@ export function NamePromptInline({
               step={0.1}
               min={-10}
               max={54}
-              placeholder="Hcp"
+              placeholder="12.4"
               inputMode="decimal"
               className={inputClass}
               aria-label="Handicap (optional)"
@@ -79,7 +98,7 @@ export function NamePromptInline({
             ))}
           </datalist>
         )}
-        <p className="text-xs text-cream-600">
+        <p className="text-xs text-cream-700">
           Handicap is optional — same number you have in GHIN.
         </p>
         <FormError>{error}</FormError>

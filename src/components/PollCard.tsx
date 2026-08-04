@@ -11,11 +11,27 @@ export function PollCard({
 }: {
   poll: Poll;
   myName: string;
-  onToggle: (optionIdx: number) => void;
+  onToggle: (optionIdx: number) => void | Promise<unknown>;
   onDelete: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const isHost = !!myName && eqName(poll.host, myName);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setDeleteArmed(false);
+  };
+
+  const vote = async (idx: number) => {
+    setPendingIdx(idx);
+    try {
+      await onToggle(idx);
+    } finally {
+      setPendingIdx(null);
+    }
+  };
 
   // Group responses by option index for fast lookup.
   const byOption: Record<number, string[]> = {};
@@ -54,7 +70,7 @@ export function PollCard({
             <button
               type="button"
               aria-label="Host options"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
               className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-stone-100"
             >
               <MoreHorizontal className="h-5 w-5" />
@@ -64,21 +80,28 @@ export function PollCard({
                 <button
                   type="button"
                   aria-label="Close menu"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={closeMenu}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200">
+                <div className="absolute right-0 top-8 z-20 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200">
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
-                      if (window.confirm(`Delete this poll? This can't be undone.`)) {
-                        onDelete();
+                      if (!deleteArmed) {
+                        setDeleteArmed(true);
+                        return;
                       }
+                      closeMenu();
+                      onDelete();
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                    className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      deleteArmed
+                        ? "bg-rose-600 font-semibold text-white"
+                        : "text-rose-600 hover:bg-rose-50"
+                    }`}
                   >
-                    <Trash2 className="h-4 w-4" /> Delete poll
+                    <Trash2 className="h-4 w-4" />
+                    {deleteArmed ? "Tap again to delete" : "Delete poll"}
                   </button>
                 </div>
               </>
@@ -96,19 +119,19 @@ export function PollCard({
             <li key={idx}>
               <button
                 type="button"
-                onClick={() => onToggle(idx)}
-                disabled={!myName}
+                onClick={() => vote(idx)}
+                disabled={!myName || pendingIdx !== null}
                 className={`group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors ${
                   mine
                     ? "border-fairway-600 bg-fairway-50"
                     : "border-stone-200 bg-white hover:border-stone-300"
-                } disabled:cursor-not-allowed disabled:opacity-60`}
+                } disabled:cursor-not-allowed ${!myName ? "disabled:opacity-60" : ""}`}
               >
                 {responders.length > 0 && (
                   <span
                     aria-hidden
-                    className={`absolute inset-y-0 left-0 transition-[width] duration-300 ${
-                      mine ? "bg-fairway-100/70" : "bg-stone-100/80"
+                    className={`absolute inset-y-0 left-0 rounded-r-full transition-[width] duration-300 ${
+                      mine ? "bg-fairway-100" : "bg-stone-100/80"
                     }`}
                     style={{ width: `${share}%` }}
                   />
@@ -119,7 +142,7 @@ export function PollCard({
                       mine
                         ? "border-fairway-600 bg-fairway-600"
                         : "border-stone-300 bg-white group-hover:border-stone-400"
-                    }`}
+                    } ${pendingIdx === idx ? "animate-pulse" : ""}`}
                   >
                     {mine && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                   </span>

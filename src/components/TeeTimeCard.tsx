@@ -11,7 +11,6 @@ import { downloadIcs } from "../lib/calendar";
 import {
   dateTileParts,
   eqName,
-  formatDateLabel,
   formatHandicap,
   formatTimeLabel,
 } from "../lib/format";
@@ -39,9 +38,9 @@ export function TeeTimeCard({
   teeTime: TeeTime;
   myName: string;
   readOnly: boolean;
-  onClaim: () => void;
+  onClaim: () => void | Promise<unknown>;
   onDrop: (name: string) => void;
-  onMaybe: () => void;
+  onMaybe: () => void | Promise<unknown>;
   onDropMaybe: (name: string) => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -53,12 +52,28 @@ export function TeeTimeCard({
 }) {
   const isDropInChip = (n: string) => !isMember(n);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [pending, setPending] = useState<"claim" | "maybe" | null>(null);
   const meIn = !!myName && teeTime.claims.some((c) => eqName(c.name, myName));
   const meMaybe =
     !!myName && teeTime.interested.some((i) => eqName(i.name, myName));
   const isHost = !!myName && eqName(teeTime.host, myName);
   const full = teeTime.claims.length >= teeTime.spots;
   const tile = dateTileParts(teeTime.date);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setDeleteArmed(false);
+  };
+
+  const run = async (kind: "claim" | "maybe", fn: () => void | Promise<unknown>) => {
+    setPending(kind);
+    try {
+      await fn();
+    } finally {
+      setPending(null);
+    }
+  };
 
   return (
     <article
@@ -95,19 +110,14 @@ export function TeeTimeCard({
             <h2 className="truncate font-display text-xl font-bold leading-tight text-stone-950">
               {teeTime.course}
             </h2>
+            {/* The host is already tagged on their player chip below, so the
+                meta line stays short enough to never truncate. */}
             <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-stone-500">
               <span className="whitespace-nowrap">{tile.weekday}</span>
               <span className="text-stone-300">·</span>
               <Clock className="h-3 w-3 shrink-0" />
               <span className="whitespace-nowrap">
                 {formatTimeLabel(teeTime.time)}
-              </span>
-              <span className="text-stone-300">·</span>
-              <span className="truncate">
-                Hosted by{" "}
-                <span className="font-semibold text-stone-700">
-                  {teeTime.host}
-                </span>
               </span>
             </p>
           </div>
@@ -117,7 +127,7 @@ export function TeeTimeCard({
             <button
               type="button"
               aria-label="Host options"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
               className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-stone-100"
             >
               <MoreHorizontal className="h-5 w-5" />
@@ -127,7 +137,7 @@ export function TeeTimeCard({
                 <button
                   type="button"
                   aria-label="Close menu"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={closeMenu}
                   className="fixed inset-0 z-10 cursor-default"
                 />
                 <div className="absolute right-0 top-8 z-20 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200">
@@ -135,10 +145,10 @@ export function TeeTimeCard({
                     <button
                       type="button"
                       onClick={() => {
-                        setMenuOpen(false);
+                        closeMenu();
                         onRecordScores();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
                     >
                       <ClipboardList className="h-4 w-4" />
                       {teeTime.scores.length > 0 ? "Edit scores" : "Record scores"}
@@ -147,10 +157,10 @@ export function TeeTimeCard({
                     <button
                       type="button"
                       onClick={() => {
-                        setMenuOpen(false);
+                        closeMenu();
                         onEdit();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
                     >
                       <Pencil className="h-4 w-4" /> Edit tee time
                     </button>
@@ -158,18 +168,21 @@ export function TeeTimeCard({
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
-                      if (
-                        window.confirm(
-                          `Delete ${teeTime.course} on ${formatDateLabel(teeTime.date)} at ${formatTimeLabel(teeTime.time)}? This can't be undone.`
-                        )
-                      ) {
-                        onDelete();
+                      if (!deleteArmed) {
+                        setDeleteArmed(true);
+                        return;
                       }
+                      closeMenu();
+                      onDelete();
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                    className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      deleteArmed
+                        ? "bg-rose-600 font-semibold text-white"
+                        : "text-rose-600 hover:bg-rose-50"
+                    }`}
                   >
-                    <Trash2 className="h-4 w-4" /> Delete tee time
+                    <Trash2 className="h-4 w-4" />
+                    {deleteArmed ? "Tap again to delete" : "Delete tee time"}
                   </button>
                 </div>
               </>
@@ -194,7 +207,7 @@ export function TeeTimeCard({
           <button
             type="button"
             onClick={() => downloadIcs(teeTime)}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-fairway-700 transition-colors hover:text-fairway-900"
+            className="-my-2 -mr-2 inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2 py-2.5 text-xs font-semibold text-fairway-700 transition-colors hover:text-fairway-900"
           >
             <CalendarPlus className="h-3.5 w-3.5" /> Add to calendar
           </button>
@@ -212,14 +225,9 @@ export function TeeTimeCard({
               handicap={getHandicap(c.name)}
               isDropIn={isDropInChip(c.name)}
               onDrop={
+                // Dropping is reversible (tap Claim again) — no confirm.
                 !readOnly && !!myName && eqName(c.name, myName)
-                  ? () => {
-                      if (
-                        window.confirm(`Drop your spot at ${teeTime.course}?`)
-                      ) {
-                        onDrop(c.name);
-                      }
-                    }
+                  ? () => onDrop(c.name)
                   : undefined
               }
             />
@@ -229,7 +237,7 @@ export function TeeTimeCard({
 
       {teeTime.interested.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-stone-400">
+          <span className="text-xs font-medium uppercase tracking-wide text-stone-500">
             Maybe
           </span>
           {teeTime.interested.map((i) => (
@@ -243,15 +251,7 @@ export function TeeTimeCard({
               isDropIn={isDropInChip(i.name)}
               onDrop={
                 !readOnly && !!myName && eqName(i.name, myName)
-                  ? () => {
-                      if (
-                        window.confirm(
-                          `Remove your maybe at ${teeTime.course}?`
-                        )
-                      ) {
-                        onDropMaybe(i.name);
-                      }
-                    }
+                  ? () => onDropMaybe(i.name)
                   : undefined
               }
             />
@@ -261,7 +261,7 @@ export function TeeTimeCard({
 
       {teeTime.scores.length > 0 && (
         <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-600">
+          <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-700">
             Scores
           </div>
           <ul className="space-y-1">
@@ -287,12 +287,12 @@ export function TeeTimeCard({
                     <span className="text-stone-700">
                       <span className="font-medium">{s.name}</span>
                       {usedHcp != null && (
-                        <span className="ml-1.5 text-xs text-stone-400">
+                        <span className="ml-1.5 text-xs text-stone-500">
                           {fromCourse ? `CH ${usedHcp}` : formatHandicap(usedHcp)}
                         </span>
                       )}
                       {s.attestedBy && (
-                        <span className="ml-1.5 text-[10px] text-stone-400">
+                        <span className="ml-1.5 text-[10px] text-stone-500">
                           · att. {s.attestedBy}
                         </span>
                       )}
@@ -316,22 +316,43 @@ export function TeeTimeCard({
         <div className="mt-4 flex items-stretch gap-2">
           <button
             type="button"
-            onClick={onClaim}
-            disabled={full || !myName}
+            onClick={() => run("claim", onClaim)}
+            disabled={full || pending !== null}
             className="flex-1 rounded-xl bg-fairway-800 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-fairway-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
           >
-            {full ? "Full" : !myName ? "Add your name first" : "Claim a spot"}
+            {full
+              ? "Sheet's full"
+              : pending === "claim"
+                ? "Claiming…"
+                : !myName
+                  ? "Add your name first"
+                  : "Claim a spot"}
           </button>
           {!meMaybe && myName && (
             <button
               type="button"
-              onClick={onMaybe}
-              className="flex-1 rounded-xl border border-stone-300 bg-white py-2.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-50"
+              onClick={() => run("maybe", onMaybe)}
+              disabled={pending !== null}
+              className="flex-1 rounded-xl border border-stone-300 bg-white py-2.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Maybe
+              {pending === "maybe" ? "Saving…" : "Maybe"}
             </button>
           )}
         </div>
+      )}
+
+      {/* Anyone in the group can record or fix scores once the round is
+          done — the server accepts any member, so don't hide this behind
+          the host menu. */}
+      {readOnly && !!myName && teeTime.claims.length > 0 && (
+        <button
+          type="button"
+          onClick={onRecordScores}
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-fairway-200 bg-fairway-50 text-sm font-bold text-fairway-800 transition-colors hover:bg-fairway-100"
+        >
+          <ClipboardList className="h-4 w-4" />
+          {teeTime.scores.length > 0 ? "Edit scores" : "Record scores"}
+        </button>
       )}
 
       <Comments

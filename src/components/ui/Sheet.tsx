@@ -25,7 +25,14 @@ export function Sheet({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Lock the page behind the sheet so drags on the panel don't scroll the
+    // board underneath (classic mobile scroll-trap).
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -38,11 +45,11 @@ export function Sheet({
         onClick={onClose}
         className="absolute inset-0 animate-backdrop bg-fairway-950/45 backdrop-blur-[2px]"
       />
-      <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[calc(100dvh-2rem)] max-w-md animate-sheet-up overflow-y-auto rounded-t-[1.75rem] bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
+      <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[calc(100dvh-2rem)] max-w-md animate-sheet-up overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold tracking-tight text-stone-950">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-stone-950">
               {title}
             </h2>
             {subtitle && (

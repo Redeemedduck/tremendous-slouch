@@ -22,6 +22,7 @@ import {
   type LeaderboardRow,
 } from "../lib/tournamentLeaderboard";
 import type { TeeTime, Tournament, TournamentType } from "../lib/types";
+import { SeedMedallion } from "./ui/SeedMedallion";
 
 type Status = "upcoming" | "active" | "past";
 
@@ -356,13 +357,13 @@ function RegularLeaderboard({
 
   return (
     <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
-      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-600">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-700">
         <Trophy className="h-3.5 w-3.5 text-gold-500" />
         {published ? "Final leaderboard" : "Leaderboard"}
       </div>
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wide text-cream-600">
+          <tr className="text-left text-[10px] uppercase tracking-wide text-cream-700">
             <th className="pb-1 pr-2 font-medium">Pos</th>
             <th className="pb-1 pr-2 font-medium">Player</th>
             {published ? (
@@ -424,8 +425,8 @@ function RegularLeaderboard({
         </tbody>
       </table>
       {tournament.payoutFirst != null && board[0] && (
-        <p className="mt-2 text-[11px] text-cream-600">
-          <span className="font-semibold text-stone-700">{board[0].name}</span>{" "}
+        <p className="mt-2 font-display text-sm italic text-cream-700">
+          <span className="font-semibold not-italic text-stone-700">{board[0].name}</span>{" "}
           wins ${tournament.payoutFirst}.
         </p>
       )}
@@ -447,7 +448,7 @@ function PostSeasonBoard({
 
   return (
     <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
-      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-600">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-cream-700">
         <Trophy className="h-3.5 w-3.5 text-gold-500" /> Post-season leaderboard
       </div>
       {board.length === 0 ? (
@@ -459,7 +460,7 @@ function PostSeasonBoard({
               .sort(([, a], [, b]) => a - b)
               .map(([key, seed]) => (
                 <li key={key} className="flex items-center gap-1.5">
-                  <SeedBadge seed={seed} />
+                  <SeedMedallion seed={seed} />
                   <span className="capitalize text-stone-700">{key}</span>
                   <span className="text-[10px] text-stone-400">
                     starts at {STROKE_ADVANTAGE_LABEL[seed]}
@@ -472,7 +473,7 @@ function PostSeasonBoard({
         <>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wide text-cream-600">
+              <tr className="text-left text-[10px] uppercase tracking-wide text-cream-700">
                 <th className="pb-1 pr-2 font-medium">Pos</th>
                 <th className="pb-1 pr-2 font-medium">Player</th>
                 <th className="pb-1 pr-2 text-right font-medium">Rds</th>
@@ -494,7 +495,7 @@ function PostSeasonBoard({
                   </td>
                   <td className="py-1 pr-2">
                     <span className="flex items-center gap-1.5">
-                      {row.seed && <SeedBadge seed={row.seed} />}
+                      {row.seed && <SeedMedallion seed={row.seed} />}
                       <span className="font-medium text-stone-900">{row.name}</span>
                       {row.strokeAdvantage < 0 && (
                         <span className="text-[10px] text-stone-500">
@@ -517,8 +518,8 @@ function PostSeasonBoard({
             </tbody>
           </table>
           {board[0] && tournament.payoutFirst != null && (
-            <p className="mt-2 text-[11px] text-cream-600">
-              <span className="font-semibold text-stone-700">
+            <p className="mt-2 font-display text-sm italic text-cream-700">
+              <span className="font-semibold not-italic text-stone-700">
                 {board[0].name}
               </span>{" "}
               wins ${tournament.payoutFirst}
@@ -544,13 +545,3 @@ const STROKE_ADVANTAGE_LABEL: Record<number, string> = {
   4: "−1",
 };
 
-function SeedBadge({ seed }: { seed: number }) {
-  return (
-    <span
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-b from-gold-200 to-gold-400 text-[10px] font-bold text-fairway-950 ring-1 ring-gold-500/60"
-      title={`Seed ${seed}`}
-    >
-      {seed}
-    </span>
-  );
-}

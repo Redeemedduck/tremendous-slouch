@@ -65,7 +65,7 @@ export function PlayerChip({
         </span>
       )}
       {isDropIn && !isHost && (
-        <span className="ml-0.5 text-[10px] uppercase tracking-wide text-amber-700">
+        <span className="ml-0.5 text-[10px] uppercase tracking-wide text-stone-500">
           guest
         </span>
       )}

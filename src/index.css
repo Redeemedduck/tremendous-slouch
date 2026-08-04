@@ -45,6 +45,30 @@
   --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.21, 0.8, 0.35, 1) both;
   --animate-backdrop: backdrop-fade 0.25s ease-out both;
   --animate-toast-in: toast-in 0.28s cubic-bezier(0.21, 0.8, 0.35, 1) both;
+  --animate-ping-slow: ping-slow 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-shake: shake 0.4s ease-in-out both;
+
+  @keyframes ping-slow {
+    0% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    70%,
+    100% {
+      transform: scale(2.8);
+      opacity: 0;
+    }
+  }
+  @keyframes shake {
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
 
   @keyframes fade-up {
     from {
@@ -84,6 +108,34 @@
       transform: translateY(0);
     }
   }
+}
+
+/* Engraved-pine surface for the deep green feature cards: a soft light
+   sweep, two static contour rings (reads as a course map at arm's length),
+   a grounding vignette, and the pine gradient itself as the base layer.
+   The base lives INSIDE this utility because background-image is a single
+   property — pairing this with a Tailwind bg-gradient-* class would clobber
+   one or the other. Pure CSS, no assets, reduced-motion safe. */
+@utility texture-pine {
+  background-color: var(--color-fairway-900);
+  background-image:
+    radial-gradient(140% 100% at 100% 0%, rgb(255 255 255 / 0.06), transparent 55%),
+    repeating-radial-gradient(
+      circle at 115% 115%,
+      rgb(255 255 255 / 0.045) 0 1.5px,
+      transparent 1.5px 28px
+    ),
+    repeating-radial-gradient(
+      circle at -15% -30%,
+      rgb(255 255 255 / 0.03) 0 1.5px,
+      transparent 1.5px 36px
+    ),
+    radial-gradient(120% 90% at 50% 130%, rgb(4 35 28 / 0.5), transparent 70%),
+    linear-gradient(
+      135deg,
+      var(--color-fairway-950),
+      var(--color-fairway-800)
+    );
 }
 
 html,

@@ -47,7 +47,7 @@ export function Header({
           >
             <span className="font-semibold text-stone-800">{myName}</span>
             {handicap && (
-              <span className="ml-1.5 tabular-nums text-stone-400">
+              <span className="ml-1.5 tabular-nums text-stone-500">
                 {handicap}
               </span>
             )}
