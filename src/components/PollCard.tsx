@@ -120,6 +120,7 @@ export function PollCard({
               <button
                 type="button"
                 onClick={() => vote(idx)}
+                aria-pressed={mine}
                 disabled={!myName || pendingIdx !== null}
                 className={`group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors ${
                   mine
@@ -137,8 +138,10 @@ export function PollCard({
                   />
                 )}
                 <span className="relative flex items-center gap-2 text-sm font-medium text-stone-900">
+                  {/* Square, not a circle: picks are additive, so the control
+                      must read as a checkbox rather than a radio button. */}
                   <span
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
                       mine
                         ? "border-fairway-600 bg-fairway-600"
                         : "border-stone-300 bg-white group-hover:border-stone-400"
@@ -173,10 +176,16 @@ export function PollCard({
         })}
       </ul>
 
-      {!myName && (
+      {!myName ? (
         <p className="mt-3 text-xs text-stone-500">
           Add your name above to vote.
         </p>
+      ) : (
+        poll.options.length > 1 && (
+          <p className="mt-3 text-xs text-stone-500">
+            Tap everything that works for you — more than one is fine.
+          </p>
+        )
       )}
     </article>
   );
