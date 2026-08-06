@@ -208,6 +208,13 @@ function LeagueApp() {
     [tournaments]
   );
 
+  // Each section should open at its header, not wherever the previous
+  // section happened to be scrolled.
+  const changeSection = (next: AppSection) => {
+    setSection(next);
+    window.scrollTo({ top: 0 });
+  };
+
   // Rounds from the last ten days that were played but never scored — the
   // nudge that keeps the season boards current. Solo league rounds are
   // excluded: with no possible attester their score can never be recorded,
@@ -281,7 +288,7 @@ function LeagueApp() {
             {liveStop && (
               <button
                 type="button"
-                onClick={() => setSection("season")}
+                onClick={() => changeSection("season")}
                 className="texture-pine mb-3 flex w-full items-center justify-between gap-3 overflow-hidden rounded-2xl px-4 py-3 text-left shadow-sm ring-1 ring-fairway-950/40 transition-opacity hover:opacity-95"
               >
                 <span className="flex min-w-0 items-center gap-2.5">
@@ -463,7 +470,7 @@ function LeagueApp() {
         )}
       </div>
 
-      <BottomNav active={section} onChange={setSection} />
+      <BottomNav active={section} onChange={changeSection} />
 
       <NewTeeTimeSheet
         open={openSheet === "teetime"}

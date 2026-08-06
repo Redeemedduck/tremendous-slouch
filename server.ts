@@ -139,7 +139,10 @@ type SeedTournament = {
 // re-set to $306 after a member dropped without paying dues, per the
 // commissioner's Aug 2026 settlement message.
 const REGULAR_PAYOUT = 306;
-const POST_PAYOUTS = { first: 1014, second: 390, third: 156 };
+// Championship purse = pool − stop payouts, split 65/25/10 like the rule
+// sheet's original $1,014/$390/$156. At 11 paid members: $3,575 pool −
+// (7 × $306) = $1,433 → $930/$360/$143 (whole dollars, sums exactly).
+const POST_PAYOUTS = { first: 930, second: 360, third: 143 };
 const SEASON_TOURNAMENTS: SeedTournament[] = [
   {
     id: "2026-w1",
@@ -291,6 +294,16 @@ db.prepare(
 db.prepare(
   `UPDATE tournaments SET payout_first = ${REGULAR_PAYOUT}
    WHERE type = 'regular' AND payout_first = 334`
+).run();
+
+// Championship purse follows the same pool shrink (65/25/10 of what's left
+// after the seven stops): $1,014/$390/$156 → $930/$360/$143.
+db.prepare(
+  `UPDATE tournaments
+   SET payout_first = ${POST_PAYOUTS.first},
+       payout_second = ${POST_PAYOUTS.second},
+       payout_third = ${POST_PAYOUTS.third}
+   WHERE type = 'post' AND payout_first = 1014`
 ).run();
 
 // Pre-seed two foursome tee times for Sat 5/16 at Common Ground (Stop 1).

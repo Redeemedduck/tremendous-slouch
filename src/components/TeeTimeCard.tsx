@@ -60,6 +60,12 @@ export function TeeTimeCard({
   const isHost = !!myName && eqName(teeTime.host, myName);
   const full = teeTime.claims.length >= teeTime.spots;
   const tile = dateTileParts(teeTime.date);
+  // The host is normally identified by the HOST tag on their chip — but if
+  // they dropped their spot (or only sit in Maybe without one), fall back to
+  // naming them in the meta line so the organizer never goes invisible.
+  const hostHasChip =
+    teeTime.claims.some((c) => eqName(c.name, teeTime.host)) ||
+    teeTime.interested.some((i) => eqName(i.name, teeTime.host));
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -110,8 +116,6 @@ export function TeeTimeCard({
             <h2 className="truncate font-display text-xl font-bold leading-tight text-stone-950">
               {teeTime.course}
             </h2>
-            {/* The host is already tagged on their player chip below, so the
-                meta line stays short enough to never truncate. */}
             <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-stone-500">
               <span className="whitespace-nowrap">{tile.weekday}</span>
               <span className="text-stone-300">·</span>
@@ -119,6 +123,17 @@ export function TeeTimeCard({
               <span className="whitespace-nowrap">
                 {formatTimeLabel(teeTime.time)}
               </span>
+              {!hostHasChip && (
+                <>
+                  <span className="text-stone-300">·</span>
+                  <span className="truncate">
+                    Hosted by{" "}
+                    <span className="font-semibold text-stone-700">
+                      {teeTime.host}
+                    </span>
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -245,7 +260,7 @@ export function TeeTimeCard({
               key={i.name}
               name={i.name}
               variant="interested"
-              isHost={false}
+              isHost={eqName(i.name, teeTime.host)}
               isMe={!!myName && eqName(i.name, myName)}
               handicap={getHandicap(i.name)}
               isDropIn={isDropInChip(i.name)}
