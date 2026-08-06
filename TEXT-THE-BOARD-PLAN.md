@@ -1,7 +1,16 @@
 # Text the Board — build plan
 
-*Drafted 2026-08-05. Researched by two agents (channel options + agent
-architecture); synthesized and maintained here. Status: ready to build.*
+*Drafted 2026-08-05; corrected 2026-08-06. Status: Phase 1 server side is
+BUILT and live-tested (see reviews/ and the test suite).*
+
+**Correction (2026-08-06):** the first version of this plan assumed two
+paid services — Fly.io hosting and the metered Anthropic API — that Matt
+never approved. Both are now strictly opt-in. The default architecture
+runs at **$0/month on hardware Matt already owns**: the whole stack on the
+always-on Mac, parsing on a local Ollama model (qwen2.5:7b, pulled and
+live-verified), members reached over iMessage. No public deploy is
+required at all — if the members' only interface is texting, the web app
+never needs to leave Tailscale.
 
 ## What this is
 
@@ -13,20 +22,25 @@ back ("Got it: Common Ground, Sat Aug 9, 8:40am, 2 spots. Reply NO to undo").
 
 ## Architecture (settled)
 
-The brain lives **inside the existing Fly app** — one new webhook route in
-server.ts, no second machine to keep alive. Message flow:
+The brain lives **inside the existing app process** — one webhook route in
+server.ts, running wherever the app runs (default: the always-on Mac,
+loopback-bound, reachable by the relay on the same machine). Message flow:
 
 1. Channel delivers the message to `POST /api/inbound/<channel>`.
 2. Webhook signature verified (reject silently otherwise).
 3. Sender resolved against a new `members` table (channel + handle →
    player name). Unknown sender: canned reply, owner notified, **no LLM
    call** (abuse costs $0).
-4. Claude Haiku 4.5 parses the message via **strict tool use** — one tool
-   per allowed action (`create_tee_time`, `claim_spot`, `drop_spot`,
-   `record_score`, `cast_vote`, `clarify`), each with a strict JSON schema.
-   The model picks the tool; the API guarantees the arguments validate.
+4. A model parses the message via **tool use** — one tool per allowed
+   action (`create_tee_time`, `claim_spot`, `drop_spot`, `record_score`,
+   `cast_vote`, `board_query`, `clarify`), each with a strict JSON schema.
    No bulk or delete-everything tool exists, which is the prompt-injection
    containment: a hostile message has nothing dangerous to call.
+   **Provider policy (agent/providers.ts): local Ollama first ($0,
+   OLLAMA_URL), the metered Anthropic API only if Matt explicitly sets
+   ANTHROPIC_API_KEY, otherwise the agent reports itself offline.** The
+   system prompt hands the model a printed 7-day calendar because small
+   local models botch weekday arithmetic (found live, fixed, retested).
 5. The executor runs the validated action through the same internal
    functions the REST API uses — existing server-side validation (course
    handicap + attester rules, name matching, date/spots limits) stays as
@@ -73,24 +87,19 @@ else follows undo-beats-confirm (confirmation prompts train reflexive YES).
 
 ## Cost (settled)
 
-- Parsing: Claude Haiku 4.5 at $1/M input, $5/M output ≈ **$1–2/month** at
-  ~300 messages. (Prompt caching doesn't apply — system prompt is below the
-  4,096-token cache minimum. Don't build it. If Haiku fumbles, Sonnet is
-  still only ~$3/mo.)
-- Hosting: $0 incremental on the existing Fly app (~$3–5/mo it already
-  costs to run, which is a prerequisite — see below).
-- Channel: **$0** (iMessage relay from the Mac — see channel decision).
-  SMS fallback if ever needed: ~$5.60/mo + $19 one-time registration.
-- **All-in: roughly $5–7/month, nearly all of it the Fly VM.**
+- Parsing: **$0** — local Ollama (qwen2.5:7b) on the Mac, live-verified.
+- Hosting: **$0** — the app keeps running on the always-on Mac exactly as
+  it does today (Tailscale for Matt's own browser use; the relay reaches
+  the webhook over loopback).
+- Channel: **$0** — iMessage relay on the same Mac.
+- **All-in: $0/month.**
 
-## Prerequisite: the app must actually be deployed
-
-flyctl on this Mac is not logged in and fly.toml still has the placeholder
-app name — the app appears to have never been publicly deployed (Tailscale
-solo mode so far). Inbound webhooks need a public HTTPS endpoint. Phase 0
-is therefore the DEPLOY.md runbook: `fly auth login`, `fly launch
---no-deploy`, volume create, `fly secrets set ACCESS_CODE=…`, deploy,
-smoke-test. (~$3–5/mo for the always-on shared-cpu VM.)
+Paid opt-ins, only if Matt chooses them later: metered Anthropic API for
+parsing (~$1–2/mo at league volume — set ANTHROPIC_API_KEY and it takes
+over automatically only if OLLAMA_URL is unset or AGENT_PROVIDER says so);
+Fly.io hosting if the web app should ever be publicly reachable
+(~$3–5/mo, DEPLOY.md runbook); Twilio SMS if the iMessage route proves
+flaky (~$5.60/mo + $19 one-time).
 
 ## Channel decision: iMessage relay from the always-on Mac, $0/month
 
@@ -105,10 +114,10 @@ gateways: T-Mobile died 2024, AT&T June 2025, Verizon sunsetting to
 Mar 2027 — do not build on these).
 
 **Division of labor:** the Mac is a *dumb relay only* — it forwards
-inbound message JSON to the Fly webhook (over Tailscale or public HTTPS
-with a shared secret) and sends the reply text it's handed back. All
-parsing, validation, and state lives on Fly. If the Mac dies, the web app
-keeps working and only the texting transport goes dark. openclaw/imsg
+inbound message JSON to the app webhook on localhost (shared secret
+header) and sends the reply text it's handed back. All
+parsing, validation, and state lives in the app process, so swapping the
+transport (iMessage → SMS) never touches the brain. openclaw/imsg
 (1.3K stars, actively maintained) is the off-the-shelf bridge component.
 
 **The gotchas, honestly:**
@@ -132,20 +141,22 @@ outbound only) — a quiet pilot needs nothing else. Full two-way SMS means
 sole-proprietor A2P registration ($19 one-time + $2/mo campaign + per-
 message fees ≈ $5.60/mo all-in at league volume; register as Matt-the-
 individual, not Ibid — sole-prop brands must have no EIN). Because the
-brain is channel-agnostic on Fly, the swap is a new ~50-line adapter, not
+brain is channel-agnostic, the swap is a new ~50-line adapter, not
 a rebuild. A shared iOS Shortcut that POSTs straight to the API is a free
 bonus lane for power users regardless of channel.
 
 ## Build phases
 
-- **Phase 0 — deploy.** Fly launch per DEPLOY.md. App public behind the
-  access code. Half a day including smoke tests.
+- **Phase 0 — keep the app where it is.** It runs on the always-on Mac
+  (launchd so it survives reboots), loopback + Tailscale, ACCESS_CODE and
+  RELAY_SECRET set, OLLAMA_URL pointed at the local Ollama. No deploy, no
+  new accounts.
 - **Phase 1 — tee times by text.** Two halves:
-  *Fly side:* members/pending/log tables, webhook route with shared-secret
+  *App side (BUILT):* members/pending/log tables, webhook route with shared-secret
   verification + allowlist + rate caps, Haiku strict tools for tee-time
   create/claim/drop + clarify, template confirmations, NO-undo.
   *Mac side:* openclaw/imsg relay watching Messages, POSTing message JSON
-  to the Fly webhook, sending back the reply text. Launchd keeps it alive;
+  to the app webhook, sending back the reply text. Launchd keeps it alive;
   a health ping tells Matt when it's down.
   Seed the 12 members (handle → player name). Pilot with 2–3 friendly
   members for a week before announcing. This is the adoption test — if
@@ -169,7 +180,7 @@ bonus lane for power users regardless of channel.
 
 ## Risks (ranked)
 
-1. Silent inbound failure kills trust → one failure domain (Fly), prefer a
+1. Silent inbound failure kills trust → one failure domain (the app process), prefer a
    channel with webhook redelivery, health-check ping.
 2. Wrong parse committed to money data → YES gate + template echo + attester
    validation.

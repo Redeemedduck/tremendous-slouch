@@ -2,6 +2,22 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
+import { fetchLeagueData } from "./agent/api";
+import { buildLeagueContext } from "./agent/context";
+import {
+  renderBoard,
+  renderCommitted,
+  renderConfirmRequest,
+} from "./agent/confirm";
+import {
+  executeParsed,
+  executeScore,
+  executeUndo,
+  resolveScoreTarget,
+} from "./agent/execute";
+import { createInboundHandler } from "./agent/inbound";
+import { parseMessage } from "./agent/parse";
+import { createStore } from "./agent/store";
 
 // ============================================================
 // DATABASE
@@ -935,6 +951,57 @@ async function startServer() {
   const HOST = process.env.HOST || "127.0.0.1";
 
   app.use(express.json());
+
+  // ------------------------------------------------------------
+  // Text-the-Board inbound webhook. A channel relay (iMessage bridge on
+  // the Mac, SMS provider, the dev CLI) POSTs {channel, handle, text} and
+  // gets back {reply}. It authenticates with its own shared secret, so it
+  // registers AHEAD of the access-cookie gate. Disabled entirely unless
+  // RELAY_SECRET is set.
+  // ------------------------------------------------------------
+  const relayAuth = process.env.RELAY_SECRET;
+  if (relayAuth) {
+    const agentStore = createStore(DB_PATH);
+    const handleInbound = createInboundHandler({
+      store: agentStore,
+      parse: parseMessage,
+      buildContext: buildLeagueContext,
+      fetchLeagueData,
+      exec: { executeParsed, resolveScoreTarget, executeScore, executeUndo },
+      render: { renderCommitted, renderConfirmRequest, renderBoard },
+    });
+    app.post("/api/inbound/message", async (req, res) => {
+      if (req.get("x-relay-secret") !== relayAuth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const { channel, handle, text } = req.body ?? {};
+      if (
+        typeof channel !== "string" ||
+        typeof handle !== "string" ||
+        typeof text !== "string"
+      ) {
+        return res
+          .status(400)
+          .json({ error: "channel, handle, and text are required" });
+      }
+      try {
+        const reply = await handleInbound({
+          channel,
+          handle,
+          text: text.slice(0, 1000),
+        });
+        res.json(reply);
+      } catch (err) {
+        console.error("POST /api/inbound/message failed:", err);
+        res.status(500).json({ error: "Inbound handling failed" });
+      }
+    });
+  } else {
+    app.post("/api/inbound/message", (_req, res) => {
+      res.status(503).json({ error: "Inbound messaging is not configured" });
+    });
+  }
+
   app.use(requireAccess);
 
   app.get("/api/access", (req, res) => {
