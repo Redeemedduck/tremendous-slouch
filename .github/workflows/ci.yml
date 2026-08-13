@@ -7,6 +7,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The agent integration suite spawns a real server; if a teardown ever
+    # leaks it, fail in minutes instead of the 6-hour job default.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4

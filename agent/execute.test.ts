@@ -138,8 +138,13 @@ describe("agent execute (integration, real server)", () => {
   before(async () => {
     process.env.AGENT_SELF_URL = BASE;
     process.env.ACCESS_CODE = ACCESS_CODE;
+    // detached puts npx AND the tsx/node server it execs into their own
+    // process group, so teardown can kill the whole tree. Killing only the
+    // npx parent can orphan the real server, which then holds this process's
+    // stdio pipes open and hangs the test runner (seen in CI).
     child = spawn("npx", ["tsx", "server.ts"], {
       cwd: REPO_ROOT,
+      detached: true,
       env: {
         ...process.env,
         PORT: String(PORT),
@@ -156,7 +161,20 @@ describe("agent execute (integration, real server)", () => {
   });
 
   after(() => {
-    child?.kill("SIGTERM");
+    if (child) {
+      // Release our ends of the pipes first so an orphaned grandchild can't
+      // keep this process's event loop alive, then kill the whole process
+      // group (throwaway server + temp DB — SIGKILL is fine).
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      if (child.pid != null) {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {
+          child.kill("SIGKILL");
+        }
+      }
+    }
     for (const suffix of ["", "-wal", "-shm"]) {
       fs.rmSync(`${DB_PATH}${suffix}`, { force: true });
     }
