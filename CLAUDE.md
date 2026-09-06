@@ -9,7 +9,8 @@ npm run dev        # Express + Vite middleware dev server (tsx server.ts), local
 npm run build      # Production client build to dist/
 npm run start      # Production server (serves dist/, NODE_ENV=production)
 npm run lint       # Type-check only (tsc --noEmit) — no linter configured
-npm test           # Unit tests (node:test via tsx) for src/lib/*.test.ts
+npm test           # node:test via tsx — src/lib/*.test.ts + agent/*.test.ts
+                   # (agent/execute.test.ts spawns the real server; ~10s)
 ```
 
 CI (`.github/workflows/ci.yml`) runs test → lint → build on every push and PR.
@@ -30,6 +31,17 @@ for the full feature tour.
   tournament schedule at startup. In dev it mounts Vite middleware; in prod
   it serves `dist/`. SQLite database path via `DB_PATH` (defaults to
   `./data.db`); optional `ACCESS_CODE` enables the access gate.
+- **`agent/`** — "Text the Board": the message-to-app agent that runs
+  inside the server process. `inbound.ts` (webhook: relay-secret check,
+  member allowlist, rate caps, YES/NO pending actions) → `parse.ts`
+  (model tool-use over a strict tool set; message content framed as
+  untrusted data) → `execute.ts` (runs the validated action through the
+  same functions as the REST API) → `confirm.ts` (template replies, never
+  model-written). `providers.ts` picks the model: local Ollama first,
+  Anthropic only when explicitly configured; it also recovers tool calls
+  that Hermes-style templates render as text. `store.ts` holds the
+  members / pending / audit tables. Never add a bulk or delete-all tool —
+  the narrow tool set is the prompt-injection containment.
 - **`src/App.tsx`** — app shell. Access gate → three sections switched by a
   bottom nav: **Board** (tee times + polls), **Season** (standings and event
   boards), **Manage** (roster, buy-ins, completed rounds). Bottom sheets for
