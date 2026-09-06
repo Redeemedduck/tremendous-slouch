@@ -34,6 +34,90 @@ type OllamaChatResponse = {
   done_reason?: string;
 };
 
+const TEXT_TOOL_CALL_MAX_CHARS = 4000;
+
+/**
+ * Some Ollama model templates (Hermes 3 tags, observed live) don't emit a
+ * structured `tool_calls` array — they print the call as text, either in
+ * Hermes' native `<tool_call>{...}</tool_call>` wrapper or as a bare
+ * Python-dict-looking object surrounded by stray tokens. Recover exactly one
+ * call from such text, strictly bounded: the tool name must be one we
+ * declared, the arguments must be an object, and anything else yields null
+ * so parse.ts degrades to `unknown` as before. Field-level validation still
+ * happens downstream in mapToolUse.
+ */
+export function extractTextToolCall(
+  content: string | undefined,
+  toolNames: readonly string[]
+): { name: string; input: Record<string, unknown> } | null {
+  if (!content || toolNames.length === 0) return null;
+  const text = content.slice(0, TEXT_TOOL_CALL_MAX_CHARS);
+
+  const wrapped = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/i.exec(text);
+  const candidate = wrapped ? wrapped[1] : firstBalancedObject(text);
+  if (!candidate) return null;
+
+  const parsed = parseLooseJson(candidate);
+  if (!parsed || typeof parsed !== "object") return null;
+  const obj = parsed as Record<string, unknown>;
+
+  // Accept {name, arguments|parameters|input} or OpenAI-style {function:{...}}.
+  const fn =
+    obj.function && typeof obj.function === "object"
+      ? (obj.function as Record<string, unknown>)
+      : obj;
+  const name = fn.name;
+  if (typeof name !== "string" || !toolNames.includes(name)) return null;
+
+  let args: unknown = fn.arguments ?? fn.parameters ?? fn.input ?? {};
+  if (typeof args === "string") args = parseLooseJson(args);
+  if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  return { name, input: args as Record<string, unknown> };
+}
+
+/** First `{…}` block with balanced braces, skipping braces inside quotes. */
+function firstBalancedObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\") i += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/** JSON.parse, falling back to Python-dict syntax (single quotes, True/None). */
+function parseLooseJson(raw: string): unknown {
+  const trimmed = raw.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    if (trimmed.includes('"')) return null;
+    const pythonish = trimmed
+      .replace(/'/g, '"')
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/\bNone\b/g, "null");
+    try {
+      return JSON.parse(pythonish);
+    } catch {
+      return null;
+    }
+  }
+}
+
 /**
  * Adapts Ollama's /api/chat (with function tools) to the Anthropic-shaped
  * client surface. Ollama has no tool_choice forcing; the system prompt
@@ -76,6 +160,20 @@ export function createOllamaClient(
         const data = (await response.json()) as OllamaChatResponse;
         const call = data.message?.tool_calls?.[0];
         if (!call) {
+          // A response cut off at the token limit can't be trusted even if a
+          // call-shaped fragment is visible in the text.
+          if (data.done_reason !== "length") {
+            const recovered = extractTextToolCall(
+              data.message?.content,
+              params.tools.map((tool) => tool.name)
+            );
+            if (recovered) {
+              return {
+                content: [{ type: "tool_use", name: recovered.name, input: recovered.input }],
+                stop_reason: "tool_use",
+              };
+            }
+          }
           return { content: [], stop_reason: data.done_reason ?? "end_turn" };
         }
         // Ollama returns arguments as an object; older builds returned a

@@ -89,6 +89,7 @@ function LeagueApp() {
     markInterested,
     dropInterest,
     recordScore,
+    removeScore,
     postComment,
     deleteComment,
     remove,
@@ -506,6 +507,7 @@ function LeagueApp() {
         onRecord={(name, gross, courseHcp, attestedBy) =>
           recordScore(scoringTeeTime!.id, name, gross, courseHcp, attestedBy)
         }
+        onRemove={(name) => removeScore(scoringTeeTime!.id, name)}
       />
     </div>
   );

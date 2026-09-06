@@ -11,6 +11,7 @@ export function ScoresSheet({
   onClose,
   teeTime,
   onRecord,
+  onRemove,
   isLeagueRound,
   isMember,
 }: {
@@ -23,6 +24,9 @@ export function ScoresSheet({
     courseHcp: number | null,
     attestedBy: string | null
   ) => Promise<void>;
+  /** Remove a player's recorded score outright (a wrong entry shouldn't
+   *  have to be overwritten with another guess). */
+  onRemove?: (name: string) => Promise<void>;
   /** True when this tee time falls inside a tournament window — course
    *  handicap and attestation are required so net math is correct and the
    *  league rule is honored. */
@@ -34,6 +38,8 @@ export function ScoresSheet({
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Two-tap arm for score removal, keyed by player name.
+  const [removeArmed, setRemoveArmed] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !teeTime) return;
@@ -58,6 +64,7 @@ export function ScoresSheet({
     }
     setDrafts(prefill);
     setError(null);
+    setRemoveArmed(null);
   }, [open, teeTime, isMember, isLeagueRound]);
 
   if (!open || !teeTime) return null;
@@ -155,12 +162,45 @@ export function ScoresSheet({
                   (other) => other.name !== c.name && isMember(other.name)
                 )
                 .map((other) => other.name);
+              const recorded = teeTime.scores.some(
+                (x) => x.name.toLowerCase() === c.name.toLowerCase()
+              );
               return (
                 <div key={c.name} className="space-y-2">
                   <div className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2">
-                    <label className="text-sm font-medium text-stone-900">
-                      {c.name}
-                    </label>
+                    <div className="min-w-0">
+                      <label className="block text-sm font-medium text-stone-900">
+                        {c.name}
+                      </label>
+                      {recorded && onRemove && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (removeArmed !== c.name) {
+                              setRemoveArmed(c.name);
+                              return;
+                            }
+                            setError(null);
+                            try {
+                              await onRemove(c.name);
+                            } catch (err: any) {
+                              setError(err?.message || "Couldn't remove score");
+                            } finally {
+                              setRemoveArmed(null);
+                            }
+                          }}
+                          className={`-ml-1 mt-0.5 min-h-7 rounded-md px-1 text-[11px] font-semibold transition-colors ${
+                            removeArmed === c.name
+                              ? "bg-rose-600 text-white"
+                              : "text-rose-600 hover:bg-rose-50"
+                          }`}
+                        >
+                          {removeArmed === c.name
+                            ? "Tap again to remove"
+                            : "Remove score"}
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="number"
                       inputMode="numeric"

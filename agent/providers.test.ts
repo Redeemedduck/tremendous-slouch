@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MinimalCreateParams } from "./parse";
-import { createOllamaClient, resolveProvider } from "./providers";
+import { createOllamaClient, extractTextToolCall, resolveProvider } from "./providers";
 
 const PARAMS: MinimalCreateParams = {
   model: "qwen2.5:7b",
@@ -137,4 +137,92 @@ test("resolution: AGENT_MODEL overrides the per-provider default", () => {
     AGENT_MODEL: "llama3.2:3b",
   } as NodeJS.ProcessEnv);
   assert.equal(provider?.model, "llama3.2:3b");
+});
+
+// -------- text-rendered tool calls (Hermes-style templates) --------
+
+const TOOLS_WITH_CREATE: MinimalCreateParams = {
+  ...PARAMS,
+  tools: [
+    ...PARAMS.tools,
+    {
+      name: "create_tee_time",
+      description: "Post a tee time.",
+      input_schema: { type: "object", properties: {}, additionalProperties: true },
+    },
+  ],
+};
+
+test("ollama adapter recovers a Hermes <tool_call> rendered as text", async () => {
+  const { impl } = fakeFetch({
+    message: {
+      content:
+        '<tool_call>\n{"name": "create_tee_time", "arguments": {"course": "Common Ground", "date": "2026-08-08", "time": "08:40", "spots": 2}}\n</tool_call>',
+    },
+    done_reason: "stop",
+  });
+  const client = createOllamaClient("http://127.0.0.1:11434", impl);
+  const res = await client.messages.create(TOOLS_WITH_CREATE);
+  assert.equal(res.stop_reason, "tool_use");
+  assert.equal(res.content[0].name, "create_tee_time");
+  assert.deepEqual(res.content[0].input, {
+    course: "Common Ground",
+    date: "2026-08-08",
+    time: "08:40",
+    spots: 2,
+  });
+});
+
+test("ollama adapter recovers the exact hermes3:3b output observed live (python-dict + stray tokens)", async () => {
+  const { impl } = fakeFetch({
+    message: {
+      content:
+        "\"./\n  { 'arguments': { 'course': 'Todd Creek', 'date': '2026-08-08', 'spots': 4, 'time': '12:20' }, 'name': 'create_tee_time' }\n.SEVERI",
+    },
+    done_reason: "stop",
+  });
+  const client = createOllamaClient("http://127.0.0.1:11434", impl);
+  const res = await client.messages.create(TOOLS_WITH_CREATE);
+  assert.equal(res.stop_reason, "tool_use");
+  assert.equal(res.content[0].name, "create_tee_time");
+  assert.deepEqual(res.content[0].input, {
+    course: "Todd Creek",
+    date: "2026-08-08",
+    spots: 4,
+    time: "12:20",
+  });
+});
+
+test("text fallback rejects tools that were not declared", () => {
+  const found = extractTextToolCall(
+    '{"name": "delete_everything", "arguments": {}}',
+    ["board_query", "create_tee_time"]
+  );
+  assert.equal(found, null);
+});
+
+test("text fallback ignores prose and malformed fragments", () => {
+  assert.equal(extractTextToolCall("Sure! What day works?", ["board_query"]), null);
+  assert.equal(extractTextToolCall("{ not json at all", ["board_query"]), null);
+  assert.equal(extractTextToolCall('{"name": "board_query", "arguments": "oops"}', ["board_query"]), null);
+  assert.equal(extractTextToolCall(undefined, ["board_query"]), null);
+});
+
+test("text fallback accepts OpenAI-style {function:{name,arguments}} and stringified arguments", () => {
+  const found = extractTextToolCall(
+    '```json\n{"function": {"name": "board_query", "arguments": "{}"}}\n```',
+    ["board_query"]
+  );
+  assert.deepEqual(found, { name: "board_query", input: {} });
+});
+
+test("ollama adapter does not trust a text tool call cut off at the token limit", async () => {
+  const { impl } = fakeFetch({
+    message: { content: '<tool_call>{"name": "board_query", "arguments": {}}' },
+    done_reason: "length",
+  });
+  const client = createOllamaClient("http://127.0.0.1:11434", impl);
+  const res = await client.messages.create(PARAMS);
+  assert.deepEqual(res.content, []);
+  assert.equal(res.stop_reason, "length");
 });

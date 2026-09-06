@@ -75,9 +75,15 @@ answered in plain text with stray tokens:
 .SEVERI
 ```
 
-No `message.tool_calls` array → `agent/providers.ts` maps that to empty
-content → parse degrades to `unknown` → every message would get the
-"didn't understand" reply. Before setting `AGENT_MODEL` to a Hermes tag:
+There is no `message.tool_calls` array in that response. **The adapter now
+recovers this case** (`extractTextToolCall` in `agent/providers.ts`): it
+pulls one call out of `<tool_call>…</tool_call>` or a bare
+Python-dict-style object, requires the tool name to be one we declared,
+and hands it to the same downstream validation as a structured call — the
+exact output above is a unit-test fixture and parses to a valid
+`create_tee_time`. Truncated responses (`done_reason: "length"`) are never
+trusted. So Hermes tags are usable, but still verify parse *quality* on a
+few real messages before pointing the league at one:
 
 ```bash
 curl -s http://127.0.0.1:11434/api/chat -d '{
@@ -90,17 +96,13 @@ curl -s http://127.0.0.1:11434/api/chat -d '{
 }'
 ```
 
-Accept the model only if the response contains a structured
-`message.tool_calls` entry (that's what the adapter consumes). If 8b also
-answers in prose, the options are (a) stay on `qwen2.5:7b` — already
-live-verified, this is the default for a reason — or (b) add a
-Hermes-format fallback parser in `createOllamaClient` that extracts a
-`<tool_call>`/JSON block out of `message.content` (bounded, validated by
-the same schemas; a reasonable ~30-line addition if Matt wants Hermes
-specifically). Also re-run the weekday-arithmetic fixtures in
-`agent/parse.test.ts` against any new model — small models botch
-calendar math, which is why the system prompt carries a printed 7-day
-calendar.
+Either a structured `message.tool_calls` entry or a text-rendered call
+now works. What still matters is *accuracy*: run a dozen real league
+messages through `scripts/agent-chat.ts` on the candidate model and check
+the echoed confirmations (dates, times, spots, course names). Small models
+botch weekday arithmetic — that's why the system prompt carries a printed
+7-day calendar — so include "this Saturday"-style messages. `qwen2.5:7b`
+remains the live-verified default; switch only if Hermes matches it.
 
 ## Environment
 
