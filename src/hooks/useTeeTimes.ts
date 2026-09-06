@@ -89,11 +89,14 @@ export function useTeeTimes(onError: (msg: string) => void) {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't claim spot");
+        // A conflict usually means the board is stale (someone else moved
+        // first) — refetch so the card corrects itself immediately.
+        refresh();
         return;
       }
       replace(data.teeTime);
     },
-    [onError, replace]
+    [onError, replace, refresh]
   );
 
   const drop = useCallback(
@@ -105,11 +108,12 @@ export function useTeeTimes(onError: (msg: string) => void) {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't drop spot");
+        refresh();
         return;
       }
       replace(data.teeTime);
     },
-    [onError, replace]
+    [onError, replace, refresh]
   );
 
   const markInterested = useCallback(
@@ -122,11 +126,12 @@ export function useTeeTimes(onError: (msg: string) => void) {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't mark maybe");
+        refresh();
         return;
       }
       replace(data.teeTime);
     },
-    [onError, replace]
+    [onError, replace, refresh]
   );
 
   const dropInterest = useCallback(
@@ -138,11 +143,12 @@ export function useTeeTimes(onError: (msg: string) => void) {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         onError(data.error || "Couldn't drop maybe");
+        refresh();
         return;
       }
       replace(data.teeTime);
     },
-    [onError, replace]
+    [onError, replace, refresh]
   );
 
   const remove = useCallback(

@@ -1,23 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Plus,
+  CalendarPlus,
   ChevronDown,
-  Calendar,
-  MessageCircleQuestion,
+  ChevronRight,
+  ClipboardList,
   Flag,
+  History,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
+import { BottomNav, type AppSection } from "./components/BottomNav";
+import { Finances } from "./components/Finances";
 import { Header } from "./components/Header";
 import { NamePromptInline } from "./components/NamePromptInline";
 import { NewPollSheet } from "./components/NewPollSheet";
 import { NewTeeTimeSheet } from "./components/NewTeeTimeSheet";
 import { PollCard } from "./components/PollCard";
-import { Finances } from "./components/Finances";
 import { ProfileSheet } from "./components/ProfileSheet";
 import { Roster } from "./components/Roster";
 import { ScoresSheet } from "./components/ScoresSheet";
-import { SeasonSchedule } from "./components/SeasonSchedule";
-import { Standings } from "./components/Standings";
+import { SeasonHome } from "./components/SeasonHome";
 import { TeeTimeCard } from "./components/TeeTimeCard";
 import { Toast } from "./components/Toast";
 import { useBuyins } from "./hooks/useBuyins";
@@ -27,41 +29,51 @@ import { usePolls } from "./hooks/usePolls";
 import { useTeeTimes } from "./hooks/useTeeTimes";
 import { useToast } from "./hooks/useToast";
 import { useTournaments } from "./hooks/useTournaments";
-import { isPast } from "./lib/format";
+import { formatDateLabel, isPast, todayISO } from "./lib/format";
 import type { NewPollInput, NewTeeTimeInput, TeeTime } from "./lib/types";
 
-// ============================================================
-// APP
-// ============================================================
 type AccessState = "checking" | "gated" | "ok";
+type SheetKind = "teetime" | "poll" | null;
+
+// Subtitles are sized to fit beside the profile chip at 390px — a header
+// that ships with an ellipsis reads unfinished.
+const SECTION_META: Record<AppSection, { title: string; subtitle: string }> = {
+  board: { title: "DJDI Board", subtitle: "Tee sheet & polls" },
+  season: { title: "Season", subtitle: "Race to the title" },
+  manage: { title: "Manage", subtitle: "Roster & buy-ins" },
+};
 
 export default function App() {
   const [access, setAccess] = useState<AccessState>("checking");
 
   useEffect(() => {
     fetch("/api/access")
-      .then((r) => r.json())
-      .then((d: { required: boolean; ok: boolean }) => {
-        setAccess(d.required && !d.ok ? "gated" : "ok");
+      .then((response) => response.json())
+      .then((data: { required: boolean; ok: boolean }) => {
+        setAccess(data.required && !data.ok ? "gated" : "ok");
       })
       .catch(() => setAccess("ok"));
   }, []);
 
-  if (access === "checking") return null;
+  if (access === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-stone-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-200 border-t-fairway-600" />
+      </div>
+    );
+  }
   if (access === "gated") {
     return <AccessGate onUnlock={() => setAccess("ok")} />;
   }
-  return <Board />;
+  return <LeagueApp />;
 }
 
-type SheetKind = "teetime" | "poll" | null;
-
-function Board() {
+function LeagueApp() {
+  const [section, setSection] = useState<AppSection>("board");
   const [profile, setProfile] = useMyProfile();
   const myName = profile.name;
   const [openSheet, setOpenSheet] = useState<SheetKind>(null);
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
-  const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [editing, setEditing] = useState<TeeTime | null>(null);
   const [scoringTeeTime, setScoringTeeTime] = useState<TeeTime | null>(null);
   const [pastOpen, setPastOpen] = useState(false);
@@ -77,6 +89,7 @@ function Board() {
     markInterested,
     dropInterest,
     recordScore,
+    removeScore,
     postComment,
     deleteComment,
     remove,
@@ -98,123 +111,167 @@ function Board() {
     useBuyins(toast.show);
 
   const { upcoming, past } = useMemo(() => {
-    const upcoming: TeeTime[] = [];
-    const past: TeeTime[] = [];
-    for (const t of teeTimes) {
-      if (isPast(t)) past.push(t);
-      else upcoming.push(t);
+    const next: TeeTime[] = [];
+    const completed: TeeTime[] = [];
+    for (const teeTime of teeTimes) {
+      if (isPast(teeTime)) completed.push(teeTime);
+      else next.push(teeTime);
     }
-    past.reverse();
-    return { upcoming, past };
+    completed.reverse();
+    return { upcoming: next, past: completed };
   }, [teeTimes]);
 
-  // Unique courses from all tee times, most-recent first, for the course
-  // autocomplete suggestions. teeTimes is sorted ascending by date+time.
   const courseSuggestions = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
-    for (let i = teeTimes.length - 1; i >= 0; i--) {
-      const c = teeTimes[i].course;
-      const key = c.trim().toLowerCase();
+    for (let index = teeTimes.length - 1; index >= 0; index -= 1) {
+      const course = teeTimes[index].course;
+      const key = course.trim().toLowerCase();
       if (!seen.has(key)) {
         seen.add(key);
-        result.push(c);
+        result.push(course);
       }
     }
     return result;
   }, [teeTimes]);
 
-  // Unique claimer names from all tee times' claims, most-recent first, for
-  // the name autocomplete (first-time prompt + new-tee-time host field).
   const nameSuggestions = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
-    for (let i = teeTimes.length - 1; i >= 0; i--) {
-      for (const c of teeTimes[i].claims) {
-        const key = c.name.trim().toLowerCase();
+    for (let index = teeTimes.length - 1; index >= 0; index -= 1) {
+      for (const claim of teeTimes[index].claims) {
+        const key = claim.name.trim().toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
-          result.push(c.name);
+          result.push(claim.name);
         }
       }
     }
     return result;
   }, [teeTimes]);
 
+  // A regular tournament whose scoring window is open today — surfaced on the
+  // Board so coordination stays connected to the competition.
+  const liveStop = useMemo(() => {
+    const today = todayISO();
+    return (
+      tournaments.find(
+        (tournament) =>
+          tournament.type === "regular" &&
+          today >= tournament.windowStart &&
+          today <= tournament.windowEnd
+      ) ?? null
+    );
+  }, [tournaments]);
+
   const handleSheetSubmit = async (input: NewTeeTimeInput) => {
+    if (editing) await update(editing.id, input);
+    else await create(input);
     if (!myName) setProfile({ name: input.host });
-    if (editing) {
-      await update(editing.id, input);
-    } else {
-      await create(input);
-    }
   };
 
   const handlePollSubmit = async (input: NewPollInput) => {
-    if (!myName) setProfile({ name: input.host });
     await createPoll(input);
+    if (!myName) setProfile({ name: input.host });
   };
 
+  // Persist locally only after the server accepts — a rejected save must not
+  // switch the device to a name the roster doesn't have.
   const handleProfileSave = async (name: string, handicap: number | null) => {
+    await upsertPlayer(name, { handicap, member: true });
     setProfile({ name, handicap });
-    try {
-      // Saving your own profile auto-promotes you to a full member. Drop-ins
-      // get added to the players table only when explicitly tagged via the
-      // Roster (or never, if they never play a league round).
-      await upsertPlayer(name, { handicap, member: true });
-    } catch {
-      // toast surfaced by usePlayers
-    }
   };
 
-  const handleCloseSheet = () => {
+  const requireName = () => {
+    if (myName) return true;
+    // The name prompt lives at the top of the page — bring it into view
+    // instead of leaving the user with a toast and no next step.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast.show("Add your name first");
+    return false;
+  };
+
+  const closeSheet = () => {
     setOpenSheet(null);
     setEditing(null);
   };
 
-  const handleEdit = (t: TeeTime) => {
-    setEditing(t);
-    setOpenSheet("teetime");
+  // League rounds (any date inside a non-post tournament window) need another
+  // member's attestation — mirrors the server rule in recordScoreTx.
+  const isLeagueDate = useCallback(
+    (date: string) =>
+      tournaments.some(
+        (tournament) =>
+          tournament.type !== "post" &&
+          date >= tournament.windowStart &&
+          date <= tournament.windowEnd
+      ),
+    [tournaments]
+  );
+
+  // Each section should open at its header, not wherever the previous
+  // section happened to be scrolled.
+  const changeSection = (next: AppSection) => {
+    setSection(next);
+    window.scrollTo({ top: 0 });
   };
 
-  const handleToggleVote = (pollId: string, optionIdx: number) => {
-    if (!myName) {
-      toast.show("Add your name first");
-      return;
-    }
-    toggleResponse(pollId, myName, optionIdx);
-  };
+  // Rounds from the last ten days that were played but never scored — the
+  // nudge that keeps the season boards current. Solo league rounds are
+  // excluded: with no possible attester their score can never be recorded,
+  // so the nudge would be a permanent dead end.
+  const needsScores = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 10);
+    const cutoffISO = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+    return past.filter(
+      (teeTime) =>
+        teeTime.claims.length > 0 &&
+        teeTime.scores.length === 0 &&
+        teeTime.date >= cutoffISO &&
+        (!isLeagueDate(teeTime.date) || teeTime.claims.length >= 2)
+    );
+  }, [past, isLeagueDate]);
 
-  const handleClaim = (id: string) => {
-    if (!myName) {
-      toast.show("Add your name first");
-      return;
-    }
-    claim(id, myName);
-  };
+  const renderTeeTime = (teeTime: TeeTime, readOnly: boolean) => (
+    <TeeTimeCard
+      key={teeTime.id}
+      teeTime={teeTime}
+      myName={myName}
+      readOnly={readOnly}
+      onClaim={() =>
+        requireName() ? claim(teeTime.id, myName) : Promise.resolve()
+      }
+      onDrop={(name) => drop(teeTime.id, name)}
+      onMaybe={() =>
+        requireName() ? markInterested(teeTime.id, myName) : Promise.resolve()
+      }
+      onDropMaybe={(name) => dropInterest(teeTime.id, name)}
+      onDelete={() => remove(teeTime.id)}
+      onEdit={() => {
+        setEditing(teeTime);
+        setOpenSheet("teetime");
+      }}
+      onRecordScores={() => setScoringTeeTime(teeTime)}
+      onPostComment={(body) => {
+        if (!requireName()) return;
+        return postComment(teeTime.id, myName, body);
+      }}
+      onDeleteComment={(commentId) => deleteComment(teeTime.id, commentId)}
+      getHandicap={getHandicap}
+      isMember={isMember}
+    />
+  );
 
-  const handleMaybe = (id: string) => {
-    if (!myName) {
-      toast.show("Add your name first");
-      return;
-    }
-    markInterested(id, myName);
-  };
-
-  const handlePostComment = (id: string, body: string) => {
-    if (!myName) {
-      toast.show("Add your name first");
-      return;
-    }
-    return postComment(id, myName, body);
-  };
+  const meta = SECTION_META[section];
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <Toast message={toast.message} onDismiss={toast.dismiss} />
-
-      <div className="mx-auto max-w-md px-4 pb-32">
+      <div className="mx-auto max-w-md px-4 pb-28">
         <Header
+          title={meta.title}
+          subtitle={meta.subtitle}
           myName={myName}
           myHandicap={profile.handicap}
           onOpenProfile={() => setProfileSheetOpen(true)}
@@ -222,200 +279,203 @@ function Board() {
 
         {!myName && (
           <NamePromptInline
-            onSubmit={(n, h) => handleProfileSave(n, h)}
+            onSubmit={handleProfileSave}
             nameSuggestions={nameSuggestions}
           />
         )}
 
-        <SeasonSchedule
-          tournaments={tournaments}
-          teeTimes={teeTimes}
-          getHandicap={getHandicap}
-        />
-
-        <Roster
-          players={players}
-          teeTimes={teeTimes}
-          onUpdate={async (n, patch) => {
-            await upsertPlayer(n, patch);
-            // Buy-ins auto-create/delete on the server when member flips;
-            // refresh so the Finances card reflects it immediately.
-            await refreshBuyins();
-          }}
-        />
-
-        <Finances
-          buyins={buyins}
-          onToggle={(n, paid) => patchBuyin(n, { paid })}
-        />
-
-        <Standings
-          teeTimes={teeTimes}
-          tournaments={tournaments}
-          getHandicap={getHandicap}
-          myName={myName}
-        />
-
-        {polls.length > 0 && (
-          <div className="mb-3 space-y-3">
-            {polls.map((p) => (
-              <PollCard
-                key={p.id}
-                poll={p}
-                myName={myName}
-                onToggle={(idx) => handleToggleVote(p.id, idx)}
-                onDelete={() => removePoll(p.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {!loaded ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-32 animate-pulse rounded-2xl bg-stone-100"
-              />
-            ))}
-          </div>
-        ) : upcoming.length === 0 && polls.length === 0 ? (
-          <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
-              <Flag className="h-6 w-6" />
-            </div>
-            <p className="text-base font-medium text-stone-700">
-              Nothing on the board yet
-            </p>
-            <p className="mt-1 text-sm text-stone-500">
-              Tap <span className="font-medium">+</span> to post a tee time or
-              ask the group.
-            </p>
-          </div>
-        ) : upcoming.length === 0 ? null : (
-          <div className="space-y-3">
-            {upcoming.map((t) => (
-              <TeeTimeCard
-                key={t.id}
-                teeTime={t}
-                myName={myName}
-                readOnly={false}
-                onClaim={() => handleClaim(t.id)}
-                onDrop={(name) => drop(t.id, name)}
-                onMaybe={() => handleMaybe(t.id)}
-                onDropMaybe={(name) => dropInterest(t.id, name)}
-                onDelete={() => remove(t.id)}
-                onEdit={() => handleEdit(t)}
-                onRecordScores={() => setScoringTeeTime(t)}
-                onPostComment={(body) => handlePostComment(t.id, body)}
-                onDeleteComment={(cid) => deleteComment(t.id, cid)}
-                getHandicap={getHandicap}
-                isMember={isMember}
-              />
-            ))}
-          </div>
-        )}
-
-        {past.length > 0 && (
-          <section className="mt-8">
-            <button
-              type="button"
-              onClick={() => setPastOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-sm font-medium text-stone-500 hover:text-stone-700"
-            >
-              <span>Past tee times ({past.length})</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  pastOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {pastOpen && (
-              <div className="mt-2 space-y-3">
-                {past.map((t) => (
-                  <TeeTimeCard
-                    key={t.id}
-                    teeTime={t}
-                    myName={myName}
-                    readOnly
-                    onClaim={() => {}}
-                    onDrop={() => {}}
-                    onMaybe={() => {}}
-                    onDropMaybe={() => {}}
-                    onDelete={() => remove(t.id)}
-                    onEdit={() => {}}
-                    onRecordScores={() => setScoringTeeTime(t)}
-                    onPostComment={() => {}}
-                    onDeleteComment={() => {}}
-                    getHandicap={getHandicap}
-                    isMember={isMember}
-                  />
-                ))}
-              </div>
+        {section === "board" && (
+          <main key="board" className="animate-fade-up">
+            {liveStop && (
+              <button
+                type="button"
+                onClick={() => changeSection("season")}
+                className="texture-pine mb-3 flex w-full items-center justify-between gap-3 overflow-hidden rounded-2xl px-4 py-3 text-left shadow-sm ring-1 ring-fairway-950/40 transition-opacity hover:opacity-95"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="relative inline-flex h-1.5 w-1.5 shrink-0">
+                    <span className="absolute inset-0 rounded-full bg-gold-300 motion-safe:animate-ping-slow" />
+                    <span className="relative h-1.5 w-1.5 rounded-full bg-gold-300" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300">
+                      Window open · {liveStop.name.split("—")[0].trim()}
+                    </span>
+                    <span className="block truncate text-sm font-semibold text-cream-50">
+                      {liveStop.course} · through{" "}
+                      {formatDateLabel(liveStop.windowEnd)}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-white/60" />
+              </button>
             )}
-          </section>
+
+            {needsScores.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setScoringTeeTime(needsScores[0])}
+                className="mb-3 flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-gold-300 transition-colors hover:bg-gold-50"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <ClipboardList className="h-4 w-4 shrink-0 text-gold-600" />
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-700">
+                      {needsScores.length === 1
+                        ? "1 round waiting on scores"
+                        : `${needsScores.length} rounds waiting on scores`}
+                    </span>
+                    <span className="block truncate text-sm font-semibold text-stone-900">
+                      {needsScores[0].course} ·{" "}
+                      {formatDateLabel(needsScores[0].date)}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+              </button>
+            )}
+
+            <section className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setOpenSheet("teetime")}
+                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-fairway-800 px-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-fairway-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+              >
+                <CalendarPlus className="h-4 w-4" />
+                New tee time
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenSheet("poll")}
+                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-sm font-bold text-stone-800 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+              >
+                <MessageCircleQuestion className="h-4 w-4 text-fairway-700" />
+                Ask the group
+              </button>
+            </section>
+
+            {polls.length > 0 && (
+              <section className="mb-5">
+                <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-[0.16em] text-stone-500">
+                  Open questions
+                </h2>
+                <div className="space-y-3">
+                  {polls.map((poll) => (
+                    <PollCard
+                      key={poll.id}
+                      poll={poll}
+                      myName={myName}
+                      onToggle={(optionIndex) => {
+                        if (requireName()) {
+                          toggleResponse(poll.id, myName, optionIndex);
+                        }
+                      }}
+                      onDelete={() => removePoll(poll.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section>
+              <div className="mb-2 flex items-baseline gap-2 px-1">
+                <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-stone-500">
+                  Upcoming tee times
+                </h2>
+                <p className="text-xs text-stone-500">
+                  · {upcoming.length} on the board
+                </p>
+              </div>
+              {!loaded ? (
+                <div className="space-y-3">
+                  {[0, 1].map((index) => (
+                    <div
+                      key={index}
+                      className="h-40 animate-pulse rounded-2xl bg-stone-100"
+                    />
+                  ))}
+                </div>
+              ) : upcoming.length === 0 ? (
+                <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-fairway-50 text-fairway-700">
+                    <Flag className="h-6 w-6" />
+                  </div>
+                  <p className="font-semibold text-stone-800">
+                    Nothing on the sheet
+                  </p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Someone's gotta host — post the next group above.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcoming.map((teeTime) => renderTeeTime(teeTime, false))}
+                </div>
+              )}
+            </section>
+          </main>
+        )}
+
+        {section === "season" && (
+          <main key="season" className="animate-fade-up">
+            <SeasonHome
+              tournaments={tournaments}
+              teeTimes={teeTimes}
+              getHandicap={getHandicap}
+              myName={myName}
+            />
+          </main>
+        )}
+
+        {section === "manage" && (
+          <main key="manage" className="animate-fade-up space-y-3">
+            <Roster
+              players={players}
+              teeTimes={teeTimes}
+              onUpdate={async (name, patch) => {
+                await upsertPlayer(name, patch);
+                // Buy-ins auto-create/delete on the server when member flips;
+                // refresh so the Pool card reflects it immediately.
+                await refreshBuyins();
+              }}
+            />
+            <Finances
+              buyins={buyins}
+              onToggle={(name, paid) => patchBuyin(name, { paid })}
+            />
+
+            {past.length > 0 && (
+              <section className="pt-2">
+                <button
+                  type="button"
+                  aria-expanded={pastOpen}
+                  onClick={() => setPastOpen((value) => !value)}
+                  className="flex min-h-12 w-full items-center justify-between rounded-2xl bg-white px-4 text-sm font-bold text-stone-800 shadow-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fairway-600 focus-visible:ring-offset-2"
+                >
+                  <span className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-fairway-700" />
+                    Completed tee times ({past.length})
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 text-stone-500 transition-transform ${pastOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {pastOpen && (
+                  <div className="mt-3 animate-fade-up space-y-3">
+                    {past.map((teeTime) => renderTeeTime(teeTime, true))}
+                  </div>
+                )}
+              </section>
+            )}
+          </main>
         )}
       </div>
 
-      {openSheet === null && (
-        <div
-          className="fixed right-4 z-30"
-          style={{
-            bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
-          }}
-        >
-          {fabMenuOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close menu"
-                onClick={() => setFabMenuOpen(false)}
-                className="fixed inset-0 z-10 cursor-default"
-              />
-              <div className="absolute bottom-16 right-0 z-20 flex flex-col items-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFabMenuOpen(false);
-                    setOpenSheet("teetime");
-                  }}
-                  className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  <Calendar className="h-4 w-4 text-fairway-700" />
-                  New tee time
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFabMenuOpen(false);
-                    setOpenSheet("poll");
-                  }}
-                  className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-3 text-sm font-semibold text-stone-900 shadow-lg ring-1 ring-stone-200 hover:bg-stone-50"
-                >
-                  <MessageCircleQuestion className="h-4 w-4 text-fairway-700" />
-                  Ask the group
-                </button>
-              </div>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => setFabMenuOpen((v) => !v)}
-            aria-label="New post"
-            className="relative z-20 flex h-14 w-14 items-center justify-center rounded-full bg-fairway-600 text-white shadow-lg hover:bg-fairway-700"
-          >
-            <Plus
-              className={`h-6 w-6 transition-transform ${
-                fabMenuOpen ? "rotate-45" : ""
-              }`}
-            />
-          </button>
-        </div>
-      )}
+      <BottomNav active={section} onChange={changeSection} />
 
       <NewTeeTimeSheet
         open={openSheet === "teetime"}
-        onClose={handleCloseSheet}
+        onClose={closeSheet}
         onSubmit={handleSheetSubmit}
         defaultHost={myName}
         courseSuggestions={courseSuggestions}
@@ -424,7 +484,7 @@ function Board() {
       />
       <NewPollSheet
         open={openSheet === "poll"}
-        onClose={handleCloseSheet}
+        onClose={closeSheet}
         onSubmit={handlePollSubmit}
         defaultHost={myName}
         nameSuggestions={nameSuggestions}
@@ -442,19 +502,12 @@ function Board() {
         open={!!scoringTeeTime}
         onClose={() => setScoringTeeTime(null)}
         teeTime={scoringTeeTime}
-        isLeagueRound={
-          !!scoringTeeTime &&
-          tournaments.some(
-            (t) =>
-              t.type !== "post" &&
-              scoringTeeTime.date >= t.windowStart &&
-              scoringTeeTime.date <= t.windowEnd
-          )
-        }
+        isLeagueRound={!!scoringTeeTime && isLeagueDate(scoringTeeTime.date)}
         isMember={isMember}
         onRecord={(name, gross, courseHcp, attestedBy) =>
           recordScore(scoringTeeTime!.id, name, gross, courseHcp, attestedBy)
         }
+        onRemove={(name) => removeScore(scoringTeeTime!.id, name)}
       />
     </div>
   );

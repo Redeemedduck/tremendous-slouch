@@ -2,6 +2,22 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
+import { fetchLeagueData } from "./agent/api";
+import { buildLeagueContext } from "./agent/context";
+import {
+  renderBoard,
+  renderCommitted,
+  renderConfirmRequest,
+} from "./agent/confirm";
+import {
+  executeParsed,
+  executeScore,
+  executeUndo,
+  resolveScoreTarget,
+} from "./agent/execute";
+import { createInboundHandler } from "./agent/inbound";
+import { parseMessage } from "./agent/parse";
+import { createStore } from "./agent/store";
 
 // ============================================================
 // DATABASE
@@ -119,8 +135,14 @@ type SeedTournament = {
   payout_third: number | null;
   notes: string | null;
 };
-const REGULAR_PAYOUT = 334; // from rule sheet @ $325 buy-in × 12 members
-const POST_PAYOUTS = { first: 1014, second: 390, third: 156 };
+// Per-stop winner payout. Was $334 (rule sheet @ $325 buy-in × 12 members);
+// re-set to $306 after a member dropped without paying dues, per the
+// commissioner's Aug 2026 settlement message.
+const REGULAR_PAYOUT = 306;
+// Championship purse = pool − stop payouts, split 65/25/10 like the rule
+// sheet's original $1,014/$390/$156. At 11 paid members: $3,575 pool −
+// (7 × $306) = $1,433 → $930/$360/$143 (whole dollars, sums exactly).
+const POST_PAYOUTS = { first: 930, second: 360, third: 143 };
 const SEASON_TOURNAMENTS: SeedTournament[] = [
   {
     id: "2026-w1",
@@ -129,7 +151,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-05-01",
     window_end: "2026-05-24",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -142,7 +164,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-05-25",
     window_end: "2026-06-14",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -155,7 +177,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-06-15",
     window_end: "2026-07-05",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -168,7 +190,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-07-06",
     window_end: "2026-07-26",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -181,7 +203,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-07-27",
     window_end: "2026-08-16",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -194,7 +216,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-08-17",
     window_end: "2026-09-06",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -207,7 +229,7 @@ const SEASON_TOURNAMENTS: SeedTournament[] = [
     window_start: "2026-09-07",
     window_end: "2026-09-27",
     type: "regular",
-    points_to_first: 100,
+    points_to_first: 20,
     payout_first: REGULAR_PAYOUT,
     payout_second: null,
     payout_third: null,
@@ -256,6 +278,33 @@ for (const t of SEASON_TOURNAMENTS) {
     NOW_ISO
   );
 }
+
+// Data correction: earlier seeds advertised the invented 100-point scale.
+// The official DJDI scale awards 20 to the winner of a regular stop, so
+// bring already-seeded databases in line (hand-edited values other than the
+// legacy 100 are left untouched).
+db.prepare(
+  `UPDATE tournaments SET points_to_first = 20
+   WHERE type = 'regular' AND points_to_first = 100`
+).run();
+
+// Data correction: per-stop payout dropped from $334 to $306 when the pool
+// lost an unpaid member (commissioner settlement, Aug 2026). Same rule as
+// above: only the known-stale value is rewritten.
+db.prepare(
+  `UPDATE tournaments SET payout_first = ${REGULAR_PAYOUT}
+   WHERE type = 'regular' AND payout_first = 334`
+).run();
+
+// Championship purse follows the same pool shrink (65/25/10 of what's left
+// after the seven stops): $1,014/$390/$156 → $930/$360/$143.
+db.prepare(
+  `UPDATE tournaments
+   SET payout_first = ${POST_PAYOUTS.first},
+       payout_second = ${POST_PAYOUTS.second},
+       payout_third = ${POST_PAYOUTS.third}
+   WHERE type = 'post' AND payout_first = 1014`
+).run();
 
 // Pre-seed two foursome tee times for Sat 5/16 at Common Ground (Stop 1).
 const stmtSeedTeeTime = db.prepare(`
@@ -915,6 +964,57 @@ async function startServer() {
   const HOST = process.env.HOST || "127.0.0.1";
 
   app.use(express.json());
+
+  // ------------------------------------------------------------
+  // Text-the-Board inbound webhook. A channel relay (iMessage bridge on
+  // the Mac, SMS provider, the dev CLI) POSTs {channel, handle, text} and
+  // gets back {reply}. It authenticates with its own shared secret, so it
+  // registers AHEAD of the access-cookie gate. Disabled entirely unless
+  // RELAY_SECRET is set.
+  // ------------------------------------------------------------
+  const relayAuth = process.env.RELAY_SECRET;
+  if (relayAuth) {
+    const agentStore = createStore(DB_PATH);
+    const handleInbound = createInboundHandler({
+      store: agentStore,
+      parse: parseMessage,
+      buildContext: buildLeagueContext,
+      fetchLeagueData,
+      exec: { executeParsed, resolveScoreTarget, executeScore, executeUndo },
+      render: { renderCommitted, renderConfirmRequest, renderBoard },
+    });
+    app.post("/api/inbound/message", async (req, res) => {
+      if (req.get("x-relay-secret") !== relayAuth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const { channel, handle, text } = req.body ?? {};
+      if (
+        typeof channel !== "string" ||
+        typeof handle !== "string" ||
+        typeof text !== "string"
+      ) {
+        return res
+          .status(400)
+          .json({ error: "channel, handle, and text are required" });
+      }
+      try {
+        const reply = await handleInbound({
+          channel,
+          handle,
+          text: text.slice(0, 1000),
+        });
+        res.json(reply);
+      } catch (err) {
+        console.error("POST /api/inbound/message failed:", err);
+        res.status(500).json({ error: "Inbound handling failed" });
+      }
+    });
+  } else {
+    app.post("/api/inbound/message", (_req, res) => {
+      res.status(503).json({ error: "Inbound messaging is not configured" });
+    });
+  }
+
   app.use(requireAccess);
 
   app.get("/api/access", (req, res) => {

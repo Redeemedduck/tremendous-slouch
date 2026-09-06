@@ -7,9 +7,9 @@ export function useTournaments() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/tournaments");
-      if (!r.ok) return;
-      const data = (await r.json()) as { tournaments: Tournament[] };
+      const response = await fetch("/api/tournaments");
+      if (!response.ok) return;
+      const data = (await response.json()) as { tournaments: Tournament[] };
       setTournaments(data.tournaments);
       setLoaded(true);
     } catch {
@@ -21,11 +21,12 @@ export function useTournaments() {
     refresh();
     // Tournaments are seeded at startup and rarely change. Refresh once on
     // mount and on visibility change; no recurring poll.
-    const onVis = () => {
+    const onVisibilityChange = () => {
       if (document.visibilityState === "visible") refresh();
     };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [refresh]);
 
   return { tournaments, loaded };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MoreHorizontal, Trash2, MessageCircleQuestion } from "lucide-react";
+import { MoreHorizontal, Trash2, MessageCircleQuestion, Check } from "lucide-react";
 import { eqName } from "../lib/format";
 import type { Poll } from "../lib/types";
 
@@ -11,11 +11,27 @@ export function PollCard({
 }: {
   poll: Poll;
   myName: string;
-  onToggle: (optionIdx: number) => void;
+  onToggle: (optionIdx: number) => void | Promise<unknown>;
   onDelete: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [pendingIdx, setPendingIdx] = useState<number | null>(null);
   const isHost = !!myName && eqName(poll.host, myName);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setDeleteArmed(false);
+  };
+
+  const vote = async (idx: number) => {
+    setPendingIdx(idx);
+    try {
+      await onToggle(idx);
+    } finally {
+      setPendingIdx(null);
+    }
+  };
 
   // Group responses by option index for fast lookup.
   const byOption: Record<number, string[]> = {};
@@ -23,6 +39,10 @@ export function PollCard({
     if (!byOption[r.optionIdx]) byOption[r.optionIdx] = [];
     byOption[r.optionIdx].push(r.name);
   }
+  const maxVotes = Math.max(
+    1,
+    ...poll.options.map((_, idx) => (byOption[idx] ?? []).length)
+  );
 
   const lower = myName.toLowerCase();
   const myPicks = new Set(
@@ -37,21 +57,21 @@ export function PollCard({
         <div className="flex items-start gap-2">
           <MessageCircleQuestion className="mt-0.5 h-4 w-4 shrink-0 text-fairway-700" />
           <div>
-            <span className="block text-xs font-medium uppercase tracking-wide text-stone-500">
-              Poll
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Poll · asked by {poll.host}
             </span>
-            <h2 className="mt-0.5 text-base font-semibold text-stone-900">
+            <h2 className="mt-0.5 text-base font-bold text-stone-950">
               {poll.prompt}
             </h2>
           </div>
         </div>
         {isHost && (
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Host options"
-              onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
+              onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-stone-100"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
@@ -60,21 +80,28 @@ export function PollCard({
                 <button
                   type="button"
                   aria-label="Close menu"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={closeMenu}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-stone-200">
+                <div className="absolute right-0 top-8 z-20 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-stone-200">
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
-                      if (window.confirm(`Delete this poll? This can't be undone.`)) {
-                        onDelete();
+                      if (!deleteArmed) {
+                        setDeleteArmed(true);
+                        return;
                       }
+                      closeMenu();
+                      onDelete();
                     }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                    className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      deleteArmed
+                        ? "bg-rose-600 font-semibold text-white"
+                        : "text-rose-600 hover:bg-rose-50"
+                    }`}
                   >
-                    <Trash2 className="h-4 w-4" /> Delete poll
+                    <Trash2 className="h-4 w-4" />
+                    {deleteArmed ? "Tap again to delete" : "Delete poll"}
                   </button>
                 </div>
               </>
@@ -83,59 +110,53 @@ export function PollCard({
         )}
       </div>
 
-      <p className="text-sm text-stone-500">
-        Asked by{" "}
-        <span className="font-medium text-stone-700">{poll.host}</span>
-      </p>
-
       <ul className="mt-3 space-y-2">
         {poll.options.map((opt, idx) => {
           const responders = byOption[idx] || [];
           const mine = myPicks.has(idx);
+          const share = (responders.length / maxVotes) * 100;
           return (
             <li key={idx}>
               <button
                 type="button"
-                onClick={() => onToggle(idx)}
-                disabled={!myName}
-                className={`group flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                onClick={() => vote(idx)}
+                aria-pressed={mine}
+                disabled={!myName || pendingIdx !== null}
+                className={`group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors ${
                   mine
                     ? "border-fairway-600 bg-fairway-50"
                     : "border-stone-200 bg-white hover:border-stone-300"
-                } disabled:cursor-not-allowed disabled:opacity-60`}
+                } disabled:cursor-not-allowed ${!myName ? "disabled:opacity-60" : ""}`}
               >
-                <span className="flex items-center gap-2 text-sm font-medium text-stone-900">
+                {responders.length > 0 && (
                   <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                    aria-hidden
+                    className={`absolute inset-y-0 left-0 rounded-r-full transition-[width] duration-300 ${
+                      mine ? "bg-fairway-100" : "bg-stone-100/80"
+                    }`}
+                    style={{ width: `${share}%` }}
+                  />
+                )}
+                <span className="relative flex items-center gap-2 text-sm font-medium text-stone-900">
+                  {/* Square, not a circle: picks are additive, so the control
+                      must read as a checkbox rather than a radio button. */}
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
                       mine
                         ? "border-fairway-600 bg-fairway-600"
                         : "border-stone-300 bg-white group-hover:border-stone-400"
-                    }`}
+                    } ${pendingIdx === idx ? "animate-pulse" : ""}`}
                   >
-                    {mine && (
-                      <svg
-                        className="h-3 w-3 text-white"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <path
-                          d="M2 6.5l2.5 2.5L10 3"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    {mine && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                   </span>
                   {opt}
                 </span>
-                <span className="text-xs font-medium text-stone-500">
+                <span className="relative text-xs font-bold tabular-nums text-stone-500">
                   {responders.length}
                 </span>
               </button>
               {responders.length > 0 && (
-                <div className="mt-1.5 ml-7 flex flex-wrap gap-1">
+                <div className="ml-7 mt-1.5 flex flex-wrap gap-1">
                   {responders.map((n) => (
                     <span
                       key={n}
@@ -155,10 +176,16 @@ export function PollCard({
         })}
       </ul>
 
-      {!myName && (
+      {!myName ? (
         <p className="mt-3 text-xs text-stone-500">
           Add your name above to vote.
         </p>
+      ) : (
+        poll.options.length > 1 && (
+          <p className="mt-3 text-xs text-stone-500">
+            Tap everything that works for you — more than one is fine.
+          </p>
+        )
       )}
     </article>
   );

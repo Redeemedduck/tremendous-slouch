@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Field, FormError, SubmitButton, inputClass } from "./ui/Field";
+import { Sheet } from "./ui/Sheet";
 
 export function ProfileSheet({
   open,
@@ -32,17 +33,6 @@ export function ProfileSheet({
     setError(null);
   }, [open, initialName, initialHandicap]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -68,91 +58,62 @@ export function ProfileSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-40">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-stone-900/40"
-      />
-      <div className="absolute bottom-0 left-0 right-0 mx-auto max-h-[calc(100dvh-1rem)] max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl">
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">Your profile</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <form onSubmit={submit} className="space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-500">
-              Name
-            </span>
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={30}
-              list="profile-name-suggestions"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-            />
-            {nameSuggestions.length > 0 && (
-              <datalist id="profile-name-suggestions">
-                {nameSuggestions.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-            )}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-500">
-              Handicap (GHIN index, optional)
-            </span>
-            <input
-              type="number"
-              value={handicap}
-              onChange={(e) => setHandicap(e.target.value)}
-              step={0.1}
-              min={-10}
-              max={54}
-              inputMode="decimal"
-              placeholder="e.g. 12.4"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-base focus:border-fairway-600 focus:outline-none focus:ring-2 focus:ring-fairway-100"
-            />
-          </label>
-
-          {error && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </p>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Your profile"
+      subtitle="How your name appears on the board and leaderboards"
+    >
+      <form onSubmit={submit} className="space-y-3">
+        <Field label="Name">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={30}
+            list="profile-name-suggestions"
+            className={inputClass}
+          />
+          {nameSuggestions.length > 0 && (
+            <datalist id="profile-name-suggestions">
+              {nameSuggestions.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
           )}
+        </Field>
+        <Field label="Handicap (GHIN index, optional)">
+          <input
+            type="number"
+            value={handicap}
+            onChange={(e) => setHandicap(e.target.value)}
+            step={0.1}
+            min={-10}
+            max={54}
+            inputMode="decimal"
+            placeholder="e.g. 12.4"
+            className={inputClass}
+          />
+        </Field>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl bg-fairway-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-fairway-700 disabled:opacity-60"
-          >
-            {submitting ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Forget your profile on this device?")) {
-                onClear();
-                onClose();
-              }
-            }}
-            className="w-full rounded-xl py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
-          >
-            Forget me on this device
-          </button>
-        </form>
-      </div>
-    </div>
+        <FormError>{error}</FormError>
+
+        <SubmitButton disabled={submitting}>
+          {submitting ? "Saving…" : "Save"}
+        </SubmitButton>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Forget your profile on this device?")) {
+              onClear();
+              onClose();
+            }
+          }}
+          className="w-full rounded-xl py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+        >
+          Forget me on this device
+        </button>
+      </form>
+    </Sheet>
   );
 }

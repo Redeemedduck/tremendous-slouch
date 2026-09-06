@@ -62,7 +62,7 @@ export function Comments({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-700"
+        className="-my-1.5 flex min-h-10 w-full items-center gap-1.5 py-1.5 text-xs font-medium text-stone-500 hover:text-stone-700"
       >
         <MessageSquare className="h-3.5 w-3.5" />
         {hasAny
@@ -103,7 +103,7 @@ export function Comments({
                           }
                         }}
                         aria-label="Delete comment"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 opacity-0 transition-opacity hover:bg-stone-200 hover:text-rose-600 group-hover:opacity-100"
+                        className="-m-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-200 hover:text-rose-600"
                       >
                         <X className="h-4 w-4" />
                       </button>
